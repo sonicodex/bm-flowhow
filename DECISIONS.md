@@ -17,13 +17,14 @@ Entry format:
 ## 2026-11-12 — `@cloudflare/vitest-plugin` instead of `vitest-pool-workers`
 
 - Decision: Tests use `@cloudflare/vitest-plugin` 1.8.1, with Vitest 4.1.12.
-- Reason: SPEC §9 names `@cloudflare/vitest-pool-workers`, whose README now
-  says it is deprecated, renamed to `@cloudflare/vitest-plugin`, and will
-  receive no more updates. Its last release (0.23.0) bundles wrangler
+- Reason: SPEC §9 named `@cloudflare/vitest-pool-workers`, whose README now
+  says it has been renamed to `@cloudflare/vitest-plugin` and will receive
+  no more updates (npm does not flag it as deprecated; it is replaced). Its last release (0.23.0) bundles wrangler
   4.124.0; the plugin bundles 4.161.0, the same version the project uses.
   It is the same integration under its new name: tests still run inside
   the Workers runtime against the real bindings.
-- Spec sections affected: 9 (Tests). SPEC should name the new package.
+- Spec sections affected: 9 (Tests), since updated by the owner to name
+  the new package.
 
 ## 2026-11-12 — Role labels confirmed by the owner
 
@@ -32,32 +33,16 @@ Entry format:
 - Reason: Owner's answer to the open question in "Role labels in the UI".
 - Spec sections affected: 4.
 
-## 2026-11-12 — Own D1 engine; no delivery closes without the live tests
+## 2026-11-12 — Tests run against the same database as the server
 
-- Status: **Obsolete** (plan_iteration_4). Both parts died with Django:
-  - The engine subclassed django-cf's D1 backend; the TypeScript server
-    queries D1 with plain SQL, so no ORM adds `FOR UPDATE`.
-  - The `pytest -m live` rule existed because unit tests ran on SQLite.
-    Tests now run inside the Workers runtime against a real local D1
-    (SPEC §9), so that divergence cannot happen.
-- Decision:
-  - `DATABASES["default"]["ENGINE"]` is `flowhow.db.d1`, a subclass of
-    django-cf's D1 `DatabaseWrapper` whose features set
-    `has_select_for_update = False`. django-cf declares it `True`, but D1
-    rejects `SELECT ... FOR UPDATE` ("D1_ERROR: near FOR: syntax error").
-    Django adds that clause in `select_for_update()` and inside
-    `update_or_create()`; with the flag off it leaves it out. The fix lives
-    in `src/flowhow/db/`, not in `python_modules/`, which is vendored and
-    regenerated on every packaging.
-  - `apply_grid` writes the draft with an explicit get/create instead of
-    `update_or_create()`.
-  - Unit tests run on in-memory SQLite (`flowhow.test_settings`), so they
-    do not see where D1 differs from SQLite. This failure passed all 62
-    unit tests. No delivery is closed until `uv run pytest -m live` passes
-    against the local dev server.
-- Reason: The dev loader returned 500 on local D1 while every unit test
-  was green.
-- Spec sections affected: 9 (Architecture), 11, 12.
+- Decision: Tests always run against the same database engine the server
+  runs on: D1, inside the Workers runtime (SPEC §9). No phase is closed on
+  tests that ran against anything else.
+- Reason: In an earlier implementation a failure passed 62 unit tests in
+  green and broke on the server, because the tests ran on a different
+  database than production. Only tests on the real engine see where
+  engines differ.
+- Spec sections affected: 9 (Tests), 11.
 
 ## 2026-11-12 — Import contract and flow document shape (entrega 1)
 
@@ -240,23 +225,6 @@ Entry format:
   loaded at import time and reads `os.environ`. The bridge is the
   shortest fix; it runs on every request but the WSGI import is cached.
 - Spec sections affected: 9.
-
-## 2026-11-12 — Local management endpoints for migrations and admin
-
-- Status: **Obsolete** (plan_iteration_4), together with
-  `/__load_dev_flow__/` (see "Reference flows as grid JSON"). The three
-  `__*__/` endpoints existed because `manage.py` could not reach the D1
-  binding. The TypeScript project applies migrations with
-  `wrangler d1 migrations`, so the problem is gone.
-- Decision: `src/flowhow/urls.py` exposes two unprotected endpoints,
-  `/__run_migrations__/` and `/__create_admin__/`, used only in local
-  development to replace `manage.py migrate` / `createsuperuser` (which
-  cannot reach the D1 binding from outside the Worker).
-- Reason: django-cf's reference template uses the same pattern. They must
-  be protected before any deploy; Stage 1 will either secure them with a
-  dev-only guard or replace them entirely with proper admin tooling.
-- Spec sections affected: 9 (never trust the browser) — these endpoints
-  are a known gap to close before Stage 1 is deployable.
 
 ## 2026-11-12 — Dedicated test settings module
 

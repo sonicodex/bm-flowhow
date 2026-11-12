@@ -49,6 +49,7 @@
   --color-cat-2-bg: #555555; --color-cat-2-text: #FFFFFF; --color-cat-2-border: #555555;
   --color-cat-3-bg: #FFFFFF; --color-cat-3-text: #111111; --color-cat-3-border: #111111;
   --color-cat-4-bg: #BDBDBD; --color-cat-4-text: #111111; --color-cat-4-border: #6B6B6B;
+  --border-width: 1px;
   --radius: 8px;
   --radius-lg: 12px;
   --space-1: 4px;

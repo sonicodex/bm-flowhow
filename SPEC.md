@@ -410,9 +410,10 @@ several parent flows.
   No offline data.
 - **Local development:** `wrangler dev` with a local D1 database. No frontend
   build step or bundler unless a real need appears.
-- **Tests:** Vitest with `@cloudflare/vitest-pool-workers`, so they execute
-  inside the Workers runtime against a real local D1. Never test the server
-  against a different database than the one it runs on.
+- **Tests:** Vitest with `@cloudflare/vitest-plugin` (the package formerly
+  named `@cloudflare/vitest-pool-workers`), so they execute inside the Workers
+  runtime against a real local D1. Never test the server against a different
+  database than the one it runs on.
 - **Deployment:** Cloudflare remains the target, but nothing is deployed until
   the owner asks for it.
 

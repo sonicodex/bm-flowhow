@@ -12,13 +12,13 @@ body {
   align-items: center;
   padding: var(--space-4) var(--space-6);
   background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: var(--border-width) solid var(--color-border);
 }
 
 .site-logo {
   display: inline-flex;
   border-radius: var(--radius);
-  outline: 1px solid transparent;
+  outline: var(--border-width) solid transparent;
 }
 
 .site-logo:focus-visible {
