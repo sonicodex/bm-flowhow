@@ -1,0 +1,1670 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FlowHow: prototipo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap">
+<style>
+/* Theme tokens: the only place where colours, type and spacing are defined. */
+:root {
+  --font-family: 'Google Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --color-bg: #F5F5F5;
+  --color-surface: #FFFFFF;
+  --color-subtle: #EBEBEB;
+  --color-text: #111111;
+  --color-text-muted: #555555;
+  --color-text-dim: #6B6B6B;
+  --color-border: #D4D4D4;
+  --color-border-strong: #8A8A8A;
+  /* Brand blue and its variations (palette 1) */
+  --color-primary: #28519D;
+  --color-primary-strong: #1E3F78; /* hover */
+  --color-primary-deep: #142A4F;   /* pressed, deepest tone */
+  --color-primary-mid: #326AC9;    /* links */
+  --color-primary-bright: #3D7FF2; /* highlights and tints */
+  --color-primary-tint: #ECF2FE;   /* primary-bright at 10 % on white */
+  --color-on-primary: #FFFFFF;
+  --color-edge: #BDBDBD;
+  --color-edge-strong: #1E3F78;
+  --shadow-focus: 0 0 0 1px rgba(17, 17, 17, 0.14), 0 3px 14px rgba(17, 17, 17, 0.5);
+  --shadow-focus-svg: drop-shadow(0 2px 6px rgba(17, 17, 17, 0.6));
+  /* Status icons */
+  --color-status-pending: #C23C3C;
+  --color-status-progress: #27519B;
+  --color-status-done: #00BB02;
+  --color-status-alert: #FFC72A;
+  /* Flow colours (palette 2). The app sets --flow, --flow-strong, --flow-on, --flow-tint and --flow-visited per flow. */
+  --flow-1: #28519D; --flow-2: #7D6AC2; --flow-3: #CA88D6; --flow-4: #B45684; --flow-5: #902E33; --flow-6: #E58B52;
+  --flow-7: #976C00; --flow-8: #A8AC3D; --flow-9: #206616; --flow-10: #27BF9A; --flow-11: #00868D; --flow-12: #32B2E8;
+  /* Category conventions (tag badges and legend). Slot N applies to the Nth category. */
+  --color-cat-1-bg: #E3E3E3; --color-cat-1-text: #111111; --color-cat-1-border: #111111;
+  --color-cat-2-bg: #555555; --color-cat-2-text: #FFFFFF; --color-cat-2-border: #555555;
+  --color-cat-3-bg: #FFFFFF; --color-cat-3-text: #111111; --color-cat-3-border: #111111;
+  --color-cat-4-bg: #BDBDBD; --color-cat-4-text: #111111; --color-cat-4-border: #6B6B6B;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-md: 16px;
+  --text-lg: 20px;
+  --text-xl: 28px;
+}
+
+* { box-sizing: border-box; }
+html { color-scheme: light; }
+body { margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-family); font-size: var(--text-md); line-height: 1.5; }
+h1, h2, p, ul, ol, dl, dd { margin: 0; padding: 0; }
+h1 { font-size: var(--text-xl); line-height: 1.25; font-weight: 500; }
+h2 { font-size: var(--text-lg); line-height: 1.3; font-weight: 500; }
+ul, ol { list-style: none; }
+button, input, select, textarea { font: inherit; color: inherit; }
+code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.9em; background: var(--color-subtle); padding: 1px 6px; border-radius: 4px; }
+:focus-visible { outline: 2px solid transparent; outline-offset: 2px; box-shadow: var(--shadow-focus); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.muted { color: var(--color-text-muted); }
+.small { font-size: var(--text-sm); }
+.pad { padding: var(--space-6); }
+.ico { flex: none; }
+.i-pending { fill: var(--color-status-pending); } .i-progress { fill: var(--color-status-progress); }
+.i-done { fill: var(--color-status-done); } .i-alert { fill: var(--color-status-alert); }
+.i-close, .i-back, .i-link, .i-sub, .i-wait, .i-zoom { fill: currentColor; }
+.btn .ico { margin-right: 8px; vertical-align: -1px; }
+.flow-dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: var(--flow, var(--color-primary)); flex: none; }
+h1 .flow-dot { margin-right: 12px; }
+a { color: var(--color-primary-mid); }
+
+.top { background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
+.top-in { max-width: 1320px; margin: 0 auto; padding: var(--space-2) var(--space-6); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.brand { display: flex; align-items: center; gap: var(--space-3); font-weight: 500; }
+.logo { display: block; height: 26px; width: auto; max-width: 58vw; }
+.tag { font-size: var(--text-xs); font-weight: 400; color: var(--color-text-muted); border: 1px solid var(--color-border); border-radius: 999px; padding: 2px 10px; }
+.top nav { display: flex; gap: var(--space-2); }
+.top nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--space-4); border-radius: var(--radius); color: var(--color-text); text-decoration: none; font-size: var(--text-sm); font-weight: 500; }
+.top nav a:hover { background: var(--color-subtle); }
+.top nav a[aria-current] { background: var(--color-primary); color: var(--color-on-primary); }
+
+.page { max-width: 1320px; margin: 0 auto; padding: var(--space-8) var(--space-6) var(--space-10); display: flex; flex-direction: column; gap: var(--space-4); }
+.page-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-4); }
+.card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
+.status { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
+.pub { display: flex; align-items: center; gap: var(--space-4); }
+.msg { min-height: 24px; font-size: var(--text-sm); font-weight: 500; }
+
+.btn { min-height: 44px; padding: 0 var(--space-4); border: 1px solid var(--color-border-strong); border-radius: var(--radius); background: var(--color-surface); color: var(--color-text); font-size: var(--text-sm); font-weight: 500; cursor: pointer; }
+.btn:not(:disabled):hover { background: var(--color-subtle); }
+.btn.primary { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-on-primary); }
+.btn.primary:not(:disabled):hover { background: var(--color-primary-strong); border-color: var(--color-primary-strong); }
+.btn.primary:not(:disabled):active { background: var(--color-primary-deep); border-color: var(--color-primary-deep); }
+.btn.ghost { border-color: transparent; }
+.btn:disabled { cursor: not-allowed; opacity: 0.45; }
+.icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: none; border-radius: 6px; background: transparent; color: var(--color-text-muted); font-size: 18px; line-height: 1; cursor: pointer; }
+.icon-btn:hover { background: var(--color-subtle); color: var(--color-text); }
+
+input[type="text"], select, textarea { min-height: 40px; padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius); background: var(--color-surface); }
+textarea { width: 100%; padding: var(--space-3); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; resize: vertical; }
+
+.form { padding: var(--space-4) var(--space-6); display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.field { display: flex; flex-direction: column; gap: var(--space-1); flex: 1 1 240px; }
+.field.grow { flex: 3 1 360px; }
+.field label, .flabel { font-size: var(--text-sm); font-weight: 500; }
+.field.wide { flex-basis: 100%; }
+.swatches { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.swatch { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--color-surface); box-shadow: 0 0 0 1px var(--color-border); cursor: pointer; padding: 0; }
+.swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--color-text); }
+.swatch:focus-visible { box-shadow: 0 0 0 2px var(--color-text), var(--shadow-focus); }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.toolbar .spacer { flex: 1; }
+.inline { display: inline-flex; align-items: center; gap: var(--space-2); }
+.inline input { width: 170px; min-height: 44px; }
+.row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.paste { padding: var(--space-6); display: flex; flex-direction: column; gap: var(--space-3); }
+.review ul, .errors ul { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-2); }
+.review li, .errors li, .ok, .note { display: flex; align-items: flex-start; gap: var(--space-2); font-size: var(--text-sm); }
+.review li .ico, .errors li .ico, .ok .ico, .note .ico { margin-top: 3px; }
+.errors { padding: var(--space-4) var(--space-6); }
+.errors h2 { font-size: var(--text-md); }
+
+.editor-cols { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--space-4); align-items: start; }
+.grid-wrap { overflow-x: auto; padding: var(--space-2); }
+.grid { border-collapse: collapse; width: 100%; min-width: 1370px; table-layout: fixed; }
+.grid th { text-align: left; font-size: var(--text-xs); font-weight: 500; color: var(--color-text-muted); padding: var(--space-2); white-space: nowrap; }
+.grid td { padding: 2px; }
+.grid input, .grid select { width: 100%; min-height: 36px; padding: 0 var(--space-2); border-color: transparent; border-radius: 6px; font-size: var(--text-sm); background: transparent; }
+.grid tr:hover input, .grid tr:hover select { border-color: var(--color-border); }
+.grid input:focus, .grid select:focus { border-color: var(--color-border-strong); background: var(--color-surface); }
+.grid tbody tr { border-top: 1px solid var(--color-subtle); }
+.grid tr.has-error td:first-child { box-shadow: inset 3px 0 0 var(--color-primary-strong); }
+.c-id { width: 64px; } .c-type { width: 116px; } .c-ref { width: 160px; } .c-title { width: 180px; } .c-desc { width: 250px; } .c-tag { width: 130px; } .c-dep { width: 150px; } .c-exits { width: 150px; } .c-del { width: 40px; }
+.th-cat { display: inline-flex; align-items: center; gap: 2px; }
+.th-cat .icon-btn { width: 22px; height: 22px; font-size: 14px; }
+.hint { padding: var(--space-3) var(--space-2) var(--space-2); font-size: 13px; }
+.preview { padding: var(--space-4); position: sticky; top: var(--space-4); }
+.preview h2 { font-size: var(--text-sm); color: var(--color-text-muted); margin-bottom: var(--space-2); }
+.preview .diagram { max-height: 70vh; padding-bottom: var(--space-4); }
+
+.phases { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.phases button { min-height: 44px; display: inline-flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-4) 0 var(--space-2); border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-surface); color: var(--color-text); font-size: var(--text-sm); font-weight: 500; cursor: pointer; }
+.phases .num { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--color-border-strong); font-size: var(--text-xs); }
+.phases button[aria-current] { border-color: var(--flow, var(--color-primary)); }
+.phases button[aria-current] .num { background: var(--flow, var(--color-primary)); border-color: var(--flow, var(--color-primary)); color: var(--flow-on, var(--color-on-primary)); }
+.phases button:disabled { cursor: not-allowed; color: var(--color-text-dim); background: transparent; }
+
+.cols { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: stretch; }
+.diagram-card { flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; position: relative; }
+/* Step actions float in the bottom right corner of the diagram card. */
+.actions { position: absolute; left: var(--space-4); right: var(--space-4); bottom: var(--space-4); z-index: 2; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: var(--space-3); pointer-events: none; }
+.actions > * { pointer-events: auto; }
+.actions .btn { min-width: 128px; box-shadow: 0 1px 4px rgba(17, 17, 17, 0.16); }
+.actions .btn:focus-visible { box-shadow: var(--shadow-focus); }
+.actions .msg { max-width: 360px; min-height: 0; margin-right: auto; padding: var(--space-2) var(--space-3); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); box-shadow: 0 1px 4px rgba(17, 17, 17, 0.16); }
+.actions .msg:empty { display: none; }
+.side { flex: 1 1 340px; max-width: 100%; padding: var(--space-8) var(--space-6); display: flex; flex-direction: column; gap: var(--space-4); }
+.diagram { overflow: auto; max-height: 76vh; padding: var(--space-4) var(--space-4) 88px; }
+.diagram svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+.progress, .filter { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-6); border-bottom: 1px solid var(--color-border); font-size: var(--text-sm); }
+.bar { flex: 1 1 120px; height: 6px; border-radius: 3px; background: var(--color-subtle); overflow: hidden; }
+.bar div { height: 6px; background: var(--flow, var(--color-primary)); transition: width 0.2s; }
+.filter label { font-weight: 500; }
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.chip, .chip-btn { display: inline-flex; align-items: center; padding: 4px 12px; border: 1px solid var(--color-border); border-radius: 999px; font-size: var(--text-sm); background: var(--color-surface); color: var(--color-text); }
+.chip-btn { min-height: 36px; cursor: pointer; }
+.chip-btn[aria-pressed="true"] { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-on-primary); }
+
+.eyebrow { font-size: var(--text-xs); font-weight: 500; letter-spacing: 0.08em; color: var(--color-text-muted); }
+.step-title { font-size: var(--text-xl); line-height: 1.25; }
+.desc { font-size: var(--text-md); }
+.tags { display: flex; flex-direction: column; gap: var(--space-2); }
+.tags div { display: flex; align-items: baseline; gap: var(--space-3); }
+.tags dt { flex: 0 0 104px; font-size: var(--text-sm); color: var(--color-text-muted); }
+.tags dd { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.exits { display: flex; flex-direction: column; gap: var(--space-2); }
+.label { font-size: var(--text-sm); font-weight: 500; }
+.exit-row { font-size: var(--text-sm); }
+.btn.branch { text-align: left; font-weight: 400; font-size: 15px; border-color: var(--flow, var(--color-primary)); background: var(--flow-tint, var(--color-primary-tint)); padding: var(--space-2) var(--space-4); }
+.btn.branch strong, .exit-row strong { font-weight: 500; }
+.btn.branch { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.btn.branch.seen { border-color: var(--color-border-strong); background: var(--color-surface); }
+.seen-tag .ico { margin-right: 0; }
+.seen-tag { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--color-text-muted); }
+.note { padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-bg); }
+.nav { margin-top: auto; display: flex; gap: var(--space-3); padding-top: var(--space-4); }
+.nav .btn { flex: 1; }
+
+/* Diagram marks read the same tokens. */
+.edge { fill: none; stroke-width: 1.5; }
+.edge.soft { stroke: var(--color-edge); }
+.edge.strong { stroke: var(--flow-strong, var(--color-edge-strong)); }
+.arrow.soft { fill: var(--color-edge); }
+.arrow.strong { fill: var(--flow-strong, var(--color-edge-strong)); }
+.elabel { font-size: 12.5px; font-weight: 500; paint-order: stroke; stroke: var(--color-surface); stroke-width: 4px; stroke-linejoin: round; }
+.elabel.soft { fill: var(--color-text-dim); }
+.elabel.strong { fill: var(--color-text); }
+.node .shape { fill: var(--color-surface); stroke: var(--flow-strong, var(--color-edge-strong)); stroke-width: 1.5; }
+.node .ring { fill: none; stroke: none; }
+.node .ntext { font-size: 13px; fill: var(--color-text); }
+.node .nicon { fill: var(--flow-strong, var(--color-edge-strong)); }
+.node .shape2 { fill: none; stroke: var(--flow-strong, var(--color-edge-strong)); stroke-width: 1; }
+.node.t-end .shape { stroke-width: 3; }
+.node.t-link .shape { stroke-dasharray: 5 4; }
+.node.dim .shape, .node.dim .shape2 { stroke: var(--color-edge); }
+.node.dim .ntext { fill: var(--color-text-dim); }
+.node.dim .nicon { fill: var(--color-text-dim); }
+.node.visited .shape { fill: var(--flow-visited, var(--color-primary-tint)); }
+.node.current .shape, .node.hit .shape { fill: var(--flow, var(--color-primary)); stroke: var(--flow, var(--color-primary)); stroke-dasharray: none; }
+.node.current .ntext, .node.hit .ntext { fill: var(--flow-on, var(--color-on-primary)); font-weight: 500; }
+.node.current .nicon, .node.hit .nicon { fill: var(--flow-on, var(--color-on-primary)); }
+.node.current .shape2, .node.hit .shape2 { stroke: var(--flow-on, var(--color-on-primary)); }
+/* The active step (current in the tour, selected in the review) is marked by a shadow, not a ring. */
+.node.current, .node.selected { filter: var(--shadow-focus-svg); }
+.node.clickable { cursor: pointer; }
+.node.clickable:hover .shape { stroke-width: 2.5; }
+.node:focus, .node:focus-visible { outline: none; box-shadow: none; }
+.node:focus-visible { filter: var(--shadow-focus-svg); }
+.badge rect { stroke-width: 1.5; }
+.badge text { font-size: 13px; font-weight: 500; }
+.badge.c1 rect { fill: var(--color-cat-1-bg); stroke: var(--color-cat-1-border); } .badge.c1 text { fill: var(--color-cat-1-text); }
+.badge.c2 rect { fill: var(--color-cat-2-bg); stroke: var(--color-cat-2-border); } .badge.c2 text { fill: var(--color-cat-2-text); }
+.badge.c3 rect { fill: var(--color-cat-3-bg); stroke: var(--color-cat-3-border); stroke-dasharray: 4 3; } .badge.c3 text { fill: var(--color-cat-3-text); }
+.badge.c4 rect { fill: var(--color-cat-4-bg); stroke: var(--color-cat-4-border); } .badge.c4 text { fill: var(--color-cat-4-text); }
+.legend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); padding: var(--space-3) var(--space-6); border-bottom: 1px solid var(--color-border); font-size: var(--text-sm); }
+.lg { display: inline-flex; align-items: center; gap: var(--space-2); }
+.sw { width: 28px; height: 16px; border-radius: 4px; border: 1.5px solid; }
+.sw.c1 { background: var(--color-cat-1-bg); border-color: var(--color-cat-1-border); }
+.sw.c2 { background: var(--color-cat-2-bg); border-color: var(--color-cat-2-border); }
+.sw.c3 { background: var(--color-cat-3-bg); border-color: var(--color-cat-3-border); border-style: dashed; }
+.sw.c4 { background: var(--color-cat-4-bg); border-color: var(--color-cat-4-border); }
+
+.flowbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); font-size: var(--text-sm); }
+.flowbar label { font-weight: 500; }
+.flowbar select { min-height: 44px; min-width: 240px; }
+.crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-6); border-bottom: 1px solid var(--color-border); font-size: var(--text-sm); }
+.crumb { min-height: 36px; padding: 0 var(--space-2); border: none; border-radius: 6px; background: transparent; color: var(--color-primary-mid); text-decoration: underline; cursor: pointer; }
+.crumb:hover { background: var(--color-subtle); }
+.crumb.here { display: inline-flex; align-items: center; font-weight: 500; text-decoration: none; cursor: default; color: var(--color-text); }
+.subinfo { font-size: var(--text-sm); padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius); }
+
+@media (max-width: 1100px) {
+  .editor-cols { grid-template-columns: minmax(0, 1fr); }
+  .preview { position: static; }
+}
+.zoom-btn { display: none; min-height: 36px; padding: 0 var(--space-3); }
+
+/* Phones: the step panel and its actions sit above the diagram, in a compact form. */
+@media (max-width: 760px) {
+  .page { padding: var(--space-4) var(--space-3) var(--space-8); gap: var(--space-3); }
+  .top-in { padding: var(--space-2) var(--space-3); }
+  h1 { font-size: 22px; }
+  .cols { gap: var(--space-3); }
+  .side { order: -1; flex-basis: 100%; padding: var(--space-4); gap: var(--space-2); }
+  .side .eyebrow { font-size: 11px; }
+  .step-title { font-size: var(--text-lg); }
+  .desc { font-size: 15px; line-height: 1.4; }
+  .side .exits.info, .side .subinfo { display: none; }
+  .tags { flex-direction: row; flex-wrap: wrap; gap: var(--space-2); }
+  .tags div { gap: var(--space-1); }
+  .tags dt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .chip { padding: 2px 10px; font-size: 13px; }
+  .note { padding: var(--space-2) var(--space-3); font-size: 13px; }
+  .msg { min-height: 0; }
+  .nav { margin-top: 0; padding-top: var(--space-2); gap: var(--space-2); }
+  .btn.branch { font-size: var(--text-sm); }
+  .diagram { max-height: 60vh; padding: var(--space-2) var(--space-2) 84px; }
+  .actions { left: var(--space-3); right: var(--space-3); bottom: var(--space-3); gap: var(--space-2); }
+  .actions .btn { min-width: 0; flex: 1 1 120px; }
+  .actions .msg { flex-basis: 100%; max-width: none; }
+  .progress, .filter, .legend, .crumbs { padding: var(--space-2) var(--space-3); gap: var(--space-2); }
+  .phases button { padding: 0 var(--space-3) 0 var(--space-1); }
+  .flowbar select { min-width: 0; flex: 1; }
+  .zoom-btn { display: inline-flex; align-items: center; }
+}
+@media (prefers-reduced-motion: reduce) { .bar div { transition: none; } }
+
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in">
+<div class="brand"><svg class="logo" role="img" aria-label="Blue Monkey FlowHow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480.07 46.26">
+  
+  <g>
+    <path fill="#1b345c" d="M249.19,6.65V0c-9.25,0-14.45,4.36-15.12,12.52h-3.08v6.65h3.02v7.07h7.26v-7.07h6.9v-6.65h-6.84c.54-4.17,2.9-5.87,7.86-5.87ZM234.01,42.76h7.26v-11.05h-7.26v11.05Z"/>
+    <path fill="#1b345c" d="M251.98,42.76h7.25v-11.05h-7.25v11.05ZM251.98.42v25.82h7.25V.42h-7.25Z"/>
+    <path fill="#1b345c" d="M277.62,18.75c4.62,0,7.79,2.76,8.32,7.49h7.3c-.59-8.53-6.66-14.14-15.56-14.14s-15.01,5.61-15.61,14.14h7.29c.52-4.73,3.69-7.49,8.26-7.49ZM277.62,36.65c-3.67,0-6.44-1.78-7.65-4.94h-7.52c1.56,7.08,7.29,11.6,15.23,11.6s13.63-4.52,15.18-11.6h-7.53c-1.21,3.16-3.99,4.94-7.71,4.94Z"/>
+    <path fill="#1b345c" d="M333.02,12.52l-4.94,13.72h7.56l5.19-13.72h-7.81ZM325.64,33.02l-.47-1.31h-7.43l4.15,11.05h7.5l4.18-11.05h-7.46l-.47,1.31ZM320.44,18.45l2.24-5.93h-7.8l-4.94,13.72h13.28l-2.78-7.79ZM307.5,33.02l-.47-1.31h-7.46l4.18,11.05h7.5l4.15-11.05h-7.43l-.47,1.31ZM300.12,12.52h-7.8l5.19,13.72h7.55l-4.94-13.72Z"/>
+    <path fill="#27519b" d="M363.21,42.76h7.25v-11.05h-7.25v11.05ZM357.52,11.98c-3.39,0-5.87,1.02-7.62,2.66V.42h-7.26v25.82h7.26v-1.32c0-4.29,3.14-6.23,6.65-6.23s6.66,1.94,6.66,6.23v1.32h7.25v-1.5c0-5.26-3.93-12.76-12.94-12.76ZM342.64,42.76h7.26v-11.05h-7.26v11.05Z"/>
+    <path fill="#27519b" d="M388.85,18.75c4.62,0,7.79,2.76,8.32,7.49h7.3c-.59-8.53-6.66-14.14-15.56-14.14s-15.01,5.61-15.61,14.14h7.29c.52-4.73,3.69-7.49,8.26-7.49ZM388.85,36.65c-3.67,0-6.44-1.78-7.65-4.94h-7.52c1.56,7.08,7.29,11.6,15.23,11.6s13.63-4.52,15.18-11.6h-7.53c-1.21,3.16-3.99,4.94-7.71,4.94Z"/>
+    <path fill="#27519b" d="M444.25,12.52l-4.94,13.72h7.56l5.19-13.72h-7.81ZM436.87,33.02l-.47-1.31h-7.43l4.15,11.05h7.5l4.18-11.05h-7.46l-.47,1.31ZM431.67,18.45l2.24-5.93h-7.8l-4.94,13.72h13.28l-2.78-7.79ZM418.73,33.02l-.47-1.31h-7.46l4.18,11.05h7.5l4.15-11.05h-7.43l-.47,1.31ZM411.35,12.52h-7.8l5.19,13.72h7.55l-4.94-13.72Z"/>
+    <polygon fill="#1b345c" points="466.22 26.24 466.22 31.71 447.39 31.71 449.46 26.24 466.22 26.24"/>
+    <polygon fill="#1b345c" points="460.44 40.57 453.69 40.56 463.74 28.97 453.7 17.39 460.45 17.38 470.5 28.97 460.44 40.57"/>
+    <polygon fill="#1b345c" points="470.01 40.57 463.27 40.56 473.31 28.97 463.28 17.4 470.02 17.38 480.07 28.97 470.01 40.57"/>
+    <g>
+      <g>
+        <g>
+          <path fill="#1b345c" d="M9.75,18.89c-2.63,0-4.49.95-5.37,2.08v-9.09H0v16.47c0,5.88,4.2,9.38,9.53,9.38s9.35-3.76,9.35-9.38-3.8-9.46-9.13-9.46ZM9.42,33.72c-3.03,0-5.04-2.01-5.04-5.4s2.01-5.4,5.04-5.4,5.08,2.01,5.08,5.4-2.01,5.4-5.08,5.4Z"/>
+          <rect fill="#1b345c" x="20.52" y="11.88" width="4.38" height="25.56"/>
+          <path fill="#1b345c" d="M39.32,29.96c0,2.56-1.9,3.76-4.02,3.76s-4.02-1.2-4.02-3.76v-10.77h-4.38v10.88c0,3.18,2.37,7.7,8.4,7.7s8.4-4.53,8.4-7.7v-10.88h-4.38v10.77Z"/>
+          <path fill="#1b345c" d="M59.82,32.06c0-.1-.01-.19-.02-.28h-.87c-.88,1.28-2.3,1.97-4.13,1.97-2.59,0-4.42-1.46-4.89-3.98h10.08c.5-2.11,1.91-3.85,3.81-4.67-1.17-3.8-4.46-6.17-8.96-6.17-5.66,0-9.46,3.76-9.46,9.38s3.8,9.46,9.46,9.46c2.54,0,4.68-.76,6.28-2.1-.47-.67-.83-1.44-1.06-2.27-.12-.44-.2-.89-.24-1.34ZM54.81,22.95c2.19,0,3.83,1.02,4.6,2.81h-9.16c.77-1.79,2.41-2.81,4.56-2.81Z"/>
+        </g>
+        <g>
+          <path fill="#1b345c" d="M115.77,18.66c-3.18,0-5.08,1.28-6.21,2.92-1.13-1.64-3.03-2.92-6.21-2.92-5.56,0-8.01,3.86-8.35,6.95,1.37.89,2.38,2.29,2.82,4l.03.12s.03.12.04.19c.09.45.14.91.15,1.37v.07c0,.07,0,.16,0,.25v.14c0,.1-.02.2-.02.31-.04.45-.12.9-.24,1.34-.44,1.58-1.36,2.92-2.57,3.85h4.13v-10.77c0-2.59,1.9-3.76,4.02-3.76s4.02,1.17,4.02,3.76v10.77h4.38v-10.77c0-2.59,1.9-3.76,4.02-3.76s4.02,1.17,4.02,3.76v10.77h4.38v-10.88c0-3.18-2.37-7.7-8.4-7.7Z"/>
+          <path fill="#1b345c" d="M135.3,18.73c-5.66,0-9.46,3.76-9.46,9.38s3.8,9.46,9.46,9.46,9.42-3.8,9.42-9.46-3.76-9.38-9.42-9.38ZM135.27,33.56c-3.03,0-5.04-2.01-5.04-5.4s2.01-5.4,5.04-5.4,5.08,2.01,5.08,5.4-2.01,5.4-5.08,5.4Z"/>
+          <path fill="#1b345c" d="M154.8,18.66c-6.02,0-8.4,4.53-8.4,7.7v10.88h4.38v-10.77c0-2.59,1.9-3.76,4.02-3.76s4.02,1.17,4.02,3.76v10.77h4.38v-10.88c0-3.18-2.37-7.7-8.4-7.7Z"/>
+          <polygon fill="#1b345c" points="183.25 18.99 178.02 18.99 169.77 30.2 169.77 11.69 165.39 11.69 165.39 37.25 169.77 37.25 173.9 31.66 177.92 37.25 183.1 37.25 176.49 28.12 183.25 18.99"/>
+          <path fill="#1b345c" d="M191.83,18.73c-5.66,0-9.46,3.76-9.46,9.38s3.8,9.46,9.46,9.46c4.42,0,7.67-2.3,8.87-5.99h-4.78c-.88,1.28-2.3,1.97-4.13,1.97-2.59,0-4.42-1.46-4.89-3.98h14.28c.04-.47.07-.95.07-1.46,0-5.62-3.76-9.38-9.42-9.38ZM187.23,25.56c.77-1.79,2.41-2.81,4.56-2.81s3.83,1.02,4.6,2.81h-9.16Z"/>
+          <path fill="#1b345c" d="M213.99,18.99l-4.38,12.63-4.38-12.63h-4.56l6.28,17.78c.88,2.45-1.1,5.48-3.54,5.48v4.02c6.13,0,7.19-4.75,8.69-9.02l6.46-18.26h-4.56Z"/>
+          <g>
+            <path fill="#1b345c" d="M221.57,20.59c.28-.04.71-.08,1.21-.08.57,0,.98.08,1.27.29.24.19.37.46.37.82,0,.47-.35.79-.64.91v.02c.24.11.38.35.48.67.11.38.23.93.31,1.07h-1.02c-.06-.11-.16-.4-.26-.87-.1-.44-.24-.54-.55-.54h-.16v1.41h-.99v-3.69ZM222.57,22.15h.26c.38,0,.59-.18.59-.46s-.18-.44-.52-.44c-.19,0-.29,0-.34.02v.88Z"/>
+            <path fill="#1b345c" d="M222.92,19.07c-1.86,0-3.37,1.51-3.37,3.37s1.51,3.37,3.37,3.37,3.37-1.51,3.37-3.37-1.51-3.37-3.37-3.37ZM222.92,25.05c-1.44,0-2.61-1.17-2.61-2.61s1.17-2.61,2.61-2.61,2.61,1.17,2.61,2.61-1.17,2.61-2.61,2.61Z"/>
+          </g>
+        </g>
+        <g>
+          <g>
+            <path fill="#26519c" d="M77.64,35.05s-.09,0-.14.01c-.04,0-.09.02-.13.04-.08.03-.15.08-.21.15-.06.06-.11.13-.14.22-.03.08-.05.17-.05.26,0,.05,0,.09.01.14,0,.04.02.09.04.13.05.12.14.22.25.3.11.07.24.11.38.11.37,0,.67-.31.67-.68,0-.37-.31-.67-.68-.67Z"/>
+            <path fill="#26519c" d="M80.76,35.35c-.07-.11-.17-.19-.3-.25-.04-.02-.08-.03-.13-.04s-.09-.01-.14-.01c-.37,0-.68.3-.68.67,0,.37.3.68.67.68.14,0,.27-.04.38-.11.04-.02.07-.05.1-.08.06-.06.11-.13.15-.21.02-.04.03-.08.04-.13,0-.04.01-.09.01-.14,0-.09-.02-.18-.05-.26-.02-.04-.04-.08-.06-.12Z"/>
+          </g>
+          <path fill="#27519b" d="M96.61,31.45c0-.38-.05-.75-.12-1.11-.01-.06-.03-.12-.04-.17,0-.03-.01-.05-.02-.07-.46-1.8-1.77-3.27-3.59-3.77-.42-.12-.85-.17-1.26-.18l-.25.04h0s0-.01,0-.02c-.02-.12-.04-.25-.06-.37,0-.03-.01-.07-.02-.1,0,0,0,0,0-.01,0-.05-.02-.09-.03-.14-.04-.18-.08-.36-.12-.53,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0-.02,0-.03-.04-.16-.09-.33-.14-.49,0-.02-.01-.05-.02-.07,0,0,0,0,0-.01,0,0,0-.02,0-.02-.02-.06-.04-.11-.06-.17-.02-.05-.03-.09-.05-.14-.02-.05-.04-.11-.05-.16,0-.01,0-.03-.01-.04-.02-.06-.04-.12-.06-.17-.1-.27-.22-.53-.34-.79-.05-.1-.09-.21-.14-.31,0,0,0,0,0,0-.22.04-.44.06-.67.06-.3,0-.59-.04-.87-.11-.02,0-.04,0-.06-.01,0-.07,0-.13,0-.2,0-.68-.13-1.33-.36-1.93-.02-.06-.04-.11-.07-.17-.23-.04-.46-.07-.7-.07-.42,0-.83.08-1.21.2-.02,0-.04.01-.06.02-.05-.12-.08-.23-.12-.35-.09-.31-.14-.64-.14-.98,0-.42.08-.82.21-1.19,0,0,0,0,0,0-.04-.03-.08-.05-.12-.08-.12-.07-.24-.13-.36-.19-.1-.05-.21-.1-.31-.14-.27-.11-.55-.2-.84-.27-.26-.06-.54-.1-.81-.12-.13,0-.26-.02-.39-.02-.84,0-1.64.2-2.34.55-.14.07-.28.15-.41.23,0,0,0,0,0,0-.33-1.76.7-2.31.7-2.31-.15-.08-.4-.13-.66-.16,0,0,0,0,0,0,0,0,0,0,0,0h0s-.03,0-.04,0c-.56-.06-1.18-.03-1.18-.03h0c-.25.01-.51.03-.76.05-4.46.44-8.16,3.5-9.51,7.62,0,0,0,0,0,0-.49-.06-.96-.19-1.4-.39,0,0-.01,0-.02,0-.31.64-.58,1.3-.78,1.99-.01.04-.02.08-.03.11-.05.17-.09.33-.13.5,0,.02,0,.03-.01.05-.04.18-.08.37-.12.55,0,.01,0,.03,0,.04-.01.07-.02.14-.03.21l-.02.12-.25-.02c-.42,0-.84.06-1.26.18-2.16.6-3.6,2.56-3.76,4.81,0,.11-.01.22-.01.33,0,0,0,0,0,0,0,0,0,.02,0,.03h0s0,.04,0,.06c0,.04,0,.07,0,.11,0,.03,0,.05,0,.08,0,.02,0,.05,0,.07,0,.08.01.17.02.25.03.36.1.72.2,1.08.7,2.54,2.92,4.22,5.28,4.21h0s2.39,0,2.39,0h2.99s1.99-1.02,1.99-1.02c.01,0,.02-.01.03-.02-.04,0-.08.01-.12.02-.29.05-.58.08-.89.08-.43,0-.85-.06-1.26-.16-.17-.04-.34-.09-.51-.16,0,0,0,0,0,0-.04-.02-.09-.04-.13-.05-.25-.1-.49-.22-.72-.36h0s-.04-.02-.06-.03c0,0-.02-.01-.03-.02,0,0-.02-.01-.03-.02-.17-.1-.34-.23-.52-.38,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0-.31-.26-.6-.56-.8-.77-.06-.06-.12-.13-.18-.19-.06-.06-.09-.1-.09-.1h0s-.02-.03-.03-.05c0,0-.01-.01-.02-.02h0s-.01-.02-.02-.02c-.46-.6-.76-1.33-.84-2.14,0-.02,0-.03,0-.05h0s0-.1,0-.15c0-.08,0-.16-.02-.24,0-.06,0-.12,0-.17,0-.12,0-.24,0-.36,0,0,0,0,0,0,0,0,0-.01,0-.02,0-.36.04-.7.11-1.04.03-.13.06-.27.09-.4,0-.01,0-.02,0-.04,0,0,0-.02,0-.03,0,0,0,0,0-.01.02-.08.05-.16.07-.24.03-.11.07-.21.11-.31.09-.23.19-.44.31-.63,0,0,0-.01.01-.02.01-.02.02-.03.03-.05.06-.09.11-.17.17-.25.01-.02.02-.03.04-.05.01-.02.02-.03.04-.05,0,0,.01-.02.02-.03.15-.21.32-.4.51-.57,0,0,.02-.02.02-.03,0,0,.01-.01.02-.02,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,.11-.11.23-.21.36-.3,0,0,0,0,0,0,.31-.24.65-.44,1.01-.59,0,0,0,0,.01,0,.09-.04.19-.08.29-.11.02,0,.03-.01.05-.02.11-.03.21-.07.32-.09,0,0,0,0,0,0,0,0,.02,0,.03,0,0,0,.01,0,.02,0,.08-.02.17-.04.26-.05,0,0,0,0,0,0,.18-.03.36-.05.54-.06.06,0,.12,0,.18,0,0,0,0,0,0,0h0s0,0,0,0c.09,0,.19,0,.29,0,.04,0,.08,0,.11,0,.06,0,.11,0,.17.01.05,0,.1,0,.15.01.03,0,.07,0,.1.01.96.11,1.94.4,2.8.73,0,0,.02,0,.02,0,.01,0,.02,0,.03.01.44.17.84.35,1.2.51,0,0,0,0,0,0,.11.04.29.14.5.24.46.23.78.42.9.49.03.01.04.02.05.03,0,0,0,0,0,0h0s0,0,0,0h0s0,0,0,0h0s0,0,0,0h0s0,0,0,0c0,0,0,0,0,0,0,0,0,0,.01,0,0,0,0,0,.01,0,0,0,.01,0,.02-.01.05-.03.15-.09.27-.15.09-.05.19-.1.3-.16.1-.05.21-.11.33-.17.21-.11.4-.2.5-.24,0,0,0,0,0,0,.36-.17.76-.35,1.2-.51.01,0,.02,0,.03-.01,0,0,.02,0,.02,0,.12-.05.25-.09.37-.14.56-.2,1.15-.37,1.75-.49.25-.02.5-.06.74-.11.02,0,.04,0,.05,0,.05,0,.1,0,.15-.01.06,0,.11,0,.17-.01.03,0,.07,0,.1,0,0,0,0,0,0,0,0,0,.02,0,.03,0,.09,0,.17,0,.26,0,0,0,0,0,0,0h0s0,0,0,0c.06,0,.12,0,.18,0,.18,0,.37.03.54.06,0,0,0,0,0,0,.09.01.17.03.26.05,0,0,.01,0,.02,0,0,0,.02,0,.03,0,0,0,0,0,0,0,.11.03.22.06.32.09.02,0,.03.01.05.02.1.03.19.07.28.11,0,0,0,0,.01,0,.36.15.7.35,1.01.59,0,0,0,0,0,0,.12.1.24.2.36.3,0,0,0,0,0,0,0,0,0,0,0,0h0s.01.01.02.02c0,0,.02.02.02.03.02.02.04.04.06.06.06.06.11.12.17.18,0,0,0,.01.01.02.09.1.18.2.26.31,0,0,.01.02.02.03.01.02.02.03.04.05.01.02.02.03.04.05.07.1.14.2.2.3v.02c.13.19.23.4.32.63.04.1.08.2.11.31.03.08.05.16.07.24,0,0,0,0,0,.01,0,0,0,.02,0,.03,0,.01,0,.02,0,.04.05.18.09.37.12.56.02.15.04.29.06.44.01.14.02.27.02.41,0,0,0,.02,0,.02,0,0,0,.01,0,.02,0,0,0,0,0,0,0,.12,0,.24,0,.36,0,.06,0,.12,0,.17-.01.08-.02.16-.02.24,0,.05,0,.1,0,.15,0,.02,0,.03,0,.05-.02.17-.05.35-.08.51-.13.61-.4,1.16-.76,1.63,0,0-.01.02-.02.02,0,0-.01.01-.02.02-.01.01-.02.03-.03.04h0s-.03.04-.09.1c-.06.07-.12.13-.18.19-.2.21-.5.51-.8.77,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0-.17.15-.35.28-.52.38,0,0-.02.01-.03.02,0,0-.02.01-.02.02-.02.01-.04.02-.06.03h0c-.23.13-.47.25-.72.35-.04.02-.08.04-.13.05,0,0,0,0,0,0-.18.07-.36.12-.55.16-.35.09-.72.13-1.1.14-.04,0-.08,0-.13,0-.3,0-.6-.03-.89-.08-.04,0-.08-.01-.12-.02l.64.33,1.38.71h5.4c2.35,0,4.55-1.68,5.25-4.21.1-.36.16-.72.2-1.08,0-.08.01-.17.02-.25,0,0,0,0,0,0,0-.02,0-.05,0-.07,0-.08,0-.17,0-.25h0s0-.02,0-.03ZM67.16,35.17c-1.21.33-2.46-.16-3.23-1.15-.02-.02-.03-.04-.05-.06-.04-.05-.07-.11-.11-.16-.18-.29-.33-.61-.43-.96-.15-.54-.16-1.08-.06-1.59.24-1.1,1.02-2.02,2.13-2.33.29-.08.57-.11.86-.1,0,.15-.01.31-.01.46,0,0,0,0,0,0,0,0,0,0,0,0h0s0,0,0,.01c0,0,0,0,0,.01,0,0,0,0,0,.01h0s0,.02,0,.02,0,.01,0,.02c0,.11,0,.22,0,.33,0,.06,0,.11,0,.17,0,.02,0,.03,0,.05,0,.06,0,.13.01.19,0,.07,0,.15.01.22-.03,0-.06.01-.08.02-.53.15-.88.63-.93,1.18,0,.02,0,.03,0,.05,0,.02,0,.04,0,.06,0,0,0,0,0,0,0,0,0,0,0,.01,0,0,0,.01,0,.02,0,.01,0,.03,0,.04,0,.02,0,.03,0,.05,0,.02,0,.04,0,.07h0c0,.1.02.2.05.3.19.7.85,1.14,1.51,1.03.2.63.45,1.25.74,1.83-.13.06-.27.12-.42.16ZM94.63,32.11s0,.04,0,.07c0,.1-.02.19-.04.29,0,.01,0,.02,0,.03-.02.11-.04.22-.07.32-.48,1.75-2.2,2.81-3.83,2.35-.15-.04-.28-.1-.42-.16.29-.59.54-1.2.74-1.83.66.11,1.32-.32,1.51-1.03,0-.02,0-.05.01-.07,0,0,0,0,0,0,0-.03.01-.06.02-.08.04-.19.04-.39.01-.57,0-.01,0-.02,0-.04-.04-.18-.11-.34-.2-.49-.16-.26-.41-.46-.72-.54-.02,0-.05-.01-.07-.02.03-.34.05-.69.05-1.04,0-.16,0-.32-.01-.49.28,0,.56.02.84.1.69.19,1.25.62,1.63,1.18.34.5.54,1.1.57,1.74,0,.03,0,.06,0,.08,0,.06,0,.12,0,.18Z"/>
+        </g>
+      </g>
+      <g>
+        <g>
+          <path fill="#26519c" d="M77.64,35.05s-.09,0-.14.01c-.04,0-.09.02-.13.04-.08.03-.15.08-.21.15-.06.06-.11.13-.14.22-.03.08-.05.17-.05.26,0,.05,0,.09.01.14,0,.04.02.09.04.13.05.12.14.22.25.3.11.07.24.11.38.11.37,0,.67-.31.67-.68,0-.37-.31-.67-.68-.67Z"/>
+          <path fill="#26519c" d="M80.76,35.35c-.07-.11-.17-.19-.3-.25-.04-.02-.08-.03-.13-.04s-.09-.01-.14-.01c-.37,0-.68.3-.68.67,0,.37.3.68.67.68.14,0,.27-.04.38-.11.04-.02.07-.05.1-.08.06-.06.11-.13.15-.21.02-.04.03-.08.04-.13,0-.04.01-.09.01-.14,0-.09-.02-.18-.05-.26-.02-.04-.04-.08-.06-.12Z"/>
+        </g>
+        <path fill="#27519b" d="M96.61,31.45c0-.38-.05-.75-.12-1.11-.01-.06-.03-.12-.04-.17,0-.03-.01-.05-.02-.07-.46-1.8-1.77-3.27-3.59-3.77-.42-.12-.85-.17-1.26-.18l-.25.04h0s0-.01,0-.02c-.02-.12-.04-.25-.06-.37,0-.03-.01-.07-.02-.1,0,0,0,0,0-.01,0-.05-.02-.09-.03-.14-.04-.18-.08-.36-.12-.53,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0-.02,0-.03-.04-.16-.09-.33-.14-.49,0-.02-.01-.05-.02-.07,0,0,0,0,0-.01,0,0,0-.02,0-.02-.02-.06-.04-.11-.06-.17-.02-.05-.03-.09-.05-.14-.02-.05-.04-.11-.05-.16,0-.01,0-.03-.01-.04-.02-.06-.04-.12-.06-.17-.1-.27-.22-.53-.34-.79-.05-.1-.09-.21-.14-.31,0,0,0,0,0,0-.22.04-.44.06-.67.06-.3,0-.59-.04-.87-.11-.02,0-.04,0-.06-.01,0-.07,0-.13,0-.2,0-.68-.13-1.33-.36-1.93-.02-.06-.04-.11-.07-.17-.23-.04-.46-.07-.7-.07-.42,0-.83.08-1.21.2-.02,0-.04.01-.06.02-.05-.12-.08-.23-.12-.35-.09-.31-.14-.64-.14-.98,0-.42.08-.82.21-1.19,0,0,0,0,0,0-.04-.03-.08-.05-.12-.08-.12-.07-.24-.13-.36-.19-.1-.05-.21-.1-.31-.14-.27-.11-.55-.2-.84-.27-.26-.06-.54-.1-.81-.12-.13,0-.26-.02-.39-.02-.84,0-1.64.2-2.34.55-.14.07-.28.15-.41.23,0,0,0,0,0,0-.33-1.76.7-2.31.7-2.31-.15-.08-.4-.13-.66-.16,0,0,0,0,0,0,0,0,0,0,0,0h0s-.03,0-.04,0c-.56-.06-1.18-.03-1.18-.03h0c-.25.01-.51.03-.76.05-4.46.44-8.16,3.5-9.51,7.62,0,0,0,0,0,0-.49-.06-.96-.19-1.4-.39,0,0-.01,0-.02,0-.31.64-.58,1.3-.78,1.99-.01.04-.02.08-.03.11-.05.17-.09.33-.13.5,0,.02,0,.03-.01.05-.04.18-.08.37-.12.55,0,.01,0,.03,0,.04-.01.07-.02.14-.03.21l-.02.12-.25-.02c-.42,0-.84.06-1.26.18-2.16.6-3.6,2.56-3.76,4.81,0,.11-.01.22-.01.33,0,0,0,0,0,0,0,0,0,.02,0,.03h0s0,.04,0,.06c0,.04,0,.07,0,.11,0,.03,0,.05,0,.08,0,.02,0,.05,0,.07,0,.08.01.17.02.25.03.36.1.72.2,1.08.7,2.54,2.92,4.22,5.28,4.21h0s2.39,0,2.39,0h2.99s1.99-1.02,1.99-1.02c.01,0,.02-.01.03-.02-.04,0-.08.01-.12.02-.29.05-.58.08-.89.08-.43,0-.85-.06-1.26-.16-.17-.04-.34-.09-.51-.16,0,0,0,0,0,0-.04-.02-.09-.04-.13-.05-.25-.1-.49-.22-.72-.36h0s-.04-.02-.06-.03c0,0-.02-.01-.03-.02,0,0-.02-.01-.03-.02-.17-.1-.34-.23-.52-.38,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0-.31-.26-.6-.56-.8-.77-.06-.06-.12-.13-.18-.19-.06-.06-.09-.1-.09-.1h0s-.02-.03-.03-.05c0,0-.01-.01-.02-.02h0s-.01-.02-.02-.02c-.46-.6-.76-1.33-.84-2.14,0-.02,0-.03,0-.05h0s0-.1,0-.15c0-.08,0-.16-.02-.24,0-.06,0-.12,0-.17,0-.12,0-.24,0-.36,0,0,0,0,0,0,0,0,0-.01,0-.02,0-.36.04-.7.11-1.04.03-.13.06-.27.09-.4,0-.01,0-.02,0-.04,0,0,0-.02,0-.03,0,0,0,0,0-.01.02-.08.05-.16.07-.24.03-.11.07-.21.11-.31.09-.23.19-.44.31-.63,0,0,0-.01.01-.02.01-.02.02-.03.03-.05.06-.09.11-.17.17-.25.01-.02.02-.03.04-.05.01-.02.02-.03.04-.05,0,0,.01-.02.02-.03.15-.21.32-.4.51-.57,0,0,.02-.02.02-.03,0,0,.01-.01.02-.02,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,.11-.11.23-.21.36-.3,0,0,0,0,0,0,.31-.24.65-.44,1.01-.59,0,0,0,0,.01,0,.09-.04.19-.08.29-.11.02,0,.03-.01.05-.02.11-.03.21-.07.32-.09,0,0,0,0,0,0,0,0,.02,0,.03,0,0,0,.01,0,.02,0,.08-.02.17-.04.26-.05,0,0,0,0,0,0,.18-.03.36-.05.54-.06.06,0,.12,0,.18,0,0,0,0,0,0,0h0s0,0,0,0c.09,0,.19,0,.29,0,.04,0,.08,0,.11,0,.06,0,.11,0,.17.01.05,0,.1,0,.15.01.03,0,.07,0,.1.01.96.11,1.94.4,2.8.73,0,0,.02,0,.02,0,.01,0,.02,0,.03.01.44.17.84.35,1.2.51,0,0,0,0,0,0,.11.04.29.14.5.24.46.23.78.42.9.49.03.01.04.02.05.03,0,0,0,0,0,0h0s0,0,0,0h0s0,0,0,0h0s0,0,0,0h0s0,0,0,0c0,0,0,0,0,0,0,0,0,0,.01,0,0,0,0,0,.01,0,0,0,.01,0,.02-.01.05-.03.15-.09.27-.15.09-.05.19-.1.3-.16.1-.05.21-.11.33-.17.21-.11.4-.2.5-.24,0,0,0,0,0,0,.36-.17.76-.35,1.2-.51.01,0,.02,0,.03-.01,0,0,.02,0,.02,0,.12-.05.25-.09.37-.14.56-.2,1.15-.37,1.75-.49.25-.02.5-.06.74-.11.02,0,.04,0,.05,0,.05,0,.1,0,.15-.01.06,0,.11,0,.17-.01.03,0,.07,0,.1,0,0,0,0,0,0,0,0,0,.02,0,.03,0,.09,0,.17,0,.26,0,0,0,0,0,0,0h0s0,0,0,0c.06,0,.12,0,.18,0,.18,0,.37.03.54.06,0,0,0,0,0,0,.09.01.17.03.26.05,0,0,.01,0,.02,0,0,0,.02,0,.03,0,0,0,0,0,0,0,.11.03.22.06.32.09.02,0,.03.01.05.02.1.03.19.07.28.11,0,0,0,0,.01,0,.36.15.7.35,1.01.59,0,0,0,0,0,0,.12.1.24.2.36.3,0,0,0,0,0,0,0,0,0,0,0,0h0s.01.01.02.02c0,0,.02.02.02.03.02.02.04.04.06.06.06.06.11.12.17.18,0,0,0,.01.01.02.09.1.18.2.26.31,0,0,.01.02.02.03.01.02.02.03.04.05.01.02.02.03.04.05.07.1.14.2.2.3v.02c.13.19.23.4.32.63.04.1.08.2.11.31.03.08.05.16.07.24,0,0,0,0,0,.01,0,0,0,.02,0,.03,0,.01,0,.02,0,.04.05.18.09.37.12.56.02.15.04.29.06.44.01.14.02.27.02.41,0,0,0,.02,0,.02,0,0,0,.01,0,.02,0,0,0,0,0,0,0,.12,0,.24,0,.36,0,.06,0,.12,0,.17-.01.08-.02.16-.02.24,0,.05,0,.1,0,.15,0,.02,0,.03,0,.05-.02.17-.05.35-.08.51-.13.61-.4,1.16-.76,1.63,0,0-.01.02-.02.02,0,0-.01.01-.02.02-.01.01-.02.03-.03.04h0s-.03.04-.09.1c-.06.07-.12.13-.18.19-.2.21-.5.51-.8.77,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0-.17.15-.35.28-.52.38,0,0-.02.01-.03.02,0,0-.02.01-.02.02-.02.01-.04.02-.06.03h0c-.23.13-.47.25-.72.35-.04.02-.08.04-.13.05,0,0,0,0,0,0-.18.07-.36.12-.55.16-.35.09-.72.13-1.1.14-.04,0-.08,0-.13,0-.3,0-.6-.03-.89-.08-.04,0-.08-.01-.12-.02l.64.33,1.38.71h5.4c2.35,0,4.55-1.68,5.25-4.21.1-.36.16-.72.2-1.08,0-.08.01-.17.02-.25,0,0,0,0,0,0,0-.02,0-.05,0-.07,0-.08,0-.17,0-.25h0s0-.02,0-.03ZM67.16,35.17c-1.21.33-2.46-.16-3.23-1.15-.02-.02-.03-.04-.05-.06-.04-.05-.07-.11-.11-.16-.18-.29-.33-.61-.43-.96-.15-.54-.16-1.08-.06-1.59.24-1.1,1.02-2.02,2.13-2.33.29-.08.57-.11.86-.1,0,.15-.01.31-.01.46,0,0,0,0,0,0,0,0,0,0,0,0h0s0,0,0,.01c0,0,0,0,0,.01,0,0,0,0,0,.01h0s0,.02,0,.02,0,.01,0,.02c0,.11,0,.22,0,.33,0,.06,0,.11,0,.17,0,.02,0,.03,0,.05,0,.06,0,.13.01.19,0,.07,0,.15.01.22-.03,0-.06.01-.08.02-.53.15-.88.63-.93,1.18,0,.02,0,.03,0,.05,0,.02,0,.04,0,.06,0,0,0,0,0,0,0,0,0,0,0,.01,0,0,0,.01,0,.02,0,.01,0,.03,0,.04,0,.02,0,.03,0,.05,0,.02,0,.04,0,.07h0c0,.1.02.2.05.3.19.7.85,1.14,1.51,1.03.2.63.45,1.25.74,1.83-.13.06-.27.12-.42.16ZM94.63,32.11s0,.04,0,.07c0,.1-.02.19-.04.29,0,.01,0,.02,0,.03-.02.11-.04.22-.07.32-.48,1.75-2.2,2.81-3.83,2.35-.15-.04-.28-.1-.42-.16.29-.59.54-1.2.74-1.83.66.11,1.32-.32,1.51-1.03,0-.02,0-.05.01-.07,0,0,0,0,0,0,0-.03.01-.06.02-.08.04-.19.04-.39.01-.57,0-.01,0-.02,0-.04-.04-.18-.11-.34-.2-.49-.16-.26-.41-.46-.72-.54-.02,0-.05-.01-.07-.02.03-.34.05-.69.05-1.04,0-.16,0-.32-.01-.49.28,0,.56.02.84.1.69.19,1.25.62,1.63,1.18.34.5.54,1.1.57,1.74,0,.03,0,.06,0,.08,0,.06,0,.12,0,.18Z"/>
+      </g>
+    </g>
+  </g>
+</svg><span class="tag">Prototipo</span></div>
+<nav aria-label="Secciones"><a href="#ver" data-nav="ver">Ver flujo</a><a href="#editar" data-nav="editar">Editar</a></nav>
+</div></header>
+<main id="app"></main>
+<script>
+/* Core logic: parsing, validation, layout and tour engine. No DOM access. */
+var Core = (function () {
+  'use strict';
+
+  var TYPES = ['start', 'activity', 'decision', 'wait', 'subflow', 'link', 'end'];
+  var TYPE_LABELS = { start: 'Inicio', activity: 'Actividad', decision: 'Decisión', wait: 'Espera', subflow: 'Subflujo', link: 'Enlace', end: 'Fin' };
+  var TYPE_ALIASES = {
+    inicio: 'start', start: 'start', actividad: 'activity', activity: 'activity',
+    decision: 'decision', espera: 'wait', wait: 'wait', subflujo: 'subflow', subflow: 'subflow', enlace: 'link', link: 'link', fin: 'end', end: 'end'
+  };
+
+  var EXAMPLE = {
+    name: 'Despacho de pedidos',
+    objective: 'Atender el pedido de un cliente desde la solicitud hasta el cierre.',
+    categories: ['Responsable', 'Herramienta'],
+    steps: [
+      { id: 'P1', type: 'start', title: 'Recibir solicitud', description: 'Llega el pedido del cliente.', tags: { Responsable: 'Ventas', Herramienta: 'Correo' }, exits: 'P2' },
+      { id: 'P2', type: 'activity', title: 'Revisar inventario', description: 'Se consulta si hay existencias.', tags: { Responsable: 'Almacén', Herramienta: 'ERP' }, exits: 'P3' },
+      { id: 'P3', type: 'decision', title: '¿Hay existencias?', description: 'Define si se compra o se despacha.', tags: { Responsable: 'Almacén', Herramienta: 'ERP' }, exits: 'Sí:P5 | No:P4' },
+      { id: 'P4', type: 'activity', title: 'Comprar material', description: 'Se genera la orden de compra.', tags: { Responsable: 'Compras', Herramienta: 'ERP, Correo' }, exits: 'P2' },
+      { id: 'P5', type: 'subflow', ref: 'sub1', title: 'Alistar y despachar', description: 'Se alista el pedido y se entrega al transporte. Tiene su propio flujo.', tags: { Responsable: 'Almacén, Ventas', Herramienta: '' }, exits: 'P6' },
+      { id: 'P6', type: 'link', title: 'Flujo: Facturación', description: 'Continúa en otro flujo.', tags: { Responsable: '', Herramienta: '' }, exits: 'P7' },
+      { id: 'P7', type: 'end', title: 'Pedido cerrado', description: '', tags: { Responsable: '', Herramienta: '' }, exits: '' }
+    ]
+  };
+
+  var EXAMPLE_SUB = {
+    name: 'Alistamiento de pedido',
+    objective: 'Preparar un pedido y entregarlo al transporte. Lo usan varios flujos.',
+    categories: ['Responsable', 'Herramienta'],
+    steps: [
+      { id: 'A1', type: 'start', title: 'Recibir orden de despacho', description: 'Llega la orden con los productos a alistar.', tags: { Responsable: 'Almacén', Herramienta: 'ERP' }, exits: 'A2' },
+      { id: 'A2', type: 'activity', title: 'Separar productos', description: 'Se toman los productos de su ubicación.', tags: { Responsable: 'Almacén', Herramienta: '' }, exits: 'A3' },
+      { id: 'A3', type: 'decision', title: '¿Requiere embalaje especial?', description: 'Depende del tipo de producto y del destino.', tags: { Responsable: 'Almacén', Herramienta: '' }, exits: 'Sí:A4 | No:A5' },
+      { id: 'A4', type: 'activity', title: 'Embalar', description: 'Se protege el producto para el viaje.', tags: { Responsable: 'Almacén', Herramienta: '' }, exits: 'A5' },
+      { id: 'A5', type: 'end', title: 'Entregar al transporte', description: 'El pedido sale con su guía.', tags: { Responsable: 'Almacén, Ventas', Herramienta: 'Correo' }, exits: '' }
+    ]
+  };
+
+  function norm(s) {
+    return String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
+  }
+
+  function parseExits(text) {
+    return String(text || '').split(/[|;]/).map(function (p) { return p.trim(); }).filter(Boolean).map(function (p) {
+      var i = p.lastIndexOf(':');
+      if (i === -1) return { label: '', to: p };
+      return { label: p.slice(0, i).trim(), to: p.slice(i + 1).trim() };
+    });
+  }
+
+  function formatExits(exits) {
+    return exits.map(function (e) { return e.label ? e.label + ':' + e.to : e.to; }).join(' | ');
+  }
+
+  /* "Depends on" is the incoming view of the same connections that "exits" stores. */
+  function predecessorsText(draft, id) {
+    id = String(id || '').trim();
+    if (!id) return '';
+    var out = [];
+    draft.steps.forEach(function (s) {
+      var sid = String(s.id || '').trim();
+      parseExits(s.exits).forEach(function (e) { if (e.to === id && sid) out.push({ label: e.label, to: sid }); });
+    });
+    return formatExits(out);
+  }
+
+  /* Rewrites the predecessors' exits so that exactly the listed steps lead to the step in `row`. */
+  function applyDependsOn(draft, row, text) {
+    var target = draft.steps[row]; var res = { unknown: [], noId: false };
+    var id = target ? String(target.id || '').trim() : '';
+    if (!id) { res.noId = true; return res; }
+    var wanted = new Map();
+    parseExits(text).forEach(function (w) { if (w.to !== id) wanted.set(w.to, w.label); });
+    var known = new Set(draft.steps.map(function (s) { return String(s.id || '').trim(); }));
+    wanted.forEach(function (_, pid) { if (!known.has(pid)) res.unknown.push(pid); });
+    if (res.unknown.length) return res; // nothing is changed when an ID is wrong
+    draft.steps.forEach(function (s) {
+      var sid = String(s.id || '').trim();
+      var exits = parseExits(s.exits); var has = false;
+      exits = exits.filter(function (e) {
+        if (e.to !== id) return true;
+        if (!wanted.has(sid)) return false;
+        has = true; if (wanted.get(sid)) e.label = wanted.get(sid);
+        return true;
+      });
+      if (wanted.has(sid) && !has && sid) exits.push({ label: wanted.get(sid), to: id });
+      s.exits = formatExits(exits);
+    });
+    return res;
+  }
+
+  function parseTags(text) {
+    return String(text || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+  }
+
+  /* Turns the editable draft (raw strings) into the structured flow. */
+  function compile(draft) {
+    var cats = (draft.categories || []).slice();
+    return {
+      name: String(draft.name || '').trim(),
+      objective: String(draft.objective || '').trim(),
+      categories: cats,
+      steps: (draft.steps || []).map(function (s) {
+        var tags = {};
+        cats.forEach(function (c) { tags[c] = parseTags(s.tags && s.tags[c]); });
+        return {
+          id: String(s.id || '').trim(), type: s.type, title: String(s.title || '').trim(),
+          description: String(s.description || '').trim(), tags: tags, exits: parseExits(s.exits),
+          ref: s.type === 'subflow' ? String(s.ref || '') : ''
+        };
+      })
+    };
+  }
+
+  function validate(flow) {
+    var errors = [];
+    var ids = new Map();
+    var ref = function (s, i) { return s.id ? 'Paso ' + s.id : 'Fila ' + (i + 1); };
+    if (!flow.name) errors.push({ row: null, message: 'El flujo no tiene nombre.' });
+    if (!flow.steps.length) errors.push({ row: null, message: 'El flujo no tiene pasos.' });
+    flow.steps.forEach(function (s, i) {
+      if (!s.id) errors.push({ row: i, message: 'Fila ' + (i + 1) + ': falta el ID.' });
+      else if (ids.has(s.id)) errors.push({ row: i, message: 'Fila ' + (i + 1) + ': el ID «' + s.id + '» está repetido.' });
+      else ids.set(s.id, s);
+      if (!s.title) errors.push({ row: i, message: ref(s, i) + ': falta el título.' });
+      if (TYPES.indexOf(s.type) === -1) errors.push({ row: i, message: ref(s, i) + ': el tipo no es válido.' });
+    });
+    flow.steps.forEach(function (s, i) {
+      s.exits.forEach(function (e) {
+        if (!ids.has(e.to)) errors.push({ row: i, message: ref(s, i) + ': la salida apunta a «' + e.to + '», que no existe.' });
+      });
+      if (s.type === 'decision') {
+        if (s.exits.length < 2) errors.push({ row: i, message: ref(s, i) + ': una decisión necesita al menos dos salidas.' });
+        if (s.exits.some(function (e) { return !e.label; })) errors.push({ row: i, message: ref(s, i) + ': cada salida de una decisión necesita rótulo (ej. Sí:P5 | No:P4).' });
+      }
+      if (s.type !== 'end' && s.exits.length === 0) errors.push({ row: i, message: ref(s, i) + ': no tiene salida y no es de tipo Fin.' });
+    });
+    var starts = flow.steps.filter(function (s) { return s.type === 'start' && s.id; });
+    if (flow.steps.length && !starts.length) errors.push({ row: null, message: 'El flujo no tiene ningún paso de tipo Inicio.' });
+    var seen = new Set();
+    var stack = starts.map(function (s) { return s.id; });
+    while (stack.length) {
+      var id = stack.pop();
+      if (seen.has(id) || !ids.has(id)) continue;
+      seen.add(id);
+      ids.get(id).exits.forEach(function (e) { stack.push(e.to); });
+    }
+    if (starts.length) {
+      flow.steps.forEach(function (s, i) {
+        if (s.id && ids.get(s.id) === s && !seen.has(s.id)) errors.push({ row: i, message: ref(s, i) + ': no es alcanzable desde ningún inicio.' });
+      });
+    }
+    return errors;
+  }
+
+  /* Checks subflow references. `lib(id)` returns { name, published } for a flow, or null. */
+  function validateRefs(flow, selfId, lib) {
+    var errors = [];
+    var reaches = function (from, seen) {
+      if (from === selfId) return true;
+      if (seen.has(from)) return false;
+      seen.add(from);
+      var f = lib(from);
+      if (!f || !f.published) return false;
+      return f.published.steps.some(function (s) { return s.type === 'subflow' && s.ref && reaches(s.ref, seen); });
+    };
+    flow.steps.forEach(function (s, i) {
+      if (s.type !== 'subflow') return;
+      var ref = s.id ? 'Paso ' + s.id : 'Fila ' + (i + 1);
+      var f = s.ref ? lib(s.ref) : null;
+      if (!s.ref) errors.push({ row: i, message: ref + ': elige cuál es el subflujo.' });
+      else if (!f) errors.push({ row: i, message: ref + ': el subflujo ya no existe.' });
+      else if (s.ref === selfId) errors.push({ row: i, message: ref + ': un flujo no puede ser subflujo de sí mismo.' });
+      else if (!f.published) errors.push({ row: i, message: ref + ': el subflujo «' + f.name + '» aún no está publicado.' });
+      else if (reaches(s.ref, new Set())) errors.push({ row: i, message: ref + ': «' + f.name + '» ya contiene este flujo; no pueden incluirse mutuamente.' });
+    });
+    return errors;
+  }
+
+  /* Parses cells pasted from a spreadsheet (tab separated, header row first). */
+  function parseTable(text, resolveFlow) {
+    var out = { steps: [], categories: [], errors: [] };
+    var lines = String(text || '').split(/\r?\n/).filter(function (l) { return l.trim() !== ''; });
+    if (!lines.length) { out.errors.push('No hay nada pegado.'); return out; }
+    var head = lines[0].split('\t').map(function (h) { return h.trim(); });
+    var col = { id: -1, type: -1, title: -1, description: -1, exits: -1, dep: -1, ref: -1 };
+    var cats = [];
+    head.forEach(function (h, i) {
+      var n = norm(h);
+      if (n === 'id') col.id = i;
+      else if (n === 'tipo' || n === 'type') col.type = i;
+      else if (n === 'titulo' || n === 'title') col.title = i;
+      else if (n === 'descripcion' || n === 'description') col.description = i;
+      else if (n === 'salidas' || n === 'exits') col.exits = i;
+      else if (n === 'depende de' || n === 'depends on') col.dep = i;
+      else if (n === 'subflujo' || n === 'subflow') col.ref = i;
+      else if (h) cats.push({ name: h, i: i });
+    });
+    if (col.id === -1 || col.title === -1) {
+      out.errors.push('La primera fila debe traer los encabezados. Como mínimo: ID y Título.');
+      return out;
+    }
+    out.categories = cats.map(function (c) { return c.name; });
+    lines.slice(1).forEach(function (line, r) {
+      var cells = line.split('\t');
+      var get = function (i) { return i === -1 || cells[i] == null ? '' : cells[i].trim(); };
+      var rawType = get(col.type);
+      var type = TYPE_ALIASES[norm(rawType)];
+      if (!type) {
+        out.errors.push('Fila ' + (r + 2) + ': tipo «' + rawType + '» no reconocido; se dejó como Actividad.');
+        type = 'activity';
+      }
+      var tags = {};
+      cats.forEach(function (c) { tags[c.name] = get(c.i); });
+      var step = { id: get(col.id), type: type, title: get(col.title), description: get(col.description), tags: tags, exits: get(col.exits) };
+      var refName = get(col.ref);
+      if (type === 'subflow' && refName) {
+        var rid = resolveFlow ? resolveFlow(refName) : null;
+        if (rid) step.ref = rid; else out.errors.push('Fila ' + (r + 2) + ': no existe un flujo llamado «' + refName + '».');
+      }
+      out.steps.push(step);
+    });
+    if (col.dep !== -1) {
+      var tmp = { steps: out.steps };
+      lines.slice(1).forEach(function (line, r) {
+        var dep = (line.split('\t')[col.dep] || '').trim();
+        if (!dep) return;
+        // Union with the exits already declared: keep existing predecessors, add the listed ones.
+        var merged = [predecessorsText(tmp, out.steps[r].id), dep].filter(Boolean).join(' | ');
+        applyDependsOn(tmp, r, merged).unknown.forEach(function (u) {
+          out.errors.push('Fila ' + (r + 2) + ': depende de «' + u + '», que no existe.');
+        });
+      });
+    }
+    if (!out.steps.length) out.errors.push('Solo llegó la fila de encabezados.');
+    return out;
+  }
+
+  function toTSV(draft, flowName) {
+    var cats = draft.categories || [];
+    var clean = function (v) { return String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' '); };
+    var rows = [['ID', 'Tipo', 'Subflujo', 'Título', 'Descripción'].concat(cats, ['Salidas'])];
+    draft.steps.forEach(function (s) {
+      rows.push([s.id, TYPE_LABELS[s.type] || '', s.type === 'subflow' && s.ref && flowName ? flowName(s.ref) || '' : '', s.title, s.description].concat(cats.map(function (c) { return (s.tags && s.tags[c]) || ''; }), [s.exits]).map(clean));
+    });
+    return rows.map(function (r) { return r.join('\t'); }).join('\n');
+  }
+
+  function wrapTitle(title, maxChars, maxLines) {
+    maxChars = maxChars || 22; maxLines = maxLines || 2;
+    var words = String(title || '').split(/\s+/).filter(Boolean);
+    var lines = []; var cur = '';
+    words.forEach(function (w) {
+      if (!cur) cur = w;
+      else if ((cur + ' ' + w).length <= maxChars) cur += ' ' + w;
+      else { lines.push(cur); cur = w; }
+    });
+    if (cur) lines.push(cur);
+    if (lines.length > maxLines) {
+      lines = lines.slice(0, maxLines);
+      lines[maxLines - 1] = lines[maxLines - 1].slice(0, maxChars - 1).replace(/\s+$/, '') + '…';
+    }
+    return lines.map(function (l) { return l.length > maxChars + 2 ? l.slice(0, maxChars) + '…' : l; });
+  }
+
+  /* Layered top-down layout. Returns node boxes and edge paths; nothing is stored. */
+  function layout(flow, o) {
+    o = o || {};
+    var W = o.nodeW || 188, H = o.nodeH || 56, GX = o.gapX || 40, GY = o.gapY || 60, DW = 24, M = o.margin || 28;
+    var seenIds = new Set(); var steps = [];
+    flow.steps.forEach(function (s) { if (s.id && !seenIds.has(s.id)) { seenIds.add(s.id); steps.push(s); } });
+    if (!steps.length) return { width: 0, height: 0, nodes: [], edges: [] };
+
+    var edges = [];
+    steps.forEach(function (s) {
+      s.exits.forEach(function (e) {
+        if (seenIds.has(e.to) && e.to !== s.id && !edges.some(function (x) { return x.from === s.id && x.to === e.to; })) {
+          edges.push({ from: s.id, to: e.to, label: e.label || '' });
+        }
+      });
+    });
+
+    // 1. Mark back edges so the rest of the pipeline works on a DAG.
+    var out = new Map(steps.map(function (s) { return [s.id, []]; }));
+    edges.forEach(function (e) { out.get(e.from).push(e); });
+    var color = new Map();
+    var dfs = function (u) {
+      color.set(u, 1);
+      out.get(u).forEach(function (e) {
+        var c = color.get(e.to) || 0;
+        if (c === 1) e.back = true; else if (c === 0) dfs(e.to);
+      });
+      color.set(u, 2);
+    };
+    steps.filter(function (s) { return s.type === 'start'; }).concat(steps).forEach(function (s) { if (!color.get(s.id)) dfs(s.id); });
+
+    // 2. Longest-path layering.
+    var indeg = new Map(steps.map(function (s) { return [s.id, 0]; }));
+    var dagOut = new Map(steps.map(function (s) { return [s.id, []]; }));
+    edges.forEach(function (e) {
+      e.u = e.back ? e.to : e.from; e.v = e.back ? e.from : e.to;
+      dagOut.get(e.u).push(e); indeg.set(e.v, indeg.get(e.v) + 1);
+    });
+    var layer = new Map(steps.map(function (s) { return [s.id, 0]; }));
+    var q = steps.filter(function (s) { return indeg.get(s.id) === 0; }).map(function (s) { return s.id; });
+    while (q.length) {
+      var u0 = q.shift();
+      dagOut.get(u0).forEach(function (e) {
+        layer.set(e.v, Math.max(layer.get(e.v), layer.get(u0) + 1));
+        indeg.set(e.v, indeg.get(e.v) - 1);
+        if (indeg.get(e.v) === 0) q.push(e.v);
+      });
+    }
+
+    // 3. Dummy nodes for edges spanning several layers.
+    var N = new Map();
+    steps.forEach(function (s) { N.set(s.id, { key: s.id, layer: layer.get(s.id), w: W, step: s }); });
+    var up = new Map(), down = new Map();
+    var push = function (m, k, v) { if (!m.has(k)) m.set(k, []); m.get(k).push(v); };
+    var dn = 0;
+    edges.forEach(function (e) {
+      e.chain = []; var prev = e.u;
+      for (var L = layer.get(e.u) + 1; L < layer.get(e.v); L++) {
+        var k = '~' + (dn++);
+        N.set(k, { key: k, layer: L, w: DW, dummy: true });
+        e.chain.push(k); push(down, prev, k); push(up, k, prev); prev = k;
+      }
+      push(down, prev, e.v); push(up, e.v, prev);
+    });
+
+    // 4. Order inside layers: DFS seed, then barycenter sweeps keeping the best.
+    var nL = 0; N.forEach(function (n) { nL = Math.max(nL, n.layer + 1); });
+    var layers = []; for (var i = 0; i < nL; i++) layers.push([]);
+    var placed = new Set();
+    var visit = function (k) {
+      if (placed.has(k)) return; placed.add(k);
+      layers[N.get(k).layer].push(k);
+      (down.get(k) || []).forEach(visit);
+    };
+    steps.forEach(function (s) { if (N.get(s.id).layer === 0) visit(s.id); });
+    N.forEach(function (_, k) { visit(k); });
+
+    var positions = function () { var p = new Map(); layers.forEach(function (l) { l.forEach(function (k, i) { p.set(k, i); }); }); return p; };
+    var crossings = function () {
+      var p = positions(); var c = 0;
+      for (var L = 0; L < nL - 1; L++) {
+        var segs = [];
+        layers[L].forEach(function (a) { (down.get(a) || []).forEach(function (b) { segs.push([p.get(a), p.get(b)]); }); });
+        for (var i = 0; i < segs.length; i++) for (var j = i + 1; j < segs.length; j++) {
+          if ((segs[i][0] - segs[j][0]) * (segs[i][1] - segs[j][1]) < 0) c++;
+        }
+      }
+      return c;
+    };
+    var sortBy = function (L, nb) {
+      var p = positions(); var bc = new Map();
+      layers[L].forEach(function (k, i) {
+        var ns = nb.get(k) || [];
+        bc.set(k, ns.length ? ns.reduce(function (a, n) { return a + p.get(n); }, 0) / ns.length : i);
+      });
+      layers[L] = layers[L].map(function (k, i) { return [k, i]; })
+        .sort(function (a, b) { return bc.get(a[0]) - bc.get(b[0]) || a[1] - b[1]; })
+        .map(function (a) { return a[0]; });
+    };
+    var best = layers.map(function (l) { return l.slice(); }); var bestC = crossings();
+    for (var it = 0; it < 8 && bestC > 0; it++) {
+      if (it % 2 === 0) { for (var L1 = 1; L1 < nL; L1++) sortBy(L1, up); }
+      else { for (var L2 = nL - 2; L2 >= 0; L2--) sortBy(L2, down); }
+      var c = crossings();
+      if (c < bestC) { bestC = c; best = layers.map(function (l) { return l.slice(); }); }
+    }
+    layers = best;
+
+    // 5. Coordinates: pack, then pull each layer toward its neighbours.
+    layers.forEach(function (l) {
+      var x = 0;
+      l.forEach(function (k) { var n = N.get(k); n.x = x + n.w / 2; x += n.w + GX; });
+      var shift = (x - GX) / 2;
+      l.forEach(function (k) { N.get(k).x -= shift; });
+    });
+    var place = function (L, nb) {
+      var l = layers[L];
+      var want = l.map(function (k) {
+        var ns = nb.get(k) || [];
+        return ns.length ? ns.reduce(function (a, n) { return a + N.get(n).x; }, 0) / ns.length : null;
+      });
+      if (want.every(function (w) { return w === null; })) return;
+      var xs = [];
+      l.forEach(function (k, i) {
+        var n = N.get(k); var x = want[i] === null ? n.x : want[i];
+        if (i > 0) { var p = N.get(l[i - 1]); var min = xs[i - 1] + (p.w + n.w) / 2 + GX; if (x < min) x = min; }
+        xs.push(x);
+      });
+      var err = 0, cnt = 0;
+      l.forEach(function (k, i) { if (want[i] !== null) { err += want[i] - xs[i]; cnt++; } });
+      var sh = cnt ? err / cnt : 0;
+      l.forEach(function (k, i) { N.get(k).x = xs[i] + sh; });
+    };
+    for (var r = 0; r < 2; r++) {
+      for (var La = 1; La < nL; La++) place(La, up);
+      for (var Lb = nL - 2; Lb >= 0; Lb--) place(Lb, down);
+    }
+    for (var Lc = 1; Lc < nL; Lc++) place(Lc, up);
+
+    var minLeft = Infinity, maxRight = -Infinity;
+    N.forEach(function (n) { minLeft = Math.min(minLeft, n.x - n.w / 2); maxRight = Math.max(maxRight, n.x + n.w / 2); });
+    var shortBack = edges.some(function (e) { return e.back && !e.chain.length; });
+    var PX = o.padX != null ? o.padX : M;
+    N.forEach(function (n) { n.x = n.x - minLeft + PX; n.y = M + n.layer * (H + GY) + H / 2; });
+    var width = maxRight - minLeft + 2 * PX + (shortBack ? 64 : 0);
+    var height = 2 * M + nL * H + (nL - 1) * GY;
+
+    // 6. Ports and paths.
+    var R = function (k) { return N.get(k); };
+    var botMap = new Map(), topMap = new Map();
+    edges.forEach(function (e) {
+      if (e.back) return;
+      var pts = [e.u].concat(e.chain, [e.v]);
+      push(botMap, e.u, { e: e, nx: R(pts[1]).x });
+      push(topMap, e.v, { e: e, nx: R(pts[pts.length - 2]).x });
+    });
+    var spread = function (m, prop) {
+      m.forEach(function (arr) {
+        arr.sort(function (a, b) { return a.nx - b.nx; });
+        var step = arr.length > 1 ? Math.min(40, (W - 56) / (arr.length - 1)) : 0;
+        arr.forEach(function (a, i) { a.e[prop] = (i - (arr.length - 1) / 2) * step; });
+      });
+    };
+    spread(botMap, 'po'); spread(topMap, 'pi');
+    var f = function (n) { return Math.round(n * 10) / 10; };
+    // Picks the side of a node a back edge attaches to: toward the dummy, or away from the node's other neighbours when the dummy sits above/below it.
+    var sideOf = function (x, node, nb) {
+      if (Math.abs(x - node.x) >= W / 4) return x >= node.x ? 1 : -1;
+      var ns = (nb.get(node.key) || []).filter(function (k) { return !N.get(k).dummy; });
+      if (!ns.length) return 1;
+      var mean = ns.reduce(function (a, k) { return a + N.get(k).x; }, 0) / ns.length;
+      return mean <= node.x ? 1 : -1;
+    };
+
+    edges.forEach(function (e) {
+      var u = R(e.u), v = R(e.v); var ch = e.chain.map(R); var d;
+      if (!e.back) {
+        var p = { x: u.x + e.po, y: u.y + H / 2 }; var first = p;
+        d = 'M' + f(p.x) + ' ' + f(p.y);
+        var seq = ch.map(function (c) { return { x: c.x, y: c.y - H / 2, through: c.y + H / 2 }; });
+        seq.push({ x: v.x + e.pi, y: v.y - H / 2 });
+        seq.forEach(function (t) {
+          var dy = (t.y - p.y) / 2;
+          d += ' C' + f(p.x) + ' ' + f(p.y + dy) + ' ' + f(t.x) + ' ' + f(t.y - dy) + ' ' + f(t.x) + ' ' + f(t.y);
+          if (t.through !== undefined) { d += ' L' + f(t.x) + ' ' + f(t.through); p = { x: t.x, y: t.through }; } else p = t;
+        });
+        var dir = seq[0].x - first.x; var mx = (first.x + seq[0].x) / 2, my = (first.y + seq[0].y) / 2;
+        e.lp = Math.abs(dir) < 2 ? { x: mx + 8, y: my + 4, anchor: 'start' }
+          : { x: mx + (dir < 0 ? -8 : 8), y: my - 8, anchor: dir < 0 ? 'end' : 'start' };
+      } else if (!ch.length) {
+        var X = Math.max(u.x, v.x) + W / 2 + 52;
+        d = 'M' + f(v.x + W / 2) + ' ' + f(v.y) + ' C' + f(X) + ' ' + f(v.y) + ' ' + f(X) + ' ' + f(u.y) + ' ' + f(u.x + W / 2) + ' ' + f(u.y);
+        e.lp = { x: v.x + W / 2 + 8, y: v.y + 17, anchor: 'start' };
+      } else {
+        var rev = ch.slice().reverse();
+        var d0 = rev[0];
+        if (Math.abs(d0.x - v.x) < W / 2 + 18) {
+          var cx = v.x + sideOf(d0.x, v, up) * (W / 2 - 22); var ys = v.y - H / 2, ye = d0.y + H / 2, dyA = (ye - ys) / 2;
+          d = 'M' + f(cx) + ' ' + f(ys) + ' C' + f(cx) + ' ' + f(ys + dyA) + ' ' + f(d0.x) + ' ' + f(ye - dyA) + ' ' + f(d0.x) + ' ' + f(ye);
+          e.lp = { x: cx + 8, y: ys - 10, anchor: 'start' };
+        } else {
+          var s1 = d0.x >= v.x ? 1 : -1; var sx = v.x + s1 * W / 2;
+          d = 'M' + f(sx) + ' ' + f(v.y) + ' Q' + f(d0.x) + ' ' + f(v.y) + ' ' + f(d0.x) + ' ' + f(d0.y + H / 2);
+          e.lp = { x: sx + s1 * 10, y: v.y - 8, anchor: s1 > 0 ? 'start' : 'end' };
+        }
+        rev.forEach(function (cN, i) {
+          d += ' L' + f(cN.x) + ' ' + f(cN.y - H / 2);
+          var nx = rev[i + 1];
+          if (nx) {
+            var y0 = cN.y - H / 2, y1 = nx.y + H / 2, dy = (y1 - y0) / 2;
+            d += ' C' + f(cN.x) + ' ' + f(y0 + dy) + ' ' + f(nx.x) + ' ' + f(y1 - dy) + ' ' + f(nx.x) + ' ' + f(y1);
+          }
+        });
+        var last = rev[rev.length - 1];
+        if (Math.abs(last.x - u.x) < W / 2 + 18) {
+          var tx = u.x + sideOf(last.x, u, down) * (W / 2 - 22); var yA = last.y - H / 2, yB = u.y + H / 2, dyB = (yB - yA) / 2;
+          d += ' C' + f(last.x) + ' ' + f(yA + dyB) + ' ' + f(tx) + ' ' + f(yB - dyB) + ' ' + f(tx) + ' ' + f(yB);
+        } else {
+          var s2 = last.x >= u.x ? 1 : -1;
+          d += ' Q' + f(last.x) + ' ' + f(u.y) + ' ' + f(u.x + s2 * W / 2) + ' ' + f(u.y);
+        }
+      }
+      e.d = d;
+    });
+
+    return {
+      width: Math.ceil(width), height: Math.ceil(height),
+      nodes: steps.map(function (s) { var n = N.get(s.id); return { id: s.id, x: n.x, y: n.y, w: W, h: H, step: s }; }),
+      edges: edges.map(function (e) { return { from: e.from, to: e.to, label: e.label, d: e.d, lp: e.lp, back: !!e.back }; })
+    };
+  }
+
+  /* Tour engine: one step at a time, always following the flow.
+     - A step with one exit leads to the next step, even if it was already visited (loops are walked).
+     - A step with several exits waits for the user to choose a branch; visited branches can be repeated.
+     - A branch ends only at a dead end (an end step or a step without exits). The tour then returns to
+       the nearest decision that still has an unvisited branch. */
+  function Tour(flow) {
+    var self = this;
+    this.byId = new Map();
+    flow.steps.forEach(function (s) { if (s.id && !self.byId.has(s.id)) self.byId.set(s.id, s); });
+    this.ids = Array.from(this.byId.keys());
+    var starts = this.ids.filter(function (id) { return self.byId.get(id).type === 'start'; });
+    var first = starts.length ? starts : [this.ids[0]];
+    this.visited = new Set(); this.trail = []; this.pos = -1;
+    this.path = [];     // steps walked since the start, cut back when the tour returns to a decision
+    this.taken = new Set(); // branches already chosen, as 'stepId#exitIndex'
+    this.stale = 0;     // consecutive moves onto already visited steps without a choice (guards endless cycles)
+    this.starts = first.slice(1);
+    this._goto(first[0], null);
+  }
+  Tour.prototype.exitsOf = function (id) {
+    var self = this;
+    return this.byId.get(id).exits.filter(function (e) { return self.byId.has(e.to) && e.to !== id; });
+  };
+  Tour.prototype.current = function () { return this.trail[this.pos]; };
+  Tour.prototype.step = function () { return this.byId.get(this.current().id); };
+  Tour.prototype.atEnd = function () { return this.pos === this.trail.length - 1; };
+  /* Complete = every step visited and every branch of every decision taken at least once. */
+  Tour.prototype.complete = function () {
+    var self = this;
+    if (this.visited.size !== this.ids.length) return false;
+    return this.ids.every(function (id) { return self.exitsOf(id).length < 2 || !self._hasOpen(id); });
+  };
+  Tour.prototype._goto = function (id, note) {
+    this.stale = this.visited.has(id) ? this.stale + 1 : 0;
+    this.visited.add(id); this.path.push(id);
+    this.trail.push({ id: id, note: note }); this.pos = this.trail.length - 1;
+  };
+  Tour.prototype._hasOpen = function (id) {
+    var self = this;
+    var ex = this.exitsOf(id);
+    if (ex.length < 2) return ex.some(function (e) { return !self.visited.has(e.to); });
+    return ex.some(function (_, i) { return !self.taken.has(id + '#' + i); });
+  };
+  Tour.prototype._stuck = function () { return this.stale >= this.ids.length; };
+  Tour.prototype._return = function (reason) {
+    var self = this;
+    for (var i = this.path.length - 2; i >= 0; i--) {
+      var id = this.path[i];
+      if (this.exitsOf(id).length > 1 && this._hasOpen(id)) {
+        this.path.length = i; reason.returned = true;
+        this._goto(id, reason); this.stale = 0;
+        return { moved: true, returned: true };
+      }
+    }
+    var next = null;
+    while (this.starts.length && next === null) { var s = this.starts.shift(); if (!this.visited.has(s)) next = s; }
+    if (next === null) { var rest = this.ids.filter(function (x) { return !self.visited.has(x); }); if (rest.length) next = rest[0]; }
+    if (next === null) return { done: true };
+    this.path = []; reason.jump = true;
+    this._goto(next, reason);
+    return { moved: true };
+  };
+  Tour.prototype.options = function () {
+    var self = this;
+    return this.exitsOf(this.current().id).map(function (e, i) {
+      return { index: i, label: e.label, to: e.to, title: self.byId.get(e.to).title, visited: self.visited.has(e.to), taken: self.taken.has(self.current().id + '#' + i) };
+    });
+  };
+  Tour.prototype.needsChoice = function () {
+    return this.atEnd() && this.exitsOf(this.current().id).length > 1;
+  };
+  /* True when the tour may be finished here: everything visited and the flow has nowhere new to go. */
+  Tour.prototype.canFinish = function () {
+    if (!this.atEnd() || !this.complete()) return false;
+    return this.exitsOf(this.current().id).length !== 1 || this._stuck();
+  };
+  /* At a decision whose branches are all visited while other parts are still pending. */
+  Tour.prototype.canSkip = function () {
+    var id = this.current().id;
+    return this.atEnd() && !this.complete() && this.exitsOf(id).length > 1 && !this._hasOpen(id);
+  };
+  Tour.prototype.skip = function () { return this._return({ skipped: true }); };
+  Tour.prototype.choose = function (i) {
+    if (!this.atEnd()) return { moved: false };
+    var e = this.exitsOf(this.current().id)[i];
+    if (!e) return { moved: false };
+    this.taken.add(this.current().id + '#' + i);
+    this._goto(e.to, null); this.stale = 0;
+    return { moved: true };
+  };
+  Tour.prototype.next = function () {
+    if (!this.atEnd()) { this.pos++; return { moved: true }; }
+    var cur = this.current().id; var ex = this.exitsOf(cur);
+    if (!ex.length) return this._return({ endAt: cur });
+    if (ex.length > 1) return { needChoice: true };
+    if (this._stuck()) return this._return({ loopTo: ex[0].to, from: cur });
+    this._goto(ex[0].to, null);
+    return { moved: true };
+  };
+  Tour.prototype.prev = function () { if (this.pos > 0) { this.pos--; return true; } return false; };
+
+  return {
+    TYPES: TYPES, TYPE_LABELS: TYPE_LABELS, EXAMPLE: EXAMPLE, EXAMPLE_SUB: EXAMPLE_SUB, validateRefs: validateRefs, norm: norm, parseExits: parseExits, parseTags: parseTags, formatExits: formatExits, predecessorsText: predecessorsText, applyDependsOn: applyDependsOn,
+    compile: compile, validate: validate, parseTable: parseTable, toTSV: toTSV, wrapTitle: wrapTitle, layout: layout, Tour: Tour
+  };
+})();
+if (typeof module !== 'undefined') module.exports = Core;
+
+</script>
+<script>
+/* UI layer: flow library, editor (grid, paste, validation, preview) and viewer (overview, tour, review). */
+(function () {
+  'use strict';
+  var C = Core;
+  var KEY = 'process-flows-mvp-v2';
+  var SECONDS_PER_STEP = 5; // minimum tour time = steps (subflows included) x 5 s, checked only at the end
+  var FAST_MSG = 'Fuiste muy veloz, ¿no se te habrá pasado algo? Repasa el flujo y vuelve a intentarlo.';
+  var app = document.getElementById('app');
+
+  var clone = function (o) { return JSON.parse(JSON.stringify(o)); };
+  var esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+  var $ = function (id) { return document.getElementById(id); };
+  var ICONS = {"pending": ["0 0 24 24", "<g><path d=\"M12.01,0C5.38,0,0,5.38,0,12.01s5.38,11.99,12.01,11.99,11.99-5.37,11.99-11.99S18.62,0,12.01,0ZM12.01,21.09c-5.03,0-9.08-4.07-9.08-9.08S6.98,2.92,12.01,2.92s9.07,4.07,9.07,9.08-4.06,9.08-9.07,9.08Z\"/><g><path d=\"M7.22,10.31c1.01,0,1.7.67,1.7,1.68s-.69,1.7-1.7,1.7-1.7-.67-1.7-1.7.69-1.68,1.7-1.68Z\"/><path d=\"M12,10.31c1.01,0,1.7.67,1.7,1.68s-.69,1.7-1.7,1.7-1.7-.67-1.7-1.7.69-1.68,1.7-1.68Z\"/><path d=\"M16.78,10.31c1.01,0,1.7.67,1.7,1.68s-.69,1.7-1.7,1.7-1.7-.67-1.7-1.7.69-1.68,1.7-1.68Z\"/></g></g>"], "progress": ["0 0 22.58 24", "<g><g><path d=\"M12.78,4.35l1.17-1.18-1.62-1.66c3.43.27,6.47,2.2,8.26,4.83,2.13,3.13,2.53,6.92,1.27,10.3-2.39,6.38-9.8,9.21-15.82,6.05C1.76,20.46-.62,15.76.14,10.94S4.42,2.58,9.1,1.67l.04-1.67,3.13,3.11-3.14,3.13-.02-1.75c-4.01,1.05-6.65,4.83-6.31,8.94s3.52,7.34,7.63,7.75c4.58.46,8.66-2.77,9.29-7.27.64-4.5-2.38-8.75-6.94-9.57Z\"/><path d=\"M11.15,18.81c-.08.15-.38.28-.52.26l-.86-.15c-.14-.03-.42-.23-.44-.38l-.18-1.18-1.17-.75-1.25.33c-.31.08-1.18-1.13-.98-1.41l.75-1.05-.3-1.36-.98-.51c-.13-.07-.32-.36-.29-.5l.2-1.04c.03-.15.35-.31.5-.33l1.05-.13.75-1.15-.35-1.11c-.05-.16.07-.49.22-.59l.84-.55c.11-.07.42.03.52.1l.87.66,1.38-.31.69-1.24,1.04.09c.31.03.6.18.65.5l.15,1.11,1.2.75.99-.3c.12-.04.48-.04.55.06l.65.9c.1.14.03.45-.07.58l-.65.85.31,1.4.99.54c.2.11.29.39.25.59l-.14.78c-.03.18-.24.43-.44.46l-1.09.15-.77,1.23.38,1.35-.89.71c-.17.14-.53.19-.7.06l-.89-.68-1.41.31-.52.98ZM10.94,10.31c-1.42.21-2.27,1.5-2.08,2.78.2,1.39,1.46,2.29,2.81,2.09s2.26-1.42,2.07-2.77-1.4-2.3-2.8-2.09Z\"/></g></g>"], "done": ["0 0 24 24", "<g><g><path d=\"M12.01,0C5.38,0,0,5.38,0,12.01s5.38,11.99,12.01,11.99,11.99-5.37,11.99-11.99S18.62,0,12.01,0ZM12.01,21.09c-5.03,0-9.08-4.07-9.08-9.08S6.98,2.92,12.01,2.92s9.07,4.07,9.07,9.08-4.06,9.08-9.07,9.08Z\"/><path d=\"M7.8,13.02c-.61-.65-.72-1.49-.14-2.16.5-.57,1.51-.77,2.13-.13l1.21,1.25,3.04-3.26c.59-.63,1.49-.66,2.11-.15s.77,1.53.16,2.19l-4.31,4.64c-.59.64-1.6.42-2.13-.14l-2.09-2.23Z\"/></g></g>"], "alert": ["0 0 24 24", "<g><path d=\"M12.01,0C5.38,0,0,5.38,0,12.01s5.38,11.99,12.01,11.99,11.99-5.37,11.99-11.99S18.62,0,12.01,0ZM12.01,21.09c-5.03,0-9.08-4.07-9.08-9.08S6.98,2.92,12.01,2.92s9.07,4.07,9.07,9.08-4.06,9.08-9.07,9.08Z\"/><g><path d=\"M11.71,14.16c-.51-.26-.71-1.22-.81-1.83-.11-.74-.16-1.46-.22-2.21-.04-.55-.05-1.08-.17-1.61-.23-1.03-.25-2.08.82-2.52.58-.24,1.23-.14,1.73.25.45.35.6.85.53,1.41l-.47,3.62-.31,2.26c-.03.25-.2.47-.37.57-.23.13-.5.18-.74.06Z\"/><path d=\"M12.05,18.15c-.48,0-.91-.13-1.2-.5-.45-.56-.48-1.38-.05-1.96.27-.38.7-.55,1.16-.58.58-.04,1.09.25,1.34.78.19.4.23.85.1,1.28-.18.6-.71.97-1.36.98Z\"/></g></g>"], "close": ["0 0 15.06 15.06", "<g><rect x=\"6.78\" y=\"-2.37\" width=\"1.5\" height=\"19.8\" transform=\"translate(-3.12 7.53) rotate(-45)\"/><rect x=\"-2.37\" y=\"6.78\" width=\"19.8\" height=\"1.5\" transform=\"translate(-3.12 7.53) rotate(-45)\"/></g>"], "back": ["0 0 7.56 14.98", "<g><polygon points=\"6.42 14.98 0 7.49 6.42 0 7.56 .98 1.98 7.49 7.56 14 6.42 14.98\"/></g>"], "link": ["0 0 13.28 13.28", "<g><rect x=\"-1.96\" y=\"6\" width=\"16.97\" height=\"1.5\" transform=\"translate(-2.86 6.59) rotate(-45)\"/><polygon points=\"13.28 7.75 11.78 7.75 11.78 1.5 5.53 1.5 5.53 0 13.28 0 13.28 7.75\"/></g>"], "sub": ["0 0 14 14", "<g><rect x=\"6.25\" width=\"1.5\" height=\"14\"/><rect y=\"6.25\" width=\"14\" height=\"1.5\"/></g>"], "wait": ["0 0 19.5 19.5", "<g><path d=\"M9.75,19.5C4.37,19.5,0,15.13,0,9.75S4.37,0,9.75,0s9.75,4.37,9.75,9.75-4.37,9.75-9.75,9.75ZM9.75,1.5C5.2,1.5,1.5,5.2,1.5,9.75s3.7,8.25,8.25,8.25,8.25-3.7,8.25-8.25S14.3,1.5,9.75,1.5Z\"/><polygon points=\"12.93 12.77 9 10.15 9 5.35 10.5 5.35 10.5 9.35 13.77 11.53 12.93 12.77\"/></g>"], "zoom": ["0 0 16.68 16.68", "<g><path d=\"M6.75,13.5c-3.72,0-6.75-3.03-6.75-6.75S3.03,0,6.75,0s6.75,3.03,6.75,6.75-3.03,6.75-6.75,6.75ZM6.75,1.5C3.86,1.5,1.5,3.86,1.5,6.75s2.36,5.25,5.25,5.25,5.25-2.36,5.25-5.25S9.64,1.5,6.75,1.5Z\"/><rect x=\"12.9\" y=\"10.11\" width=\"1.5\" height=\"7.07\" transform=\"translate(-5.65 13.65) rotate(-45)\"/></g>"]};
+  function ico(name, size, cls) {
+    var i = ICONS[name];
+    return '<svg class="ico i-' + name + (cls ? ' ' + cls : '') + '" aria-hidden="true" width="' + size + '" height="' + size + '" viewBox="' + i[0] + '">' + i[1] + '</svg>';
+  }
+  var CHECK = ico('done', 18), ALERT = ico('alert', 18), DOT = ico('pending', 18), GEAR = ico('progress', 18);
+
+  /* Flow colours: each flow has one; a subflow shown inside its parent takes a darker shade of the parent's. */
+  var FLOW_COLORS = ['#28519d', '#7d6ac2', '#ca88d6', '#b45684', '#902e33', '#e58b52', '#976c00', '#a8ac3d', '#206616', '#27bf9a', '#00868d', '#32b2e8'];
+  function rgb(hex) { var n = parseInt(hex.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+  function hex(c) { return '#' + c.map(function (v) { return ('0' + Math.round(v).toString(16)).slice(-2); }).join(''); }
+  function mix(a, b, t) { var x = rgb(a), y = rgb(b); return hex(x.map(function (v, i) { return v + (y[i] - v) * t; })); }
+  function lum(h) { var c = rgb(h).map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }
+  function onColor(h) { var l = lum(h); return (1.05 / (l + 0.05)) >= ((l + 0.05) / 0.0561) ? '#FFFFFF' : '#111111'; }
+  function shade(color, depth) { return depth > 0 ? mix(color, '#000000', Math.min(0.6, 0.3 * depth)) : color; }
+  function themeVars(color) {
+    return '--flow:' + color + ';--flow-strong:' + mix(color, '#000000', 0.38) + ';--flow-on:' + onColor(color) + ';--flow-tint:' + mix(color, '#FFFFFF', 0.88) + ';--flow-visited:' + mix(color, '#FFFFFF', 0.7) + ';';
+  }
+
+  /* ---------- State: a small library of flows ---------- */
+
+  function initial() {
+    return {
+      flows: {
+        main: { draft: clone(C.EXAMPLE), published: C.compile(C.EXAMPLE), color: FLOW_COLORS[0] },
+        sub1: { draft: clone(C.EXAMPLE_SUB), published: C.compile(C.EXAMPLE_SUB), color: FLOW_COLORS[10] }
+      },
+      order: ['main', 'sub1'], current: 'main', reviewed: {}
+    };
+  }
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return null;
+      var s = JSON.parse(raw);
+      if (s && s.flows && Array.isArray(s.order) && s.flows[s.current] && s.order.every(function (id) { return s.flows[id] && s.flows[id].draft; })) {
+        s.reviewed = s.reviewed || {};
+        s.order.forEach(function (id, i) { if (!s.flows[id].color) s.flows[id].color = FLOW_COLORS[i % FLOW_COLORS.length]; });
+        return s;
+      }
+    } catch (e) { /* storage may be unavailable */ }
+    return null;
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* keep working in memory */ }
+  }
+
+  var state = load() || initial();
+  var ui = {
+    phase: 'overview', session: null, elapsed: 0, timer: null, selected: null, hlCat: '', hlVal: '', notice: '',
+    zoom: true, revStack: [], confirmReset: false, pasteOpen: false, pasteResult: null, pasteText: '', editMsg: '', errs: [], debounce: null
+  };
+  var diagramSeq = 0;
+
+  var D = function () { return state.flows[state.current].draft; };
+  var pub = function (id) { var f = state.flows[id]; return f ? f.published : null; };
+  var flowColor = function (id) { var f = state.flows[id]; return (f && f.color) || FLOW_COLORS[0]; };
+  var flowName = function (id) { var f = state.flows[id]; return f ? (f.draft.name || 'Sin nombre') : ''; };
+  var lib = function (id) { var f = state.flows[id]; return f ? { name: flowName(id), published: f.published } : null; };
+
+  /* Flows reachable from `root` through published subflow steps, root first. */
+  function closure(root) {
+    var out = []; var walk = function (id) {
+      if (out.indexOf(id) !== -1 || !pub(id)) return;
+      out.push(id);
+      pub(id).steps.forEach(function (s) { if (s.type === 'subflow' && s.ref) walk(s.ref); });
+    };
+    walk(root);
+    return out;
+  }
+  function signature(root) { return JSON.stringify(closure(root).map(function (id) { return [id, pub(id)]; })); }
+  function isReviewed() { return !!pub(state.current) && state.reviewed[state.current] === signature(state.current); }
+
+  function flowBarHTML(withNew) {
+    return '<div class="flowbar"><label for="flowSel">Flujo</label><span class="flow-dot" aria-hidden="true"></span><select id="flowSel">' + state.order.map(function (id) {
+      return '<option value="' + esc(id) + '"' + (id === state.current ? ' selected' : '') + '>' + esc(flowName(id)) + (pub(id) ? '' : ' (sin publicar)') + '</option>';
+    }).join('') + '</select>' + (withNew ? '<button type="button" class="btn" id="newFlow">Nuevo flujo</button>' : '') + '</div>';
+  }
+
+  /* ---------- Diagram ---------- */
+
+  function nodeShape(n) {
+    var t = n.step.type, w = n.w, h = n.h;
+    if (t === 'decision') {
+      var c = 16;
+      return '<polygon class="ring" points="' + [c - 4, -7, w - c + 4, -7, w + 9, h / 2, w - c + 4, h + 7, c - 4, h + 7, -9, h / 2].join(' ') + '"/>' +
+        '<polygon class="shape" points="' + [c, 0, w - c, 0, w, h / 2, w - c, h, c, h, 0, h / 2].join(' ') + '"/>';
+    }
+    var rx = (t === 'start' || t === 'end') ? h / 2 : 8;
+    var out = '<rect class="ring" x="-7" y="-7" width="' + (w + 14) + '" height="' + (h + 14) + '" rx="' + (rx + 7) + '"/>' +
+      '<rect class="shape" width="' + w + '" height="' + h + '" rx="' + rx + '"/>';
+    if (t === 'subflow') out += '<rect class="shape2" x="4" y="4" width="' + (w - 8) + '" height="' + (h - 8) + '" rx="5"/>';
+    return out;
+  }
+  function nodeIcon(n) {
+    var m = n.h / 2; var t = n.step.type;
+    var put = function (name, x, size) {
+      var i = ICONS[name];
+      return '<svg class="nicon" aria-hidden="true" x="' + x + '" y="' + (m - size / 2) + '" width="' + size + '" height="' + size + '" viewBox="' + i[0] + '">' + i[1] + '</svg>';
+    };
+    if (t === 'wait') return put('wait', 12, 16);
+    if (t === 'link') return put('link', n.w - 28, 12);
+    if (t === 'subflow') return put('sub', n.w - 28, 12);
+    return '';
+  }
+
+  function drawDiagram(el, flow, opt) {
+    opt = opt || {};
+    var L = C.layout(flow, { padX: 96 });
+    el._layout = L;
+    if (!L.nodes.length) { el.innerHTML = '<p class="muted pad">Aún no hay pasos para dibujar.</p>'; return L; }
+    var id = 'm' + (++diagramSeq);
+    var st = opt.state || function () { return ''; };
+    var strong = opt.strong || function () { return true; };
+    var h = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + L.width + ' ' + L.height + '" width="' + L.width + '" height="' + L.height + '" role="img" aria-label="Diagrama del flujo ' + esc(flow.name) + '"><defs>';
+    ['soft', 'strong'].forEach(function (k) {
+      h += '<marker id="' + id + k + '" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="arrow ' + k + '" d="M0 0L10 5L0 10z"/></marker>';
+    });
+    h += '</defs>';
+    L.edges.forEach(function (e) {
+      var k = strong(e) ? 'strong' : 'soft';
+      h += '<path class="edge ' + k + '" d="' + e.d + '" marker-end="url(#' + id + k + ')"/>';
+    });
+    L.edges.forEach(function (e) {
+      if (e.label) h += '<text class="elabel ' + (strong(e) ? 'strong' : 'soft') + '" x="' + e.lp.x + '" y="' + e.lp.y + '" text-anchor="' + e.lp.anchor + '">' + esc(e.label) + '</text>';
+    });
+    L.nodes.forEach(function (n) {
+      var s = n.step; var narrow = s.type === 'wait' || s.type === 'link' || s.type === 'subflow';
+      var lines = C.wrapTitle(s.title || '(sin título)', narrow ? 19 : 22);
+      var click = opt.clickable ? ' tabindex="0" role="button" aria-label="' + esc((C.TYPE_LABELS[s.type] || '') + ': ' + s.title) + '"' : '';
+      h += '<g class="node t-' + esc(s.type) + ' ' + st(n.id) + (opt.clickable ? ' clickable' : '') + '" data-id="' + esc(n.id) + '" transform="translate(' + (n.x - n.w / 2) + ' ' + (n.y - n.h / 2) + ')"' + click + '>';
+      h += nodeShape(n) + nodeIcon(n);
+      var y0 = n.h / 2 + 4.5 - (lines.length - 1) * 8;
+      lines.forEach(function (t, i) {
+        h += '<text class="ntext" x="' + (n.w / 2) + '" y="' + (y0 + i * 16) + '" text-anchor="middle">' + esc(t) + '</text>';
+      });
+      h += '</g>';
+    });
+    if (opt.badgesFor) {
+      var bn = L.nodes.filter(function (n) { return n.id === opt.badgesFor; })[0];
+      if (bn) h += badgesSVG(bn, flow);
+    }
+    el.innerHTML = h + '</svg>';
+    return L;
+  }
+
+  /* Tag badges on the active step: odd categories on the left, even ones on the right, one convention per category. */
+  function badgesSVG(n, flow) {
+    var sides = [[], []];
+    flow.categories.forEach(function (c, i) {
+      (n.step.tags[c] || []).forEach(function (v) { sides[i % 2].push({ k: i % 4 + 1, cat: c, full: v, v: v.length > 16 ? v.slice(0, 15) + '…' : v }); });
+    });
+    var h = '<g class="badges" transform="translate(' + (n.x - n.w / 2) + ' ' + (n.y - n.h / 2) + ')">';
+    sides.forEach(function (list, side) {
+      list.forEach(function (b, i) {
+        var bw = Math.round(b.v.length * 7.4 + 22), bh = 24;
+        var x = side === 0 ? -bw + 10 : n.w - 10;
+        var y = n.h / 2 + (i - (list.length - 1) / 2) * 28 - bh / 2;
+        h += '<g class="badge c' + b.k + '"><title>' + esc(b.cat + ': ' + b.full) + '</title><rect x="' + x + '" y="' + y + '" width="' + bw + '" height="' + bh + '" rx="4"/>' +
+          '<text x="' + (x + bw / 2) + '" y="' + (y + 16.5) + '" text-anchor="middle">' + esc(b.v) + '</text></g>';
+      });
+    });
+    return h + '</g>';
+  }
+  function legendHTML(flow) {
+    if (!flow.categories.length) return '';
+    return '<div class="legend"><span class="label">Convenciones</span>' + flow.categories.map(function (c, i) {
+      return '<span class="lg"><span class="sw c' + (i % 4 + 1) + '" aria-hidden="true"></span>' + esc(c) + '</span>';
+    }).join('') + '</div>';
+  }
+
+  /* Phones: frames the current step with the step the user came from and the next ones. */
+  var MOBILE = window.matchMedia ? window.matchMedia('(max-width: 760px)') : { matches: false };
+  function zoomTo(el, ids, mainId) {
+    var L = el._layout; var svg = el.querySelector('svg');
+    if (!L || !svg) return;
+    var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    L.nodes.forEach(function (n) {
+      if (ids.indexOf(n.id) === -1) return;
+      var side = n.id === mainId ? 96 : 0; // room for the tag badges
+      x0 = Math.min(x0, n.x - n.w / 2 - side); x1 = Math.max(x1, n.x + n.w / 2 + side);
+      y0 = Math.min(y0, n.y - n.h / 2); y1 = Math.max(y1, n.y + n.h / 2);
+    });
+    if (x0 === Infinity) return;
+    var pad = 22;
+    x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(L.width, x1 + pad); y1 = Math.min(L.height, y1 + pad);
+    svg.setAttribute('viewBox', x0 + ' ' + y0 + ' ' + (x1 - x0) + ' ' + (y1 - y0));
+    svg.setAttribute('width', x1 - x0); svg.setAttribute('height', y1 - y0);
+    el.scrollTop = 0;
+  }
+
+  function scrollToNode(el, id) {
+    var L = el._layout; var svg = el.querySelector('svg');
+    if (!L || !svg) return;
+    var n = L.nodes.filter(function (x) { return x.id === id; })[0];
+    if (!n) return;
+    var k = (svg.getBoundingClientRect().width / L.width) || 1;
+    el.scrollTop = Math.max(0, n.y * k - el.clientHeight / 2);
+  }
+
+  /* ---------- Editor ---------- */
+
+  function typeOptions(sel) {
+    return C.TYPES.map(function (t) { return '<option value="' + t + '"' + (t === sel ? ' selected' : '') + '>' + C.TYPE_LABELS[t] + '</option>'; }).join('');
+  }
+  function refOptions(sel) {
+    return '<option value="">—</option>' + state.order.filter(function (id) { return id !== state.current; }).map(function (id) {
+      return '<option value="' + esc(id) + '"' + (id === sel ? ' selected' : '') + '>' + esc(flowName(id)) + '</option>';
+    }).join('');
+  }
+  function cell(r, f, val, label, cat) {
+    return '<td><input type="text" data-r="' + r + '" data-f="' + f + '"' + (cat != null ? ' data-c="' + esc(cat) + '"' : '') + ' value="' + esc(val) + '" aria-label="' + esc(label) + '"></td>';
+  }
+  function gridHTML() {
+    var d = D();
+    var h = '<table class="grid"><thead><tr><th class="c-id">ID</th><th class="c-type">Tipo</th><th class="c-ref">Subflujo</th><th class="c-title">Título</th><th class="c-desc">Descripción</th>';
+    d.categories.forEach(function (c, i) {
+      h += '<th class="c-tag"><span class="th-cat">' + esc(c) + '<button type="button" class="icon-btn" data-delcat="' + i + '" aria-label="Quitar la categoría ' + esc(c) + '">' + ico('close', 10) + '</button></span></th>';
+    });
+    h += '<th class="c-dep">Depende de</th><th class="c-exits">Salidas</th><th class="c-del"><span class="sr">Quitar</span></th></tr></thead><tbody>';
+    d.steps.forEach(function (s, r) {
+      var n = 'paso ' + (s.id || r + 1);
+      h += '<tr data-row="' + r + '">' + cell(r, 'id', s.id, 'ID del ' + n) +
+        '<td><select data-r="' + r + '" data-f="type" aria-label="Tipo del ' + esc(n) + '">' + typeOptions(s.type) + '</select></td>' +
+        '<td><select data-r="' + r + '" data-f="ref" aria-label="Subflujo del ' + esc(n) + '"' + (s.type === 'subflow' ? '' : ' disabled') + '>' + refOptions(s.type === 'subflow' ? s.ref : '') + '</select></td>' +
+        cell(r, 'title', s.title, 'Título del ' + n) + cell(r, 'description', s.description, 'Descripción del ' + n);
+      d.categories.forEach(function (c) { h += cell(r, 'tag', (s.tags && s.tags[c]) || '', c + ' del ' + n, c); });
+      h += cell(r, 'dep', C.predecessorsText(d, s.id), 'Pasos de los que depende el ' + n) + cell(r, 'exits', s.exits, 'Salidas del ' + n) +
+        '<td><button type="button" class="icon-btn" data-delrow="' + r + '" aria-label="Quitar el ' + esc(n) + '">' + ico('close', 12) + '</button></td></tr>';
+    });
+    return h + '</tbody></table>';
+  }
+  function pasteHTML() {
+    var h = '<div class="card paste"><h2>Pegar desde Excel</h2>' +
+      '<p class="muted">Copia las celdas en Excel, con la fila de encabezados, y pégalas aquí. Columnas: ID, Tipo, Subflujo, Título, Descripción, Depende de, Salidas. Cualquier otra columna se toma como categoría.</p>' +
+      '<label class="sr" for="pasteText">Celdas pegadas</label><textarea id="pasteText" rows="6" spellcheck="false">' + esc(ui.pasteText) + '</textarea>';
+    var r = ui.pasteResult;
+    if (r) {
+      h += '<div class="review"><p><strong>' + r.steps.length + (r.steps.length === 1 ? ' paso' : ' pasos') + '</strong>' +
+        (r.categories.length ? ' · categorías: ' + esc(r.categories.join(', ')) : ' · sin categorías') + '</p>';
+      if (r.errors.length) h += '<ul>' + r.errors.map(function (e) { return '<li>' + ALERT + '<span>' + esc(e) + '</span></li>'; }).join('') + '</ul>';
+      h += '</div>';
+    }
+    h += '<div class="row"><button type="button" class="btn" id="pasteReview">Revisar</button>';
+    if (r && r.steps.length) h += '<button type="button" class="btn primary" id="pasteApply">Reemplazar la tabla</button>';
+    return h + '<button type="button" class="btn ghost" id="pasteCancel">Cancelar</button></div></div>';
+  }
+
+  function renderEditor() {
+    var d = D();
+    var cur = flowColor(state.current);
+    var h = '<section class="page" style="' + themeVars(cur) + '">' + flowBarHTML(true) + '<div class="page-head"><div><h1>Editar flujo</h1><p class="muted">Llena la tabla. El diagrama se dibuja solo.</p></div>' +
+      '<div class="pub"><span id="pubState" class="status"></span><button type="button" class="btn primary" id="publish">Publicar</button></div></div>' +
+      '<p id="editMsg" class="msg" role="status">' + esc(ui.editMsg) + '</p>' +
+      '<div class="card form"><div class="field"><label for="fName">Nombre</label><input id="fName" type="text" value="' + esc(d.name) + '"></div>' +
+      '<div class="field grow"><label for="fObj">Objetivo (opcional)</label><input id="fObj" type="text" value="' + esc(d.objective) + '"></div>' +
+      '<div class="field wide"><span class="flabel" id="colLabel">Color del flujo</span><div class="swatches" role="group" aria-labelledby="colLabel">' + FLOW_COLORS.map(function (col, i) {
+        return '<button type="button" class="swatch" data-color="' + col + '" aria-pressed="' + (col === cur) + '" aria-label="Color ' + (i + 1) + '" style="background:' + col + '"></button>';
+      }).join('') + '</div></div></div>' +
+      '<div class="toolbar"><button type="button" class="btn" id="addRow">Agregar paso</button>' +
+      '<button type="button" class="btn" id="togglePaste">Pegar desde Excel</button>' +
+      '<button type="button" class="btn" id="copyTable">Copiar tabla</button>' +
+      '<span class="inline"><label class="sr" for="newCat">Nueva categoría</label><input id="newCat" type="text" placeholder="Nueva categoría"><button type="button" class="btn" id="addCat">Agregar</button></span>' +
+      '<span class="spacer"></span>';
+    h += ui.confirmReset
+      ? '<span class="inline"><span class="muted">¿Reemplazar todos los flujos por el ejemplo?</span><button type="button" class="btn" id="resetYes">Sí, reemplazar</button><button type="button" class="btn ghost" id="resetNo">No</button></span>'
+      : '<button type="button" class="btn ghost" id="resetAsk">Restaurar ejemplo</button>';
+    h += '</div>' + (ui.pasteOpen ? pasteHTML() : '') +
+      '<div class="editor-cols"><div class="card grid-wrap">' + gridHTML() +
+      '<p class="hint muted">Conecta los pasos por cualquiera de los dos lados: en <strong>Depende de</strong> escribe el ID del paso anterior, o en <strong>Salidas</strong> el del siguiente. La otra columna se actualiza sola. Con varias, sepáralas con | y rotúlalas: <code>Sí:P5 | No:P4</code>. Etiquetas: separa varios valores con coma. Un paso de tipo <strong>Subflujo</strong> contiene otro flujo ya publicado.</p></div>' +
+      '<div class="card preview"><h2>Vista previa</h2><div id="preview" class="diagram"></div></div></div>' +
+      '<div id="errors" class="card errors" role="status"></div></section>';
+    app.innerHTML = h;
+    refreshEditor();
+  }
+
+  function refreshEditor() {
+    var flow = C.compile(D());
+    var errs = C.validate(flow).concat(C.validateRefs(flow, state.current, lib));
+    ui.errs = errs;
+    var box = $('errors');
+    if (box) {
+      box.innerHTML = errs.length
+        ? '<h2>Para publicar, corrige ' + errs.length + (errs.length === 1 ? ' problema' : ' problemas') + '</h2><ul>' +
+          errs.map(function (e) { return '<li>' + ALERT + '<span>' + esc(e.message) + '</span></li>'; }).join('') + '</ul>'
+        : '<p class="ok">' + CHECK + '<span>La tabla es válida y se puede publicar.</span></p>';
+    }
+    var bad = new Set(errs.map(function (e) { return e.row; }));
+    Array.prototype.forEach.call(app.querySelectorAll('tr[data-row]'), function (tr) {
+      tr.classList.toggle('has-error', bad.has(Number(tr.getAttribute('data-row'))));
+    });
+    var pv = $('preview');
+    if (pv) drawDiagram(pv, flow);
+    var ps = $('pubState');
+    if (ps) {
+      var p = pub(state.current);
+      ps.innerHTML = !p ? DOT + '<span>Sin publicar</span>'
+        : JSON.stringify(flow) !== JSON.stringify(p) ? DOT + '<span>Cambios sin publicar</span>' : CHECK + '<span>Publicado</span>';
+    }
+    save();
+  }
+  function scheduleRefresh() {
+    clearTimeout(ui.debounce);
+    ui.debounce = setTimeout(refreshEditor, 200);
+  }
+  function setEditMsg(t) { ui.editMsg = t; var m = $('editMsg'); if (m) m.textContent = t; }
+
+  function nextId() {
+    var max = 0;
+    D().steps.forEach(function (s) { var m = /^P(\d+)$/.exec(s.id || ''); if (m) max = Math.max(max, Number(m[1])); });
+    return 'P' + (max + 1);
+  }
+
+  function publish() {
+    clearTimeout(ui.debounce);
+    refreshEditor();
+    if (ui.errs.length) {
+      setEditMsg('No se publicó: corrige los problemas de la lista.');
+      var box = $('errors'); if (box && box.scrollIntoView) box.scrollIntoView({ block: 'nearest' });
+      return;
+    }
+    state.flows[state.current].published = C.compile(D());
+    resetTour();
+    save();
+    refreshEditor();
+    setEditMsg('Publicado. Ábrelo en «Ver flujo».');
+  }
+
+  function editorClick(t) {
+    var b = t.closest('button'); if (!b) return;
+    var d = D();
+    if (b.hasAttribute('data-color')) { state.flows[state.current].color = b.getAttribute('data-color'); save(); return renderEditor(); }
+    if (b.hasAttribute('data-delrow')) { d.steps.splice(Number(b.getAttribute('data-delrow')), 1); ui.editMsg = ''; return renderEditor(); }
+    if (b.hasAttribute('data-delcat')) {
+      var name = d.categories.splice(Number(b.getAttribute('data-delcat')), 1)[0];
+      d.steps.forEach(function (s) { if (s.tags) delete s.tags[name]; });
+      return renderEditor();
+    }
+    switch (b.id) {
+      case 'newFlow':
+        var id = 'f' + Date.now().toString(36);
+        state.flows[id] = {
+          draft: {
+            name: 'Nuevo flujo', objective: '', categories: d.categories.slice(),
+            steps: [{ id: 'P1', type: 'start', title: 'Inicio', description: '', tags: {}, exits: 'P2' }, { id: 'P2', type: 'end', title: 'Fin', description: '', tags: {}, exits: '' }]
+          }, published: null,
+          color: FLOW_COLORS.filter(function (col) { return !state.order.some(function (fid) { return state.flows[fid].color === col; }); })[0] || FLOW_COLORS[state.order.length % FLOW_COLORS.length]
+        };
+        state.order.push(id); state.current = id; resetTour();
+        ui.editMsg = 'Flujo creado. Ponle nombre, llena la tabla y publícalo.';
+        renderEditor(); var nm = $('fName'); if (nm) { nm.focus(); nm.select(); }
+        break;
+      case 'addRow':
+        d.steps.push({ id: nextId(), type: 'activity', title: '', description: '', tags: {}, exits: '' });
+        renderEditor();
+        var inp = app.querySelector('input[data-r="' + (d.steps.length - 1) + '"][data-f="title"]'); if (inp) inp.focus();
+        break;
+      case 'addCat':
+        var v = ($('newCat').value || '').trim();
+        if (!v) { setEditMsg('Escribe el nombre de la categoría.'); break; }
+        if (d.categories.some(function (c) { return C.norm(c) === C.norm(v); })) { setEditMsg('Esa categoría ya existe.'); break; }
+        d.categories.push(v); ui.editMsg = ''; renderEditor();
+        break;
+      case 'togglePaste': ui.pasteOpen = !ui.pasteOpen; ui.pasteResult = null; renderEditor(); if (ui.pasteOpen && $('pasteText')) $('pasteText').focus(); break;
+      case 'pasteReview':
+        ui.pasteText = $('pasteText').value;
+        ui.pasteResult = C.parseTable(ui.pasteText, function (nameText) {
+          var hit = state.order.filter(function (fid) { return fid !== state.current && C.norm(flowName(fid)) === C.norm(nameText); });
+          return hit.length ? hit[0] : null;
+        });
+        renderEditor();
+        break;
+      case 'pasteApply':
+        if (ui.pasteResult && ui.pasteResult.steps.length) {
+          d.steps = ui.pasteResult.steps; d.categories = ui.pasteResult.categories;
+          ui.pasteOpen = false; ui.pasteResult = null; ui.pasteText = '';
+          ui.editMsg = 'Tabla reemplazada. Revisa el diagrama y publica.';
+          renderEditor();
+        }
+        break;
+      case 'pasteCancel': ui.pasteOpen = false; ui.pasteResult = null; ui.pasteText = ''; renderEditor(); break;
+      case 'copyTable':
+        var tsv = C.toTSV(d, flowName);
+        var fallback = function () { ui.pasteOpen = true; ui.pasteText = tsv; ui.pasteResult = null; ui.editMsg = 'No se pudo copiar sola. Selecciona el texto y cópialo.'; renderEditor(); var ta = $('pasteText'); if (ta) { ta.focus(); ta.select(); } };
+        try { navigator.clipboard.writeText(tsv).then(function () { setEditMsg('Tabla copiada. Pégala en Excel.'); }, fallback); } catch (e) { fallback(); }
+        break;
+      case 'resetAsk': ui.confirmReset = true; renderEditor(); break;
+      case 'resetNo': ui.confirmReset = false; renderEditor(); break;
+      case 'resetYes': state = initial(); resetTour(); ui.confirmReset = false; ui.editMsg = 'Ejemplo restaurado.'; renderEditor(); break;
+      case 'publish': publish(); break;
+    }
+  }
+
+  function editorInput(t) {
+    var d = D();
+    if (t.id === 'fName') { d.name = t.value; return scheduleRefresh(); }
+    if (t.id === 'fObj') { d.objective = t.value; return scheduleRefresh(); }
+    if (t.id === 'pasteText') { ui.pasteText = t.value; return; }
+    var f = t.getAttribute('data-f'); if (!f || f === 'dep') return;
+    var s = d.steps[Number(t.getAttribute('data-r'))]; if (!s) return;
+    if (f === 'tag') { s.tags = s.tags || {}; s.tags[t.getAttribute('data-c')] = t.value; }
+    else s[f] = t.value;
+    if (f === 'type') {
+      var refSel = app.querySelector('select[data-r="' + t.getAttribute('data-r') + '"][data-f="ref"]');
+      if (refSel) { refSel.disabled = s.type !== 'subflow'; if (s.type !== 'subflow') refSel.value = ''; else refSel.value = s.ref || ''; }
+    }
+    if (f === 'exits' || f === 'id') syncEdgeCells();
+    scheduleRefresh();
+  }
+
+  /* Keeps "Depende de" and "Salidas" in step: both show the same connections. */
+  function syncEdgeCells() {
+    var d = D();
+    Array.prototype.forEach.call(app.querySelectorAll('input[data-f="exits"], input[data-f="dep"]'), function (el) {
+      var s = d.steps[Number(el.getAttribute('data-r'))]; if (!s) return;
+      var isDep = el.getAttribute('data-f') === 'dep';
+      if (!isDep && el === document.activeElement) return;
+      el.value = isDep ? C.predecessorsText(d, s.id) : s.exits;
+    });
+  }
+  function editorDepChange(t) {
+    var res = C.applyDependsOn(D(), Number(t.getAttribute('data-r')), t.value);
+    syncEdgeCells();
+    setEditMsg(res.noId ? 'Ponle primero un ID al paso.'
+      : res.unknown.length ? 'No existe el paso «' + res.unknown.join('», «') + '». No se cambió nada.' : '');
+    scheduleRefresh();
+  }
+
+  /* ---------- Viewer ---------- */
+
+  function resetTour() { ui.session = null; ui.elapsed = 0; ui.phase = 'overview'; ui.notice = ''; ui.selected = null; ui.hlCat = ''; ui.hlVal = ''; ui.revStack = []; }
+  function startTour() {
+    var root = state.current;
+    ui.session = { root: root, tours: {}, stack: [root], done: new Set() };
+    ui.session.tours[root] = new C.Tour(pub(root));
+    ui.elapsed = 0; ui.notice = ''; ui.phase = 'tour';
+  }
+  function top(stack) { return stack[stack.length - 1]; }
+  function progress() {
+    var se = ui.session; var total = 0, seen = 0;
+    closure(se.root).forEach(function (id) {
+      var n = pub(id).steps.length; total += n;
+      seen += se.done.has(id) ? n : (se.tours[id] ? se.tours[id].visited.size : 0);
+    });
+    return { total: total, seen: seen };
+  }
+  function syncTimer() {
+    var run = route() === 'ver' && ui.phase === 'tour' && !!ui.session;
+    if (run && !ui.timer) ui.timer = setInterval(function () { ui.elapsed++; }, 1000);
+    else if (!run && ui.timer) { clearInterval(ui.timer); ui.timer = null; }
+  }
+  function crumbsHTML(stack, attr) {
+    if (stack.length < 2) return '';
+    return '<nav class="crumbs" aria-label="Ubicación">' + stack.map(function (id, i) {
+      return i < stack.length - 1
+        ? '<button type="button" class="crumb" ' + attr + '="' + i + '">' + esc(flowName(id)) + '</button><span aria-hidden="true">›</span>'
+        : '<span class="crumb here" aria-current="location">' + esc(flowName(id)) + '</span>';
+    }).join('') + '</nav>';
+  }
+
+  function detailsHTML(s, flow) {
+    var h = '<p class="eyebrow">' + esc((C.TYPE_LABELS[s.type] || '').toUpperCase()) + '</p><h2 class="step-title">' + esc(s.title) + '</h2>' +
+      (s.description ? '<p class="desc">' + esc(s.description) + '</p>' : '<p class="muted">Este paso no tiene descripción.</p>');
+    if (s.type === 'subflow' && s.ref && pub(s.ref)) {
+      var n = pub(s.ref).steps.length;
+      h += '<p class="subinfo">Contiene el flujo «' + esc(flowName(s.ref)) + '» · ' + n + (n === 1 ? ' paso' : ' pasos') + '</p>';
+    }
+    var rows = flow.categories.filter(function (c) { return s.tags[c] && s.tags[c].length; });
+    if (rows.length) {
+      h += '<dl class="tags">' + rows.map(function (c) {
+        return '<div><dt>' + esc(c) + '</dt><dd>' + s.tags[c].map(function (v) { return '<span class="chip">' + esc(v) + '</span>'; }).join('') + '</dd></div>';
+      }).join('') + '</dl>';
+    }
+    return h;
+  }
+
+  function renderViewer() {
+    var f = pub(state.current);
+    if (!f) {
+      app.innerHTML = '<section class="page" style="' + themeVars(flowColor(state.current)) + '">' + flowBarHTML(false) + '<div class="card pad"><h1>' + esc(flowName(state.current)) + '</h1><p class="muted">Este flujo aún no se ha publicado. Publícalo desde «Editar» para verlo aquí.</p></div></section>';
+      return syncTimer();
+    }
+    var rev = isReviewed();
+    if (ui.phase === 'review' && !rev) ui.phase = 'overview';
+    if (ui.phase === 'tour' && !ui.session) startTour();
+    var tab = function (k, n, label, disabled) {
+      return '<li><button type="button" data-phase="' + k + '"' + (ui.phase === k ? ' aria-current="step"' : '') + (disabled ? ' disabled' : '') + '><span class="num">' + n + '</span>' + label + '</button></li>';
+    };
+    var status = rev ? CHECK + '<span>Revisado</span>' : ui.session ? GEAR + '<span>Recorrido en curso</span>' : DOT + '<span>Pendiente de revisión</span>';
+    app.innerHTML = '<section class="page" style="' + themeVars(flowColor(state.current)) + '">' + flowBarHTML(false) + '<div class="page-head"><div><h1><span class="flow-dot" aria-hidden="true"></span>' + esc(f.name) + '</h1>' +
+      (f.objective ? '<p class="muted">' + esc(f.objective) + '</p>' : '') + '</div><span class="status">' + status + '</span></div>' +
+      '<ol class="phases">' + tab('overview', 1, 'Panorama') + tab('tour', 2, 'Recorrido') + tab('review', 3, rev ? 'Repaso' : 'Repaso · se desbloquea al terminar el recorrido', !rev) + '</ol>' +
+      '<div id="phase"></div></section>';
+    renderPhase();
+  }
+
+  function renderPhase(focusId) {
+    var box = $('phase'); if (!box) return;
+    var h; var dg; var f;
+    var depth = ui.phase === 'tour' && ui.session ? ui.session.stack.length - 1 : ui.phase === 'review' ? Math.max(0, ui.revStack.length - 1) : 0;
+    box.style.cssText = themeVars(shade(flowColor(state.current), depth));
+    if (ui.phase === 'overview') {
+      f = pub(state.current);
+      var subs = closure(state.current).length - 1; var pr = 0;
+      closure(state.current).forEach(function (id) { pr += pub(id).steps.length; });
+      var label = isReviewed() ? 'Repetir recorrido' : (ui.session ? 'Continuar recorrido' : 'Iniciar recorrido');
+      box.innerHTML = '<div class="cols"><div class="card diagram-card"><div id="dg" class="diagram"></div>' +
+        '<div class="actions"><button type="button" class="btn primary" id="startTour">' + label + '</button></div></div>' +
+        '<aside class="card side"><p class="eyebrow">PANORAMA</p><h2 class="step-title">El flujo completo</h2>' +
+        '<p class="desc">Míralo de arriba abajo para ubicarte. Después lo recorrerás un paso a la vez.</p>' +
+        '<p class="muted">' + pr + ' pasos' + (subs ? ', contando ' + subs + (subs === 1 ? ' subflujo' : ' subflujos') + ' que verás por dentro al llegar a ' + (subs === 1 ? 'él' : 'ellos') + '.' : '') + '</p></aside></div>';
+      drawDiagram($('dg'), f);
+    } else if (ui.phase === 'tour') {
+      var se = ui.session; var fid = top(se.stack); f = pub(fid);
+      var t = se.tours[fid]; var cur = t.current(); var s = t.step(); var p = progress();
+      var inSub = se.stack.length > 1;
+      var isSub = s.type === 'subflow' && !!s.ref && !!pub(s.ref) && se.stack.indexOf(s.ref) === -1;
+      var subDone = isSub && se.done.has(s.ref);
+      var mustEnter = t.atEnd() && isSub && !subDone;
+      h = '<div class="cols"><div class="card diagram-card"><div class="progress"><span>Pasos visitados: ' + p.seen + ' de ' + p.total + '</span>' +
+        '<div class="bar" role="progressbar" aria-label="Pasos visitados" aria-valuemin="0" aria-valuemax="' + p.total + '" aria-valuenow="' + p.seen + '"><div style="width:' + Math.round(p.seen / p.total * 100) + '%"></div></div>' +
+        '<button type="button" class="btn zoom-btn" id="zoomBtn">' + ico('zoom', 14) + (ui.zoom ? 'Ver todo' : 'Acercar') + '</button></div>' +
+        crumbsHTML(se.stack, 'data-crumb') + legendHTML(f) + '<div id="dg" class="diagram"></div><!--ACTIONS--></div><aside class="card side">';
+      if (cur.note && t.atEnd()) {
+        var nt = cur.note; var ttl = function (id) { return '«' + esc(t.byId.get(id).title) + '»'; };
+        var why = nt.endAt ? 'Esa rama terminó en ' + ttl(nt.endAt) + '. ' : nt.loopTo ? 'Ese camino se repite sin llegar a un cierre. ' : '';
+        h += '<p class="note">' + why + (nt.returned ? 'Vuelves a esta decisión para ver las otras opciones.' : 'Ahora sigues con una parte del flujo que faltaba.') + '</p>';
+      }
+      h += detailsHTML(s, f);
+      var opts = t.options(); var choice = t.needsChoice() && !mustEnter;
+      var rowText = function (o) {
+        return '<p class="exit-row">' + (o.label ? '<strong>' + esc(o.label) + '</strong> · ' : '') + esc(o.title) + (o.visited && t.atEnd() ? ' (ya visitado)' : '') + '</p>';
+      };
+      if (mustEnter) {
+        h += '<div class="exits"><p class="label">Este paso tiene su propio flujo</p><p class="muted small">Lo recorrerás por dentro y volverás aquí para continuar.</p></div>';
+      } else if (opts.length) {
+        if (choice) {
+          var anySeen = opts.some(function (o) { return o.taken; });
+          h += '<div class="exits"><p class="label">Elige una rama para continuar</p>' + opts.map(function (o) {
+            return '<button type="button" class="btn branch' + (o.taken ? ' seen' : '') + '" data-choose="' + o.index + '">' + (o.label ? '<strong>' + esc(o.label) + '</strong> · ' : '') + esc(o.title) + (o.taken ? '<span class="seen-tag">' + CHECK + 'Ya recorrida</span>' : '') + '</button>';
+          }).join('') + (t.canSkip() ? '<button type="button" class="btn branch" id="skipBtn">Ir a lo que falta por visitar</button>' : '') +
+            (anySeen ? '<p class="muted small">Puedes repetir una rama ya recorrida.</p>' : '') + '</div>';
+        } else {
+          h += '<div class="exits info"><p class="label">' + (opts.length === 1 ? 'Sigue con' : 'Salidas') + '</p>' + opts.map(rowText).join('') + '</div>';
+        }
+      }
+      if (t.atEnd() && subDone) h += '<div class="exits"><button type="button" class="btn branch seen" id="repeatSub">Ver el subflujo otra vez<span class="seen-tag">' + CHECK + 'Ya recorrido</span></button></div>';
+      var subEnd = inSub && t.canFinish();
+      var finish = !inSub && t.canFinish();
+      var primary = mustEnter ? '<button type="button" class="btn primary" id="enterBtn">Entrar al subflujo</button>'
+        : subEnd ? '<button type="button" class="btn primary" id="backBtn">' + ico('back', 12) + 'Volver a «' + esc(flowName(se.stack[se.stack.length - 2])) + '»</button>'
+        : finish ? '<button type="button" class="btn primary" id="finishBtn">Terminar recorrido</button>'
+        : '<button type="button" class="btn primary" id="nextBtn"' + (choice ? ' disabled' : '') + '>Siguiente</button>';
+      h += '</aside></div>';
+      h = h.replace('<!--ACTIONS-->', '<div class="actions"><p id="tourMsg" class="msg" role="status">' + (ui.notice === 'time' ? esc(FAST_MSG) : '') + '</p>' +
+        '<button type="button" class="btn" id="prevBtn"' + (t.pos === 0 ? ' disabled' : '') + '>Anterior</button>' + primary + '</div>');
+      box.innerHTML = h;
+      dg = $('dg');
+      drawDiagram(dg, f, {
+        badgesFor: cur.id,
+        state: function (id) { return id === cur.id ? 'current' : (t.visited.has(id) ? 'visited' : 'dim'); },
+        strong: function (e) { return t.visited.has(e.from) && t.visited.has(e.to); }
+      });
+      if (MOBILE.matches && ui.zoom) {
+        var around = [cur.id].concat(opts.map(function (o) { return o.to; }));
+        if (t.pos > 0) around.push(t.trail[t.pos - 1].id);
+        zoomTo(dg, around, cur.id);
+      } else scrollToNode(dg, cur.id);
+    } else {
+      if (!ui.revStack.length) ui.revStack = [state.current];
+      f = pub(top(ui.revStack));
+      var cat = f.categories.indexOf(ui.hlCat) !== -1 ? ui.hlCat : ''; var vals = [];
+      if (cat) f.steps.forEach(function (st) { (st.tags[cat] || []).forEach(function (v) { if (vals.indexOf(v) === -1) vals.push(v); }); });
+      if (vals.indexOf(ui.hlVal) === -1) ui.hlVal = '';
+      var sel = ui.selected ? f.steps.filter(function (x) { return x.id === ui.selected; })[0] : null;
+      var canOpen = sel && sel.type === 'subflow' && sel.ref && pub(sel.ref) && ui.revStack.indexOf(sel.ref) === -1;
+      h = '<div class="cols"><div class="card diagram-card"><div class="filter"><label for="hlCat">Resaltar por</label><select id="hlCat"><option value="">Nada</option>' +
+        f.categories.map(function (c) { return '<option value="' + esc(c) + '"' + (c === cat ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select>' +
+        '<div class="chips">' + vals.map(function (v) { return '<button type="button" class="chip-btn" data-hlval="' + esc(v) + '" aria-pressed="' + (v === ui.hlVal) + '">' + esc(v) + '</button>'; }).join('') + '</div></div>' +
+        crumbsHTML(ui.revStack, 'data-rcrumb') + legendHTML(f) + '<div id="dg" class="diagram"></div>' +
+        (canOpen ? '<div class="actions"><button type="button" class="btn primary" id="openSub">' + ico('sub', 12) + 'Abrir subflujo</button></div>' : '') + '</div><aside class="card side">' +
+        (ui.notice === 'done' ? '<p class="note">' + CHECK + '<span>Flujo revisado. En la aplicación real, esto habilita la evaluación.</span></p>' : '') +
+        (sel ? detailsHTML(sel, f)
+          : '<p class="eyebrow">REPASO</p><h2 class="step-title">Explora con libertad</h2><p class="desc">Haz clic en cualquier paso para ver su detalle, o resalta los pasos por etiqueta.</p>') +
+        '</aside></div>';
+      box.innerHTML = h;
+      drawDiagram($('dg'), f, {
+        clickable: true,
+        badgesFor: ui.selected,
+        state: function (id) {
+          var st = f.steps.filter(function (x) { return x.id === id; })[0];
+          var c = id === ui.selected ? 'selected ' : '';
+          if (cat && ui.hlVal) c += (st.tags[cat] || []).indexOf(ui.hlVal) !== -1 ? 'hit' : 'dim';
+          return c;
+        }
+      });
+    }
+    syncTimer();
+    if (focusId) {
+      var el = $(focusId) || box.querySelector('[data-choose]:not(.seen)') || $('enterBtn') || $('backBtn') || $('finishBtn') || $('nextBtn');
+      if (el && !el.disabled) { try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); } }
+    }
+  }
+
+  function selectNode(g) {
+    ui.selected = g.getAttribute('data-id'); ui.notice = '';
+    renderPhase();
+    var again = app.querySelector('.node[data-id="' + (window.CSS && CSS.escape ? CSS.escape(ui.selected) : ui.selected) + '"]');
+    if (again) { try { again.focus({ preventScroll: true }); } catch (e) { /* not focusable */ } }
+  }
+
+  function viewerClick(t) {
+    var node = t.closest('.node.clickable');
+    if (node && ui.phase === 'review') return selectNode(node);
+    var b = t.closest('button'); if (!b || b.disabled) return;
+    var se = ui.session; var tour = se ? se.tours[top(se.stack)] : null;
+    if (b.hasAttribute('data-phase')) {
+      var p = b.getAttribute('data-phase');
+      if (p === 'review' && !isReviewed()) return;
+      ui.phase = p; ui.notice = ui.notice === 'done' && p === 'review' ? 'done' : '';
+      return renderViewer();
+    }
+    if (b.hasAttribute('data-choose')) { tour.choose(Number(b.getAttribute('data-choose'))); ui.notice = ''; return renderPhase('nextBtn'); }
+    if (b.hasAttribute('data-hlval')) { var v = b.getAttribute('data-hlval'); ui.hlVal = ui.hlVal === v ? '' : v; return renderPhase(); }
+    if (b.hasAttribute('data-crumb')) { se.stack.length = Number(b.getAttribute('data-crumb')) + 1; ui.notice = ''; return renderPhase('nextBtn'); }
+    if (b.hasAttribute('data-rcrumb')) { ui.revStack.length = Number(b.getAttribute('data-rcrumb')) + 1; ui.selected = null; return renderPhase(); }
+    var ref = tour ? tour.step().ref : '';
+    switch (b.id) {
+      case 'startTour':
+        if (isReviewed() || !ui.session) startTour(); else ui.phase = 'tour';
+        renderViewer(); var n = $('nextBtn'); if (n) n.focus();
+        break;
+      case 'nextBtn': tour.next(); ui.notice = ''; renderPhase('nextBtn'); break;
+      case 'zoomBtn': ui.zoom = !ui.zoom; renderPhase('zoomBtn'); break;
+      case 'skipBtn': tour.skip(); ui.notice = ''; renderPhase('nextBtn'); break;
+      case 'prevBtn': tour.prev(); ui.notice = ''; renderPhase('prevBtn'); break;
+      case 'enterBtn':
+        if (!se.tours[ref]) se.tours[ref] = new C.Tour(pub(ref));
+        se.stack.push(ref); ui.notice = ''; renderPhase('nextBtn');
+        break;
+      case 'repeatSub': se.tours[ref] = new C.Tour(pub(ref)); se.stack.push(ref); ui.notice = ''; renderPhase('nextBtn'); break;
+      case 'backBtn': se.done.add(se.stack.pop()); ui.notice = ''; renderPhase('nextBtn'); break;
+      case 'openSub':
+        var sel = pub(top(ui.revStack)).steps.filter(function (x) { return x.id === ui.selected; })[0];
+        if (sel && sel.ref && pub(sel.ref)) { ui.revStack.push(sel.ref); ui.selected = null; ui.hlVal = ''; renderPhase(); }
+        break;
+      case 'finishBtn':
+        if (ui.elapsed < progress().total * SECONDS_PER_STEP) { ui.notice = 'time'; renderPhase('finishBtn'); break; }
+        state.reviewed[state.current] = signature(state.current); save();
+        ui.phase = 'review'; ui.notice = 'done'; ui.selected = null; ui.revStack = [state.current];
+        renderViewer();
+        break;
+    }
+  }
+
+  /* ---------- Routing and events ---------- */
+
+  function route() { return location.hash === '#editar' ? 'editar' : 'ver'; }
+  function render() {
+    var r = route();
+    Array.prototype.forEach.call(document.querySelectorAll('[data-nav]'), function (a) {
+      if (a.getAttribute('data-nav') === r) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+    if (r === 'editar') { renderEditor(); syncTimer(); } else renderViewer();
+  }
+
+  app.addEventListener('click', function (ev) { if (route() === 'editar') editorClick(ev.target); else viewerClick(ev.target); });
+  app.addEventListener('input', function (ev) { if (route() === 'editar' && ev.target.id !== 'flowSel') editorInput(ev.target); });
+  app.addEventListener('change', function (ev) {
+    var t = ev.target;
+    if (t.id === 'flowSel') {
+      clearTimeout(ui.debounce);
+      state.current = t.value; resetTour(); ui.editMsg = ''; ui.pasteOpen = false; ui.pasteResult = null; ui.confirmReset = false;
+      save(); render();
+      var again = $('flowSel'); if (again) again.focus();
+      return;
+    }
+    if (route() === 'editar') {
+      if (t.tagName === 'SELECT') editorInput(t);
+      else if (t.getAttribute('data-f') === 'dep') editorDepChange(t);
+      return;
+    }
+    if (t.id === 'hlCat') { ui.hlCat = t.value; ui.hlVal = ''; renderPhase('hlCat'); }
+  });
+  app.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Enter' && ev.key !== ' ') return;
+    var node = ev.target.closest && ev.target.closest('.node.clickable');
+    if (node && route() === 'ver' && ui.phase === 'review') { ev.preventDefault(); selectNode(node); }
+    if (ev.key === 'Enter' && ev.target.id === 'newCat') { ev.preventDefault(); $('addCat').click(); }
+  });
+  if (MOBILE.addEventListener) MOBILE.addEventListener('change', function () { if (route() === 'ver' && ui.phase === 'tour') renderPhase(); });
+  window.addEventListener('hashchange', render);
+  render();
+})();
+
+</script>
+</body>
+</html>

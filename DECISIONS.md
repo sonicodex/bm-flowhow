@@ -1,0 +1,305 @@
+# DECISIONS
+
+Append-only log of decisions not covered by `SPEC.md` and deviations from it.
+Newest first. One entry per decision.
+
+Entry format:
+
+```
+## YYYY-MM-DD — <short title>
+- Decision: <what>
+- Reason: <why>
+- Spec sections affected: <list or "none">
+```
+
+---
+
+## 2026-11-12 — Role labels confirmed by the owner
+
+- Decision: The roles show on screen as "Empleado", "Líder" and "Junta
+  directiva". In code they stay `standard`, `leader` and `board`.
+- Reason: Owner's answer to the open question in "Role labels in the UI".
+- Spec sections affected: 4.
+
+## 2026-11-12 — Own D1 engine; no delivery closes without the live tests
+
+- Status: **Obsolete** (plan_iteration_4). Both parts died with Django:
+  - The engine subclassed django-cf's D1 backend; the TypeScript server
+    queries D1 with plain SQL, so no ORM adds `FOR UPDATE`.
+  - The `pytest -m live` rule existed because unit tests ran on SQLite.
+    Tests now run inside the Workers runtime against a real local D1
+    (SPEC §9), so that divergence cannot happen.
+- Decision:
+  - `DATABASES["default"]["ENGINE"]` is `flowhow.db.d1`, a subclass of
+    django-cf's D1 `DatabaseWrapper` whose features set
+    `has_select_for_update = False`. django-cf declares it `True`, but D1
+    rejects `SELECT ... FOR UPDATE` ("D1_ERROR: near FOR: syntax error").
+    Django adds that clause in `select_for_update()` and inside
+    `update_or_create()`; with the flag off it leaves it out. The fix lives
+    in `src/flowhow/db/`, not in `python_modules/`, which is vendored and
+    regenerated on every packaging.
+  - `apply_grid` writes the draft with an explicit get/create instead of
+    `update_or_create()`.
+  - Unit tests run on in-memory SQLite (`flowhow.test_settings`), so they
+    do not see where D1 differs from SQLite. This failure passed all 62
+    unit tests. No delivery is closed until `uv run pytest -m live` passes
+    against the local dev server.
+- Reason: The dev loader returned 500 on local D1 while every unit test
+  was green.
+- Spec sections affected: 9 (Architecture), 11, 12.
+
+## 2026-11-12 — Import contract and flow document shape (entrega 1)
+
+- Decision:
+  - **Grid** (what the browser sends; SPEC §9 "one single input shape"):
+    `{categories: [names], rows: [{id, type, ref, title, description,
+    tags: {category: "a, b"}, exits: "Sí:P5 | No:P4", depends_on}]}`.
+    `type` is a type code (`start`, …); the browser maps the Spanish labels
+    of SPEC §5. `ref` is the target flow's **name**, so reference files
+    carry no database ids.
+  - **Document** (stored in drafts, save points, releases):
+    `{steps: [{id, type, title, description, ref: flow_id|null,
+    tags: [tag_id], exits: [{label, to}]}]}`. Tags are stored by id, so a
+    rename does not break past releases. Flow name, objective, colour and
+    areas live on `Flow`, not in the document.
+  - The step `id` (the "ID" column) is the stable id across versions
+    (SPEC §5). Import replaces the whole draft, so matching by that column
+    is the only way to keep identity across imports.
+  - `Flow.name` is unique, because the import format names subflow and
+    link targets by name.
+  - Errors that the document cannot hold block the import: missing or
+    duplicate ID, unknown type, unknown target flow, a flow pointing to
+    itself, blank or duplicate category column. Unknown "Depende de" ids
+    are reported and change nothing (SPEC §6). Publish rules (§6) are
+    reported on review but only block publishing; a draft may be invalid.
+  - Unknown categories (columns) go through the same accept/reject step as
+    unknown tags. Rejecting a category drops its column.
+  - Tag and category names match case-insensitively; the stored spelling
+    is kept.
+  - The flow colour is stored as its palette slot (1–12), which maps to
+    the `--flow-N` token; no hex value is stored.
+- Reason: SPEC §6 and §9 fix the behaviour but not the shapes; these are
+  the smallest shapes that cover them.
+- Spec sections affected: 5, 6, 8, 9.
+
+## 2026-11-12 — Reference flows as grid JSON, loaded by a dev endpoint
+
+- Status: **Partly obsolete** (plan_iteration_4). The grid JSON files stay
+  as development data. The `/__load_dev_flow__/` endpoint is obsolete with
+  the other `__*__/` endpoints; phase 1 defines the new development load.
+- Decision:
+  - `reference/Flujo_Instalaciones.grid.json` and
+    `reference/Flujo_Apertura_OT.grid.json` are the two reference xlsx
+    files converted once (sheet "Flujo" only) to the grid shape, with a
+    throwaway openpyxl script that is not committed. They are new files in
+    `reference/`, added on the owner's instruction (PLAN iteration 1,
+    point 1); the xlsx files are untouched.
+  - `POST /__load_dev_flow__/?name=<flow>` (DEBUG only) takes the grid in
+    the request body, because the Worker cannot read files outside `src/`.
+    It calls the same `review_grid` / `apply_grid` / `publish` functions
+    as the import endpoints, accepting every unknown category and tag.
+    It is idempotent: an unchanged grid publishes nothing; a changed one
+    publishes a minor release.
+  - The reference flows have no area ("[POR DEFINIR]"), but the first
+    publication requires one (SPEC §6). The loader assigns a placeholder
+    area "Desarrollo" to a flow it publishes for the first time.
+  - Instalaciones must be loaded before Apertura de OT, whose link P13
+    points to it.
+- Reason: Exercises the real import contract from entrega 1 without the
+  server ever reading an xlsx (SPEC §9). `manage.py` cannot reach the
+  local D1 (the django-cf D1 backend only runs inside the Worker).
+- Spec sections affected: 6, 9, 11.
+
+## 2026-11-12 — Role labels in the UI
+
+- Status: **Superseded** by "Role labels confirmed by the owner" (above).
+- Decision: The roles show as "Estándar", "Líder" and "Junta" in Spanish.
+- Reason: SPEC §4 names the roles only in English. To be confirmed by the
+  owner before entrega 2 shows them on screen.
+- Spec sections affected: 4.
+
+## 2026-11-12 — A subflow always resolves to the child's latest release
+
+- Status: **Suspended** (plan_iteration_3, change E). Subflows are out of
+  stage 1: neither reference flow uses one, and this decision existed only
+  to reconcile an immutable parent release with later child releases.
+  Without subflows the question does not arise. The `subflow` type stays in
+  the model and the import format with no behaviour. To be taken up again
+  in stage 2.
+- Decision: A `subflow` step references the child flow by id, and the
+  viewer always resolves it to the child's latest release. Publishing the
+  parent does not pin the child's version. Consequences:
+  - The parent's release document is immutable, but what users see of it
+    changes when the child is republished.
+  - `ReviewRecord` stores the version of every flow walked in the tour:
+    the parent and each subflow, nested ones included.
+  - A major release of any of those flows returns the parent to "Pendiente
+    de revisión". A minor release keeps "Revisado". No separate rule is
+    needed for subflow majors.
+- Alternatives considered:
+  - The parent pins the child's version at publish time. Rejected: fixing
+    a typo in a subflow would require republishing every parent that
+    contains it, directly or nested.
+- Reason: §8 says users always see the latest release; §7 Subflows says
+  the parent always shows the latest published version of the subflow.
+  Storing every walked version in the review record keeps the reviewed
+  state correct without pinning.
+- Spec sections affected: 7 (Subflows, Reviewed), 8 (Versioning), 9 (Data).
+
+## 2026-11-12 — One "Flujo" column for subflow and link targets
+
+- Decision: The import format has a single column "Flujo" (formerly
+  "Subflujo") that names the target flow of both `Subflujo` and `Enlace`
+  steps. The "Tipo" column tells them apart. Template and export use the
+  same column. The step stores the target in one field (`ref`) for both
+  types.
+- Alternatives considered:
+  - Keep "Subflujo" for both types. Rejected: the header is misleading on
+    a link row.
+  - Add a separate "Enlace" or "Flujo enlazado" column. Rejected: two
+    columns that are never both filled on the same row, and one more
+    column in a grid that must stay easy to fill (§6).
+- Reason: Both types point to another flow by name; one column covers it
+  with the least to fill. Already applied to both reference xlsx files and
+  written into SPEC §5 by the owner.
+- Spec sections affected: 5 (Step), 6 (Editor, import/export).
+
+## 2026-11-12 — The draft is its own row, not the latest save point
+
+- Decision: Each flow has at most one `Draft` row (one-to-one with `Flow`)
+  holding the current working document as JSON. Save points are separate,
+  append-only snapshots.
+  - "Guardar" writes the document into `Draft` and appends a `SavePoint`
+    copy of it.
+  - "Volver a este punto" copies that save point into `Draft`. It creates
+    no new save point and deletes none of the later ones.
+  - Import (after the review screen) and "Restaurar" a release replace the
+    `Draft` content and append a save point, so both can be undone.
+  - Publish copies `Draft` into a new `Release`, deletes every save point
+    of the flow, then deletes the `Draft` row. The next edit opens a new
+    draft copied from the latest release.
+  - A flow with no release yet always has a `Draft` row (created empty
+    with the flow).
+- Reason: §8 says going back must not discard later save points. If the
+  draft were "the latest save point", going back would need either a
+  pointer to the current point or a duplicate save point on every
+  rewind. A separate row keeps the current state explicit. It also keeps
+  the editor-only boundary (§9 "Drafts and save points are sent only to
+  editors") on two tables that only editor views read, instead of a field
+  on `Flow`, which every viewer query touches.
+- Spec sections affected: 8, 9 (Data, server-enforced rules).
+
+## 2026-11-12 — Auto-layout library for the diagram (provisional)
+
+- Decision: Use `@dagrejs/dagre` (v1.1.5) as the client-side auto-layout
+  engine. The UMD build is vendored at
+  `app/src/flowhow/spike/static/spike/dagre.min.js` and served as a
+  regular script tag. Browser draws SVG by hand; no bundler is
+  introduced.
+- Status: **Provisional.** The 7-step example used in the Step 0 spike
+  is too small to stress a layered layout. This choice is to be
+  re-confirmed in the real viewer against the 30-step flow in
+  `reference/Flujo_Instalaciones.xlsx`, with attention to edge routing
+  around decision diamonds and loop-back arrows. If dagre produces
+  unreadable layouts there, fall back to `elkjs` (orthogonal routing,
+  ~1 MB bundle).
+- Reason: Among the evaluated candidates (`dagre`, `elkjs`, `mermaid`),
+  dagre is the smallest and simplest layered-graph layout: active
+  maintenance, straightforward graph API, enough control for the
+  shapes SPEC requires. `elkjs` is more capable but heavier and more
+  complex; `mermaid` is diagrams-as-code and conflicts with the editor
+  grid.
+- Spec sections affected: 9 (Architecture, diagram).
+
+## 2026-11-12 — `tzdata` added as a runtime dependency
+
+- Decision: Add `tzdata` to the Worker dependencies.
+- Reason: Pyodide (the runtime powering Python Workers) ships no IANA
+  time zone data, so `zoneinfo.ZoneInfo("America/Bogota")` fails without
+  this package. SPEC §2 fixes the time zone, so `tzdata` is required.
+- Spec sections affected: 2, 9.
+
+## 2026-11-12 — Worker env vars are bridged into `os.environ`
+
+- Decision: `src/entry.py` copies the Worker's `env` properties
+  (`DJANGO_SECRET_KEY`, `DJANGO_DEBUG`) into `os.environ` inside
+  `get_app()` before importing the WSGI app.
+- Reason: Python Workers expose `.dev.vars` entries as attributes of the
+  `env` object, not as process env vars, but Django's settings module is
+  loaded at import time and reads `os.environ`. The bridge is the
+  shortest fix; it runs on every request but the WSGI import is cached.
+- Spec sections affected: 9.
+
+## 2026-11-12 — Local management endpoints for migrations and admin
+
+- Status: **Obsolete** (plan_iteration_4), together with
+  `/__load_dev_flow__/` (see "Reference flows as grid JSON"). The three
+  `__*__/` endpoints existed because `manage.py` could not reach the D1
+  binding. The TypeScript project applies migrations with
+  `wrangler d1 migrations`, so the problem is gone.
+- Decision: `src/flowhow/urls.py` exposes two unprotected endpoints,
+  `/__run_migrations__/` and `/__create_admin__/`, used only in local
+  development to replace `manage.py migrate` / `createsuperuser` (which
+  cannot reach the D1 binding from outside the Worker).
+- Reason: django-cf's reference template uses the same pattern. They must
+  be protected before any deploy; Stage 1 will either secure them with a
+  dev-only guard or replace them entirely with proper admin tooling.
+- Spec sections affected: 9 (never trust the browser) — these endpoints
+  are a known gap to close before Stage 1 is deployable.
+
+## 2026-11-12 — Dedicated test settings module
+
+- Decision: Tests use `flowhow.test_settings`, which injects a disposable
+  `DJANGO_SECRET_KEY` and overrides `DATABASES` to in-memory SQLite before
+  re-exporting `flowhow.settings`.
+- Reason: Pytest runs outside Pyodide and cannot reach the D1 binding or
+  the `.dev.vars` secret. The Django-idiomatic split keeps the production
+  settings strict (no hardcoded secret, no SQLite fallback).
+- Spec sections affected: 11, 12.
+
+## 2026-11-11 — Step 0 setup choices
+
+- Decision: Django package is named `flowhow`. The Worker name in
+  `wrangler.jsonc` stays as `app`, and the Python project in `pyproject.toml`
+  stays as `django-worker` for now.
+- Reason: Owner's instruction. Minimise churn in template-provided names
+  where the product name is not user-visible.
+- Spec sections affected: 9 (Architecture, naming).
+
+## 2026-11-11 — Local secret storage
+
+- Decision: `SECRET_KEY` is read from the environment variable
+  `DJANGO_SECRET_KEY`. Locally it lives in `app/.dev.vars` (git-ignored).
+  A committed `app/.dev.vars.example` documents the expected keys with
+  placeholder values.
+- Reason: SPEC forbids committing secrets; `.dev.vars` is the
+  Workers-native mechanism to inject environment variables during
+  `pywrangler dev`.
+- Spec sections affected: 9 (Architecture, local development).
+
+## 2026-11-11 — Auth verification in Step 0
+
+- Decision: Step 0 proves "own login works end to end" via Django's
+  built-in admin login flow (`createsuperuser` + `/admin/login/`). No
+  custom login UI is built in Step 0.
+- Reason: The product uses its own non-admin login later (§4 and §7), but
+  Step 0 is a feasibility spike. Admin login exercises the same auth
+  backend and session cookie path without extra scope.
+- Spec sections affected: 4, 7, 11 (Step 0).
+
+## 2026-11-11 — Sample flow data for the layout spike
+
+- Decision: The Step 0 layout demo renders a hardcoded copy of the
+  sample flow (based on `reference/Flujo_Instalaciones.xlsx` and the
+  illustrative table in §5). The data is placed in an isolated file so
+  it can be removed without touching production code paths.
+- Reason: Step 0 must not depend on the xlsx parser or the domain model,
+  which are later slices.
+- Spec sections affected: 11 (Step 0).
+
+## 2026-11-11 — Ignore `PROMPT.md`
+
+- Decision: `PROMPT.md` in the repo root is a local scratch file and is
+  added to `.gitignore`.
+- Reason: Owner's instruction. Not part of the deliverables.
+- Spec sections affected: none.

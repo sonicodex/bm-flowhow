@@ -1,0 +1,476 @@
+{
+  "categories": [
+    "Responsable",
+    "Herramienta"
+  ],
+  "rows": [
+    {
+      "id": "P1",
+      "type": "start",
+      "ref": "",
+      "title": "Apertura de OT",
+      "description": "La orden de trabajo se abre en el tablero y se comparte en el grupo de WhatsApp.",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": "TC, WP"
+      },
+      "exits": "P2",
+      "depends_on": ""
+    },
+    {
+      "id": "P2",
+      "type": "activity",
+      "ref": "",
+      "title": "Diseñar y asignar",
+      "description": "Las artes quedan en Dropbox.",
+      "tags": {
+        "Responsable": "Diseño",
+        "Herramienta": "TC, Dropbox"
+      },
+      "exits": "P3",
+      "depends_on": ""
+    },
+    {
+      "id": "P3",
+      "type": "activity",
+      "ref": "",
+      "title": "Revisar en el grupo de WhatsApp",
+      "description": "",
+      "tags": {
+        "Responsable": "Diseño",
+        "Herramienta": "TC, WP"
+      },
+      "exits": "P4",
+      "depends_on": ""
+    },
+    {
+      "id": "P4",
+      "type": "activity",
+      "ref": "",
+      "title": "Aprobar",
+      "description": "",
+      "tags": {
+        "Responsable": "Diseño",
+        "Herramienta": "TC"
+      },
+      "exits": "P5",
+      "depends_on": ""
+    },
+    {
+      "id": "P5",
+      "type": "activity",
+      "ref": "",
+      "title": "Pasar a producción",
+      "description": "Alimenta el paso P2 del flujo Instalaciones.",
+      "tags": {
+        "Responsable": "Diseño",
+        "Herramienta": "TC"
+      },
+      "exits": "P6",
+      "depends_on": ""
+    },
+    {
+      "id": "P6",
+      "type": "decision",
+      "ref": "",
+      "title": "¿La producción es externa o interna?",
+      "description": "En ambos casos el primer contacto con el cliente lo hace SAC.",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": ""
+      },
+      "exits": "Externa:P7 | Interna:P13",
+      "depends_on": ""
+    },
+    {
+      "id": "P7",
+      "type": "decision",
+      "ref": "",
+      "title": "¿El proveedor es la litografía?",
+      "description": "",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": "WP"
+      },
+      "exits": "Litografía:P8 | Otro proveedor:P9",
+      "depends_on": ""
+    },
+    {
+      "id": "P8",
+      "type": "activity",
+      "ref": "",
+      "title": "Solicitar la fecha a la litografía",
+      "description": "",
+      "tags": {
+        "Responsable": "SAC",
+        "Herramienta": "WP"
+      },
+      "exits": "P10",
+      "depends_on": ""
+    },
+    {
+      "id": "P9",
+      "type": "activity",
+      "ref": "",
+      "title": "Solicitar la fecha al proveedor",
+      "description": "",
+      "tags": {
+        "Responsable": "Almacén",
+        "Herramienta": "WP"
+      },
+      "exits": "P10",
+      "depends_on": ""
+    },
+    {
+      "id": "P10",
+      "type": "activity",
+      "ref": "",
+      "title": "Enviar la OC y los materiales",
+      "description": "Se envía por WhatsApp o por correo, con copia a Almacén y a SAC.",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": "WP, Correo"
+      },
+      "exits": "P11",
+      "depends_on": ""
+    },
+    {
+      "id": "P11",
+      "type": "activity",
+      "ref": "",
+      "title": "Solicitar el número de OC",
+      "description": "",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": ""
+      },
+      "exits": "P12",
+      "depends_on": ""
+    },
+    {
+      "id": "P12",
+      "type": "activity",
+      "ref": "",
+      "title": "Hacer el primer contacto con el cliente",
+      "description": "",
+      "tags": {
+        "Responsable": "SAC",
+        "Herramienta": ""
+      },
+      "exits": "P24",
+      "depends_on": ""
+    },
+    {
+      "id": "P13",
+      "type": "link",
+      "ref": "Instalaciones",
+      "title": "Instalaciones",
+      "description": "Paso de enlace interpretado: el flujo Instalaciones arranca desde el paso a producción interno.",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": ""
+      },
+      "exits": "P14",
+      "depends_on": ""
+    },
+    {
+      "id": "P14",
+      "type": "activity",
+      "ref": "",
+      "title": "Poner las artes en el Dropbox de Producción",
+      "description": "",
+      "tags": {
+        "Responsable": "Producción",
+        "Herramienta": "Dropbox, WP, TC"
+      },
+      "exits": "P15",
+      "depends_on": ""
+    },
+    {
+      "id": "P15",
+      "type": "activity",
+      "ref": "",
+      "title": "Planear la producción interna",
+      "description": "",
+      "tags": {
+        "Responsable": "Planeación de Producción",
+        "Herramienta": ""
+      },
+      "exits": "P16",
+      "depends_on": ""
+    },
+    {
+      "id": "P16",
+      "type": "activity",
+      "ref": "",
+      "title": "Asignar operario y cronograma",
+      "description": "",
+      "tags": {
+        "Responsable": "Planeación de Producción",
+        "Herramienta": "TC"
+      },
+      "exits": "P17",
+      "depends_on": ""
+    },
+    {
+      "id": "P17",
+      "type": "activity",
+      "ref": "",
+      "title": "Notificar la asignación al grupo de WhatsApp",
+      "description": "Queda visible en la TV de Producción.",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": "WP, TV Producción"
+      },
+      "exits": "P18",
+      "depends_on": ""
+    },
+    {
+      "id": "P18",
+      "type": "activity",
+      "ref": "",
+      "title": "Diligenciar la fecha de control",
+      "description": "Segundo contacto con el cliente: casi siempre es solo uno y ocurre el mismo día. Se solicita el saldo.",
+      "tags": {
+        "Responsable": "SAC",
+        "Herramienta": "TC"
+      },
+      "exits": "P19",
+      "depends_on": ""
+    },
+    {
+      "id": "P19",
+      "type": "activity",
+      "ref": "",
+      "title": "Hacer la requisición de material a Almacén",
+      "description": "",
+      "tags": {
+        "Responsable": "Planeación de Producción",
+        "Herramienta": ""
+      },
+      "exits": "P20",
+      "depends_on": ""
+    },
+    {
+      "id": "P20",
+      "type": "activity",
+      "ref": "",
+      "title": "Crear la OC y realizar la compra",
+      "description": "",
+      "tags": {
+        "Responsable": "Almacén",
+        "Herramienta": "TCA"
+      },
+      "exits": "P21",
+      "depends_on": ""
+    },
+    {
+      "id": "P21",
+      "type": "activity",
+      "ref": "",
+      "title": "Solicitar la aprobación",
+      "description": "",
+      "tags": {
+        "Responsable": "Almacén",
+        "Herramienta": ""
+      },
+      "exits": "P22",
+      "depends_on": ""
+    },
+    {
+      "id": "P22",
+      "type": "activity",
+      "ref": "",
+      "title": "Realizar el pago",
+      "description": "",
+      "tags": {
+        "Responsable": "Admin",
+        "Herramienta": ""
+      },
+      "exits": "P23",
+      "depends_on": ""
+    },
+    {
+      "id": "P23",
+      "type": "activity",
+      "ref": "",
+      "title": "Programar la entrega o la recogida",
+      "description": "",
+      "tags": {
+        "Responsable": "Almacén",
+        "Herramienta": ""
+      },
+      "exits": "P25",
+      "depends_on": ""
+    },
+    {
+      "id": "P24",
+      "type": "activity",
+      "ref": "",
+      "title": "Programar la fecha de entrega con el cliente",
+      "description": "Segunda comunicación. Hoy no se alimenta en el tablero de control. Se solicita el saldo.",
+      "tags": {
+        "Responsable": "SAC",
+        "Herramienta": "TC"
+      },
+      "exits": "P25",
+      "depends_on": ""
+    },
+    {
+      "id": "P25",
+      "type": "activity",
+      "ref": "",
+      "title": "Programar la ruta de domicilio o envío",
+      "description": "Solo se usa WhatsApp cuando es domicilio o envío.",
+      "tags": {
+        "Responsable": "Almacén, SAC",
+        "Herramienta": "TC, WP"
+      },
+      "exits": "P26",
+      "depends_on": ""
+    },
+    {
+      "id": "P26",
+      "type": "decision",
+      "ref": "",
+      "title": "¿Quién entrega el material?",
+      "description": "",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": ""
+      },
+      "exits": "El proveedor entrega:P27 | Almacén recoge:P28 | Producción entrega:P29",
+      "depends_on": ""
+    },
+    {
+      "id": "P27",
+      "type": "activity",
+      "ref": "",
+      "title": "Recibir el material",
+      "description": "",
+      "tags": {
+        "Responsable": "Almacén",
+        "Herramienta": ""
+      },
+      "exits": "P30",
+      "depends_on": ""
+    },
+    {
+      "id": "P28",
+      "type": "activity",
+      "ref": "",
+      "title": "Programar y recoger el material",
+      "description": "",
+      "tags": {
+        "Responsable": "Almacén",
+        "Herramienta": "TCA"
+      },
+      "exits": "P30",
+      "depends_on": ""
+    },
+    {
+      "id": "P29",
+      "type": "activity",
+      "ref": "",
+      "title": "Entregar el material a Almacén",
+      "description": "",
+      "tags": {
+        "Responsable": "Producción",
+        "Herramienta": ""
+      },
+      "exits": "P30",
+      "depends_on": ""
+    },
+    {
+      "id": "P30",
+      "type": "activity",
+      "ref": "",
+      "title": "Hacer control de calidad",
+      "description": "",
+      "tags": {
+        "Responsable": "Almacén",
+        "Herramienta": ""
+      },
+      "exits": "P31",
+      "depends_on": ""
+    },
+    {
+      "id": "P31",
+      "type": "decision",
+      "ref": "",
+      "title": "¿El cliente pagó?",
+      "description": "SAC revisa los pagos y le solicita al cliente. Se hace el día antes, idealmente, o el mismo día en la mañana.",
+      "tags": {
+        "Responsable": "SAC",
+        "Herramienta": ""
+      },
+      "exits": "Sí:P33 | No:P32",
+      "depends_on": ""
+    },
+    {
+      "id": "P32",
+      "type": "activity",
+      "ref": "",
+      "title": "Reprogramar o confirmar verbalmente",
+      "description": "",
+      "tags": {
+        "Responsable": "SAC",
+        "Herramienta": ""
+      },
+      "exits": "P31",
+      "depends_on": ""
+    },
+    {
+      "id": "P33",
+      "type": "activity",
+      "ref": "",
+      "title": "Confirmar el pago en el grupo de WhatsApp",
+      "description": "",
+      "tags": {
+        "Responsable": "SAC",
+        "Herramienta": "WP"
+      },
+      "exits": "P34",
+      "depends_on": ""
+    },
+    {
+      "id": "P34",
+      "type": "decision",
+      "ref": "",
+      "title": "¿Se facturó con el anticipo o en la segunda comunicación?",
+      "description": "",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": ""
+      },
+      "exits": "Sí:P35 | No:P35",
+      "depends_on": ""
+    },
+    {
+      "id": "P35",
+      "type": "activity",
+      "ref": "",
+      "title": "Entregar con acta",
+      "description": "Queda en el archivo.",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": ""
+      },
+      "exits": "P36",
+      "depends_on": ""
+    },
+    {
+      "id": "P36",
+      "type": "end",
+      "ref": "",
+      "title": "Facturación pendiente",
+      "description": "El diagrama cierra en una caja ondulada con el texto \"Facturación PENDIENTE\".",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": ""
+      },
+      "exits": "",
+      "depends_on": ""
+    }
+  ]
+}

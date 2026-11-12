@@ -1,0 +1,398 @@
+{
+  "categories": [
+    "Responsable",
+    "Herramienta"
+  ],
+  "rows": [
+    {
+      "id": "P1",
+      "type": "start",
+      "ref": "",
+      "title": "Apertura de OT con tiempos urgentes o específicos",
+      "description": "Se abre una orden de trabajo con tiempos urgentes o específicos.",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": ""
+      },
+      "exits": "P3",
+      "depends_on": ""
+    },
+    {
+      "id": "P2",
+      "type": "start",
+      "ref": "",
+      "title": "Paso a producción interno",
+      "description": "El trabajo llega desde producción interna.",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": "TC, WP"
+      },
+      "exits": "P3",
+      "depends_on": ""
+    },
+    {
+      "id": "P3",
+      "type": "activity",
+      "ref": "",
+      "title": "Programar el trabajo en TC",
+      "description": "Planeación de Producción programa en TC. Idealmente, la instalación se programa para el día siguiente. Desde aquí, Instalaciones inicia el seguimiento de avance y la planeación.",
+      "tags": {
+        "Responsable": "PP",
+        "Herramienta": "TC"
+      },
+      "exits": "P4",
+      "depends_on": ""
+    },
+    {
+      "id": "P4",
+      "type": "activity",
+      "ref": "",
+      "title": "Verificar espacios de instalación en TC",
+      "description": "Se revisa la disponibilidad de espacios para instalar.",
+      "tags": {
+        "Responsable": "SAC",
+        "Herramienta": "TC"
+      },
+      "exits": "P5",
+      "depends_on": ""
+    },
+    {
+      "id": "P5",
+      "type": "decision",
+      "ref": "",
+      "title": "¿Hay espacio en los 2 o 3 días siguientes?",
+      "description": "",
+      "tags": {
+        "Responsable": "SAC",
+        "Herramienta": ""
+      },
+      "exits": "Sí:P6 | No:P30",
+      "depends_on": ""
+    },
+    {
+      "id": "P6",
+      "type": "activity",
+      "ref": "",
+      "title": "Programar técnicos y días en TC",
+      "description": "",
+      "tags": {
+        "Responsable": "SAC",
+        "Herramienta": "TC"
+      },
+      "exits": "P7",
+      "depends_on": ""
+    },
+    {
+      "id": "P7",
+      "type": "activity",
+      "ref": "",
+      "title": "Verificar horas cotizadas y disponibles",
+      "description": "Horas para el trabajo y para el desplazamiento.",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": ""
+      },
+      "exits": "P8",
+      "depends_on": ""
+    },
+    {
+      "id": "P8",
+      "type": "activity",
+      "ref": "",
+      "title": "Revisar el trabajo con fechas y tipo de instalación",
+      "description": "Se hace a diario.",
+      "tags": {
+        "Responsable": "SAC, Instalaciones",
+        "Herramienta": ""
+      },
+      "exits": "P9",
+      "depends_on": ""
+    },
+    {
+      "id": "P9",
+      "type": "decision",
+      "ref": "",
+      "title": "¿Es en Bogotá?",
+      "description": "",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": ""
+      },
+      "exits": "Sí:P13 | No:P10",
+      "depends_on": ""
+    },
+    {
+      "id": "P10",
+      "type": "activity",
+      "ref": "",
+      "title": "Verificar vuelos y tiquetes terrestres",
+      "description": "Incluye la solicitud de viáticos por técnicos.",
+      "tags": {
+        "Responsable": "SAC, Instalaciones",
+        "Herramienta": ""
+      },
+      "exits": "P11",
+      "depends_on": ""
+    },
+    {
+      "id": "P11",
+      "type": "decision",
+      "ref": "",
+      "title": "¿Está dentro del presupuesto?",
+      "description": "",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": ""
+      },
+      "exits": "Sí:P12 | No:P14",
+      "depends_on": ""
+    },
+    {
+      "id": "P12",
+      "type": "activity",
+      "ref": "",
+      "title": "Comprar tiquetes",
+      "description": "",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": ""
+      },
+      "exits": "P13",
+      "depends_on": ""
+    },
+    {
+      "id": "P13",
+      "type": "activity",
+      "ref": "",
+      "title": "Confirmar la fecha de instalación programada",
+      "description": "Se notifica al grupo de WP.",
+      "tags": {
+        "Responsable": "SAC",
+        "Herramienta": "WP"
+      },
+      "exits": "P15",
+      "depends_on": ""
+    },
+    {
+      "id": "P14",
+      "type": "activity",
+      "ref": "",
+      "title": "Revisar otras fechas y costos y verificar con el cliente",
+      "description": "",
+      "tags": {
+        "Responsable": "Instalaciones, SAC",
+        "Herramienta": ""
+      },
+      "exits": "P12",
+      "depends_on": ""
+    },
+    {
+      "id": "P15",
+      "type": "activity",
+      "ref": "",
+      "title": "Consultar documentos requeridos",
+      "description": "Documentos para la gestión de personal y pago pendiente.",
+      "tags": {
+        "Responsable": "SAC",
+        "Herramienta": ""
+      },
+      "exits": "P16",
+      "depends_on": ""
+    },
+    {
+      "id": "P16",
+      "type": "activity",
+      "ref": "",
+      "title": "Enviar documentos a la carpeta actualizada por técnico",
+      "description": "",
+      "tags": {
+        "Responsable": "SAC",
+        "Herramienta": "Dropbox"
+      },
+      "exits": "P17",
+      "depends_on": ""
+    },
+    {
+      "id": "P17",
+      "type": "decision",
+      "ref": "",
+      "title": "¿Requiere envío de materiales?",
+      "description": "",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": ""
+      },
+      "exits": "Sí:P18 | No:P21",
+      "depends_on": ""
+    },
+    {
+      "id": "P18",
+      "type": "activity",
+      "ref": "",
+      "title": "Definir fecha de entrega, embalaje y transporte",
+      "description": "Se define la fecha de entrega, el tipo de embalaje y el tipo de transporte: dedicado, bodegaje-flota o terminal.",
+      "tags": {
+        "Responsable": "Producción, Instalaciones, SAC",
+        "Herramienta": ""
+      },
+      "exits": "P19",
+      "depends_on": ""
+    },
+    {
+      "id": "P19",
+      "type": "activity",
+      "ref": "",
+      "title": "Coordinar y ejecutar el envío",
+      "description": "",
+      "tags": {
+        "Responsable": "Instalaciones",
+        "Herramienta": ""
+      },
+      "exits": "P20",
+      "depends_on": ""
+    },
+    {
+      "id": "P20",
+      "type": "activity",
+      "ref": "",
+      "title": "Hacer seguimiento de llegada",
+      "description": "",
+      "tags": {
+        "Responsable": "SAC, Instalaciones",
+        "Herramienta": ""
+      },
+      "exits": "P21",
+      "depends_on": ""
+    },
+    {
+      "id": "P21",
+      "type": "activity",
+      "ref": "",
+      "title": "Coordinar transporte y elementos adicionales requeridos",
+      "description": "Aplica en Bogotá y fuera de Bogotá.",
+      "tags": {
+        "Responsable": "Instalaciones",
+        "Herramienta": ""
+      },
+      "exits": "P22",
+      "depends_on": ""
+    },
+    {
+      "id": "P22",
+      "type": "activity",
+      "ref": "",
+      "title": "Pagar proveedores",
+      "description": "Transporte: Instalaciones (CC). Otros: SAC (OC) y Almacén.",
+      "tags": {
+        "Responsable": "Instalaciones, SAC, Almacén",
+        "Herramienta": ""
+      },
+      "exits": "P23",
+      "depends_on": ""
+    },
+    {
+      "id": "P23",
+      "type": "activity",
+      "ref": "",
+      "title": "Generar el pago",
+      "description": "",
+      "tags": {
+        "Responsable": "Admin",
+        "Herramienta": ""
+      },
+      "exits": "P24",
+      "depends_on": ""
+    },
+    {
+      "id": "P24",
+      "type": "wait",
+      "ref": "",
+      "title": "Esperar a que el pago se haga efectivo",
+      "description": "",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": ""
+      },
+      "exits": "P25",
+      "depends_on": ""
+    },
+    {
+      "id": "P25",
+      "type": "activity",
+      "ref": "",
+      "title": "Verificar pagos y permisos",
+      "description": "Confirmación general.",
+      "tags": {
+        "Responsable": "SAC",
+        "Herramienta": ""
+      },
+      "exits": "P26",
+      "depends_on": ""
+    },
+    {
+      "id": "P26",
+      "type": "activity",
+      "ref": "",
+      "title": "Recibir el material y hacer control de calidad",
+      "description": "",
+      "tags": {
+        "Responsable": "Instalaciones",
+        "Herramienta": ""
+      },
+      "exits": "P27",
+      "depends_on": ""
+    },
+    {
+      "id": "P27",
+      "type": "activity",
+      "ref": "",
+      "title": "Alistar herramientas e insumos",
+      "description": "Incluye la planeación de compras en sitio.",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": ""
+      },
+      "exits": "P28",
+      "depends_on": ""
+    },
+    {
+      "id": "P28",
+      "type": "activity",
+      "ref": "",
+      "title": "Reportar en tiempo real con fotos",
+      "description": "",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": "WP"
+      },
+      "exits": "P29",
+      "depends_on": ""
+    },
+    {
+      "id": "P29",
+      "type": "end",
+      "ref": "",
+      "title": "Registrar novedades",
+      "description": "Ejemplo anotado en el diagrama: \"No llevamos documentos\".",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": ""
+      },
+      "exits": "",
+      "depends_on": ""
+    },
+    {
+      "id": "P30",
+      "type": "end",
+      "ref": "",
+      "title": "[POR DEFINIR] Sin espacio en los 2 o 3 días siguientes",
+      "description": "El diagrama no muestra qué pasa cuando no hay espacio.",
+      "tags": {
+        "Responsable": "",
+        "Herramienta": ""
+      },
+      "exits": "",
+      "depends_on": ""
+    }
+  ]
+}
