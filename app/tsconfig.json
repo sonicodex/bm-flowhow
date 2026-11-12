@@ -10,7 +10,10 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    // core.js is JavaScript: its JSDoc types reach the server through allowJs.
+    // It is type-checked on its own by tsconfig.core.json.
+    "allowJs": true
   },
   "include": ["src", "worker-configuration.d.ts"]
 }

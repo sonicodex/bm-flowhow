@@ -1,4 +1,46 @@
 /* Core logic: parsing, validation, layout and tour engine. No DOM access. */
+
+/* Types of the functions the server uses, checked against their bodies by
+   `npm run typecheck` (tsconfig.core.json, checkJs). Only those functions
+   are annotated; the rest of the module is plain JavaScript. */
+
+/** @typedef {{ label: string, to: string }} Exit */
+
+/**
+ * One row of the import grid. `type` is a type code, or the cell as written
+ * when it is not one; `ref` is the target flow's name; `tags` maps each
+ * category to its values ("a, b").
+ * @typedef {{ id: string, type: string, ref: string, title: string, description: string,
+ *   tags: Record<string, string>, exits: string, depends_on: string }} GridRow
+ */
+
+/** @typedef {{ categories: string[], rows: GridRow[] }} Grid */
+
+/** @typedef {{ row: number|null, message: string, blocking: boolean }} ImportError */
+
+/**
+ * A step as edited: exits and tags are still text.
+ * @typedef {{ id: string, type: string, title: string, description: string,
+ *   tags: Record<string, string>, exits: string, ref?: string|number }} DraftStep
+ */
+
+/** @typedef {{ name?: string, objective?: string, categories?: string[], steps?: DraftStep[] }} Draft */
+
+/**
+ * @typedef {{ id: string, type: string, title: string, description: string,
+ *   tags: Record<string, string[]>, exits: Exit[], ref: string }} Step
+ */
+
+/** @typedef {{ name: string, objective: string, categories: string[], steps: Step[] }} Flow */
+
+/** @typedef {{ row: number|null, message: string }} FlowError */
+
+/** @typedef {{ name: string, published: Flow|null }} FlowEntry */
+
+/** @typedef {(id: string) => FlowEntry|null} FlowLib */
+
+/** @typedef {{ selfId: string|number, lib: FlowLib }} Refs */
+
 var Core = (function () {
   'use strict';
 
@@ -41,6 +83,7 @@ var Core = (function () {
     return String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
   }
 
+  /** @param {string} [text] @returns {Exit[]} */
   function parseExits(text) {
     return String(text || '').split(/[|;]/).map(function (p) { return p.trim(); }).filter(Boolean).map(function (p) {
       var i = p.lastIndexOf(':');
@@ -90,11 +133,13 @@ var Core = (function () {
     return res;
   }
 
+  /** @param {string} [text] @returns {string[]} */
   function parseTags(text) {
     return String(text || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
   }
 
   /* Turns the editable draft (raw strings) into the structured flow. */
+  /** @param {Draft} draft @returns {Flow} */
   function compile(draft) {
     var cats = (draft.categories || []).slice();
     return {
@@ -102,6 +147,7 @@ var Core = (function () {
       objective: String(draft.objective || '').trim(),
       categories: cats,
       steps: (draft.steps || []).map(function (s) {
+        /** @type {Record<string, string[]>} */
         var tags = {};
         cats.forEach(function (c) { tags[c] = parseTags(s.tags && s.tags[c]); });
         return {
@@ -116,6 +162,7 @@ var Core = (function () {
   /* The one structure validation, shared by import, preview and publish.
      `refs` = { selfId, lib } is needed whenever the flow has link or subflow
      steps, so the references are never skipped by mistake; see validateRefs. */
+  /** @param {Flow} flow @param {Refs} [refs] @returns {FlowError[]} */
   function validate(flow, refs) {
     var errors = [];
     var ids = new Map();
@@ -166,6 +213,7 @@ var Core = (function () {
      { name, published } for an existing flow, or null. A link only needs its
      target to exist (it may be unpublished), and flows may link to each other;
      a subflow must be published and must not contain this flow. */
+  /** @param {Flow} flow @param {string|number} selfId @param {FlowLib} lib @returns {FlowError[]} */
   function validateRefs(flow, selfId, lib) {
     var errors = [];
     var reaches = function (from, seen) {
@@ -246,7 +294,13 @@ var Core = (function () {
      `resolveFlow(name)` (an id, or null) and merges "Depende de" into exits.
      Row numbers count the header row, as the spreadsheet does (Fila 2 is the
      first step). An error is blocking when the draft cannot hold it. */
+  /**
+   * @param {Grid} grid
+   * @param {(name: string) => string|number|null} [resolveFlow]
+   * @returns {{ steps: DraftStep[], categories: string[], errors: ImportError[] }}
+   */
   function gridToDraft(grid, resolveFlow) {
+    /** @type {{ steps: DraftStep[], categories: string[], errors: ImportError[] }} */
     var out = { steps: [], categories: (grid.categories || []).slice(), errors: [] };
     var rows = grid.rows || [];
     rows.forEach(function (g, r) {
@@ -254,8 +308,10 @@ var Core = (function () {
       if (TYPES.indexOf(type) === -1) {
         out.errors.push({ row: r, message: 'Fila ' + (r + 2) + ': tipo «' + type + '» no reconocido. Usa Inicio, Actividad, Decisión, Espera, Subflujo, Enlace o Fin.', blocking: true });
       }
+      /** @type {Record<string, string>} */
       var tags = {};
       out.categories.forEach(function (c) { tags[c] = (g.tags && g.tags[c]) || ''; });
+      /** @type {DraftStep} */
       var step = { id: g.id, type: type, title: g.title, description: g.description, tags: tags, exits: g.exits };
       var refName = g.ref || '';
       if (refName && (type === 'subflow' || type === 'link')) {

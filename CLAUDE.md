@@ -57,7 +57,8 @@ Working notes for Claude Code agents on this repo. Keep it short.
 - Tests: `npm test` — Vitest inside the Workers runtime
   (`@cloudflare/vitest-plugin`), with the bindings from `wrangler.jsonc`.
   Each test starts from an empty local D1 with every migration applied.
-- Typecheck: `npm run typecheck` (app) and `npx tsc --noEmit -p test` (tests).
+- Typecheck: `npm run typecheck` — the app, `core.js` against its JSDoc
+  (`tsconfig.core.json`, checkJs) and the tests.
 - After changing `wrangler.jsonc`: `npm run types`.
 - Regenerate a reference grid after the owner changes an xlsx:
   `node tools/xlsx-to-grid.mjs ../reference/Flujo_X.xlsx ../reference/Flujo_X.grid.json`

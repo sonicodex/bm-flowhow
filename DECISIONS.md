@@ -14,6 +14,29 @@ Entry format:
 
 ---
 
+## 2026-11-12 — Types for core.js live in JSDoc (phase 1.2.5)
+
+- Decision:
+  - The functions of `core.js` the server uses (`gridToDraft`, `compile`,
+    `validate`, `validateRefs`, and `parseExits`/`parseTags`, which shape
+    their results) carry JSDoc types, with the shared shapes as `@typedef`
+    at the top of the file (`Grid`, `DraftStep`, `Flow`, `Refs`, ...).
+    TypeScript code imports them (`import type { Flow } from
+    "../public/js/core.js"`).
+  - `tsconfig.json` has `allowJs`, so the types reach the server.
+    `tsconfig.core.json` checks `core.js` against its annotations
+    (`checkJs`), without `strict`: the layout and tour code stay
+    unannotated. `npm run typecheck` runs both, plus the tests, where
+    `test/core.types.test.ts` holds `@ts-expect-error` cases that fail the
+    typecheck if a type stops being enforced.
+  - The change to `core.js` is comments only.
+- Alternatives considered: a hand-written `core.d.ts`; `allowJs` alone.
+  Rejected: a `.d.ts` is a second statement of the truth, and when a
+  signature changes and it does not, TypeScript accepts wrong code
+  silently. `allowJs` alone checks nothing.
+- Reason: Owner's decision for phase 1.2.5.
+- Spec sections affected: 9 (one copy of the rules).
+
 ## 2026-11-12 — The .xlsx reader (phase 1.2)
 
 - Decision:
