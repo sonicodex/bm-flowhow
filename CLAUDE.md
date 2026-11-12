@@ -11,9 +11,12 @@ Working notes for Claude Code agents on this repo. Keep it short.
   is rewritten silently.
 - `PLAN.md` — build plan, one `plan_iteration_{n}` per revision. Newest first;
   the iteration marked as current is the approved one.
-- `reference/` — prototype, the rules module `core.js` and its test cases,
-  sample xlsx, and the xlsx converted to grid JSON (development data).
-  Do not edit.
+- `reference/` — prototype, sample xlsx, and the xlsx converted to grid JSON
+  (development data). Do not edit.
+- `app/public/js/core.js` — the shared rules module (parsing, validation,
+  layout, tour engine), moved from `reference/`. The server imports it and
+  the browser loads the same file from `/js/core.js` as an ES module. Its
+  test cases are `app/test/core.test.js`; keep every one of them.
 - `app/public/theme.css`, `flowhow_logotype.svg`, `fonts/`, `icons/` — the
   owner's design tokens and assets, served as they are. Do not edit.
 

@@ -14,6 +14,31 @@ Entry format:
 
 ---
 
+## 2026-11-12 — Rules module moved into the app (phase 0.3)
+
+- Decision:
+  - `reference/core.js` is now `app/public/js/core.js`, moved with
+    `git mv`. Living in the assets directory, the browser receives the
+    same file the server imports, with no copy step.
+  - One line changed, none of the logic:
+    `if (typeof module !== 'undefined') module.exports = Core;` became
+    `export default Core;`. The Worker's bundler (esbuild) refused the
+    CommonJS form ("No matching export ... for import \"default\""). The
+    browser therefore loads it with `<script type="module">`.
+  - `reference/core.test.js` is now `app/test/core.test.js`. Every
+    original line is kept verbatim; only the `require` line became
+    imports, and each commented block of the original is wrapped in one
+    `it()`: 12 cases, 35 assert calls, all passing. The empty
+    "no repeats" block of the original had no code and stays empty.
+  - Those tests use `node:assert`, as the original did, so the test
+    runtime turns on `nodejs_compat` (in `vitest.config.ts` only; the
+    Worker does not need it).
+- Reason: SPEC §0 and §9: one copy of the rules, imported by the server
+  and served to the browser. Moved, not rewritten; typing is a separate
+  step.
+- Spec sections affected: 0 (the table still lists `reference/core.js`),
+  9.
+
 ## 2026-11-12 — Schema conventions (phase 0.2)
 
 - Decision:

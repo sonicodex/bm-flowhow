@@ -602,4 +602,4 @@ var Core = (function () {
     compile: compile, validate: validate, parseTable: parseTable, toTSV: toTSV, wrapTitle: wrapTitle, layout: layout, Tour: Tour
   };
 })();
-if (typeof module !== 'undefined') module.exports = Core;
+export default Core;

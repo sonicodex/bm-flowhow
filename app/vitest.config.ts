@@ -8,6 +8,8 @@ export default defineConfig({
     cloudflareTest(async () => ({
       wrangler: { configPath: "./wrangler.jsonc" },
       miniflare: {
+        // node:assert for the rules module's tests (test/core.test.js).
+        compatibilityFlags: ["nodejs_compat"],
         bindings: { TEST_MIGRATIONS: await readD1Migrations("./migrations") },
       },
     })),
