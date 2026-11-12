@@ -14,6 +14,39 @@ Entry format:
 
 ---
 
+## 2026-11-12 — One row numbering, one error shape, numeric ids (phase 1.2.6)
+
+- Decision:
+  - **Rows are numbered as the spreadsheet does**: the header is row 1, so
+    the first step is "Fila 2", in `validate()`, `validateRefs()` and
+    `gridToDraft()` alike, and in the phase 5 editor. When the step has an
+    ID the message names it: «Fila 14 (P13): no existe un flujo llamado
+    «Instalaciones».» A missing ID gives the row alone («Fila 3: falta el
+    ID.»); a repeated ID names both rows («Fila 5 (P2): el ID «P2» está
+    repetido; también está en la fila 4.»).
+  - **One error shape** `{row, message, blocking}` for every problem, and
+    each problem is reported once. `gridToDraft()` reports only what it
+    alone knows (target flow names, "Depende de"); `validate()` reports
+    everything about the steps. An import reviews both lists.
+    - Blocking (stop the import): missing ID, repeated ID, unknown type,
+      unknown target flow name, and the table-level problems of
+      `tableToGrid()`.
+    - Not blocking (shown on review, stop only publishing): every
+      structure rule of SPEC §6, link and subflow target checks, an
+      unknown "Depende de" step, "Flujo" filled on another type.
+  - **Flow ids stay numbers.** In the grid a target is the name the user
+    wrote; in drafts and compiled flows it is the flow id, a number, never
+    converted to text. An empty target is `null`. `lib(id)` receives the id
+    as stored, and ids are compared with `===`. The examples in `core.js`
+    use numeric ids too.
+- Reason: Owner's decisions. A step without a stable ID cannot be tracked
+  across versions (SPEC §5), and inventing one would be a silent error.
+  The row number exists so that someone finds the error in Excel or the
+  grid; naming the ID keeps the message right if rows are reordered. A
+  field that changes type depending on where it passed breaks the first
+  `===` comparison.
+- Spec sections affected: 5, 6.
+
 ## 2026-11-12 — Types for core.js live in JSDoc (phase 1.2.5)
 
 - Decision:
@@ -86,11 +119,9 @@ Entry format:
     server validates the same grid the browser sends with the same code.
     `parseTable()` is their composition.
   - **Errors are objects** `{row, message, blocking}`, no longer strings.
-    Blocking: an unknown type (it used to become "Actividad" silently),
-    an unknown target flow, a repeated category column, a table without
-    ID and Título headers or without steps. Not blocking: an unknown
-    "Depende de" step (SPEC §6) and a "Flujo" value on a step that is not
-    a link or subflow, which is ignored and reported.
+    An unknown type no longer becomes "Actividad" silently. The full split
+    of what blocks is in "One row numbering, one error shape, numeric ids"
+    (phase 1.2.6).
   - **xlsx reader is our own**, with no dependency. It fails loudly on
     anything it does not understand and never guesses; the message tells
     the user to paste from Excel instead.

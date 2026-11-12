@@ -16,30 +16,36 @@
 
 /** @typedef {{ categories: string[], rows: GridRow[] }} Grid */
 
-/** @typedef {{ row: number|null, message: string, blocking: boolean }} ImportError */
+/**
+ * Every problem the module reports. `row` is the step's index (null for the
+ * whole flow or table); the message counts rows as the spreadsheet does
+ * ("Fila 2" is the first step) and names the step ID when there is one.
+ * `blocking` problems stop an import; the rest stop only publishing.
+ * @typedef {{ row: number|null, message: string, blocking: boolean }} RowError
+ */
 
 /**
- * A step as edited: exits and tags are still text.
+ * A step as edited: exits and tags are still text. `ref` is the target
+ * flow's id, as stored: a number, never converted to text.
  * @typedef {{ id: string, type: string, title: string, description: string,
- *   tags: Record<string, string>, exits: string, ref?: string|number }} DraftStep
+ *   tags: Record<string, string>, exits: string, ref?: number|null }} DraftStep
  */
 
 /** @typedef {{ name?: string, objective?: string, categories?: string[], steps?: DraftStep[] }} Draft */
 
 /**
+ * `ref` is the target flow's id on link and subflow steps, null otherwise.
  * @typedef {{ id: string, type: string, title: string, description: string,
- *   tags: Record<string, string[]>, exits: Exit[], ref: string }} Step
+ *   tags: Record<string, string[]>, exits: Exit[], ref: number|null }} Step
  */
 
 /** @typedef {{ name: string, objective: string, categories: string[], steps: Step[] }} Flow */
 
-/** @typedef {{ row: number|null, message: string }} FlowError */
-
 /** @typedef {{ name: string, published: Flow|null }} FlowEntry */
 
-/** @typedef {(id: string) => FlowEntry|null} FlowLib */
+/** @typedef {(id: number) => FlowEntry|null} FlowLib */
 
-/** @typedef {{ selfId: string|number, lib: FlowLib }} Refs */
+/** @typedef {{ selfId: number, lib: FlowLib }} Refs */
 
 var Core = (function () {
   'use strict';
@@ -60,8 +66,8 @@ var Core = (function () {
       { id: 'P2', type: 'activity', title: 'Revisar inventario', description: 'Se consulta si hay existencias.', tags: { Responsable: 'Almacén', Herramienta: 'ERP' }, exits: 'P3' },
       { id: 'P3', type: 'decision', title: '¿Hay existencias?', description: 'Define si se compra o se despacha.', tags: { Responsable: 'Almacén', Herramienta: 'ERP' }, exits: 'Sí:P5 | No:P4' },
       { id: 'P4', type: 'activity', title: 'Comprar material', description: 'Se genera la orden de compra.', tags: { Responsable: 'Compras', Herramienta: 'ERP, Correo' }, exits: 'P2' },
-      { id: 'P5', type: 'subflow', ref: 'sub1', title: 'Alistar y despachar', description: 'Se alista el pedido y se entrega al transporte. Tiene su propio flujo.', tags: { Responsable: 'Almacén, Ventas', Herramienta: '' }, exits: 'P6' },
-      { id: 'P6', type: 'link', ref: 'fact', title: 'Pasar a facturación', description: 'Continúa en el flujo de facturación.', tags: { Responsable: '', Herramienta: '' }, exits: 'P7' },
+      { id: 'P5', type: 'subflow', ref: 2, title: 'Alistar y despachar', description: 'Se alista el pedido y se entrega al transporte. Tiene su propio flujo.', tags: { Responsable: 'Almacén, Ventas', Herramienta: '' }, exits: 'P6' },
+      { id: 'P6', type: 'link', ref: 3, title: 'Pasar a facturación', description: 'Continúa en el flujo de facturación.', tags: { Responsable: '', Herramienta: '' }, exits: 'P7' },
       { id: 'P7', type: 'end', title: 'Pedido cerrado', description: '', tags: { Responsable: '', Herramienta: '' }, exits: '' }
     ]
   };
@@ -81,6 +87,14 @@ var Core = (function () {
 
   function norm(s) {
     return String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
+  }
+
+  /* How every message names a row: as the spreadsheet counts (the header is
+     row 1, so the first step is "Fila 2"), with the step ID when it has one,
+     so the message still points at the step if rows are reordered. */
+  /** @param {string} id @param {number} i @returns {string} */
+  function rowLabel(id, i) {
+    return 'Fila ' + (i + 2) + (id ? ' (' + id + ')' : '');
   }
 
   /** @param {string} [text] @returns {Exit[]} */
@@ -153,7 +167,7 @@ var Core = (function () {
         return {
           id: String(s.id || '').trim(), type: s.type, title: String(s.title || '').trim(),
           description: String(s.description || '').trim(), tags: tags, exits: parseExits(s.exits),
-          ref: s.type === 'subflow' || s.type === 'link' ? String(s.ref || '') : ''
+          ref: (s.type === 'subflow' || s.type === 'link') && s.ref != null ? s.ref : null
         };
       })
     };
@@ -162,32 +176,36 @@ var Core = (function () {
   /* The one structure validation, shared by import, preview and publish.
      `refs` = { selfId, lib } is needed whenever the flow has link or subflow
      steps, so the references are never skipped by mistake; see validateRefs. */
-  /** @param {Flow} flow @param {Refs} [refs] @returns {FlowError[]} */
+  /** @param {Flow} flow @param {Refs} [refs] @returns {RowError[]} */
   function validate(flow, refs) {
+    /** @type {RowError[]} */
     var errors = [];
-    var ids = new Map();
-    var ref = function (s, i) { return s.id ? 'Paso ' + s.id : 'Fila ' + (i + 1); };
-    if (!flow.name) errors.push({ row: null, message: 'El flujo no tiene nombre.' });
-    if (!flow.steps.length) errors.push({ row: null, message: 'El flujo no tiene pasos.' });
+    var ids = new Map(); var firstRow = new Map();
+    /** @param {number|null} row @param {string} message @param {boolean} [blocking] */
+    var add = function (row, message, blocking) { errors.push({ row: row, message: message, blocking: !!blocking }); };
+    var ref = function (s, i) { return rowLabel(s.id, i); };
+    if (!flow.name) add(null, 'El flujo no tiene nombre.');
+    if (!flow.steps.length) add(null, 'El flujo no tiene pasos.');
     flow.steps.forEach(function (s, i) {
-      if (!s.id) errors.push({ row: i, message: 'Fila ' + (i + 1) + ': falta el ID.' });
-      else if (ids.has(s.id)) errors.push({ row: i, message: 'Fila ' + (i + 1) + ': el ID «' + s.id + '» está repetido.' });
-      else ids.set(s.id, s);
-      if (!s.title) errors.push({ row: i, message: ref(s, i) + ': falta el título.' });
-      if (TYPES.indexOf(s.type) === -1) errors.push({ row: i, message: ref(s, i) + ': el tipo no es válido.' });
+      // A step without a stable ID cannot be tracked across versions (SPEC §5): these block the import.
+      if (!s.id) add(i, ref(s, i) + ': falta el ID.', true);
+      else if (ids.has(s.id)) add(i, ref(s, i) + ': el ID «' + s.id + '» está repetido; también está en la fila ' + (firstRow.get(s.id) + 2) + '.', true);
+      else { ids.set(s.id, s); firstRow.set(s.id, i); }
+      if (!s.title) add(i, ref(s, i) + ': falta el título.');
+      if (TYPES.indexOf(s.type) === -1) add(i, ref(s, i) + ': tipo «' + s.type + '» no reconocido. Usa Inicio, Actividad, Decisión, Espera, Subflujo, Enlace o Fin.', true);
     });
     flow.steps.forEach(function (s, i) {
       s.exits.forEach(function (e) {
-        if (!ids.has(e.to)) errors.push({ row: i, message: ref(s, i) + ': la salida apunta a «' + e.to + '», que no existe.' });
+        if (!ids.has(e.to)) add(i, ref(s, i) + ': la salida apunta a «' + e.to + '», que no existe.');
       });
       if (s.type === 'decision') {
-        if (s.exits.length < 2) errors.push({ row: i, message: ref(s, i) + ': una decisión necesita al menos dos salidas.' });
-        if (s.exits.some(function (e) { return !e.label; })) errors.push({ row: i, message: ref(s, i) + ': cada salida de una decisión necesita rótulo (ej. Sí:P5 | No:P4).' });
+        if (s.exits.length < 2) add(i, ref(s, i) + ': una decisión necesita al menos dos salidas.');
+        if (s.exits.some(function (e) { return !e.label; })) add(i, ref(s, i) + ': cada salida de una decisión necesita rótulo (ej. Sí:P5 | No:P4).');
       }
-      if (s.type !== 'end' && s.exits.length === 0) errors.push({ row: i, message: ref(s, i) + ': no tiene salida y no es de tipo Fin.' });
+      if (s.type !== 'end' && s.exits.length === 0) add(i, ref(s, i) + ': no tiene salida y no es de tipo Fin.');
     });
     var starts = flow.steps.filter(function (s) { return s.type === 'start' && s.id; });
-    if (flow.steps.length && !starts.length) errors.push({ row: null, message: 'El flujo no tiene ningún paso de tipo Inicio.' });
+    if (flow.steps.length && !starts.length) add(null, 'El flujo no tiene ningún paso de tipo Inicio.');
     var seen = new Set();
     var stack = starts.map(function (s) { return s.id; });
     while (stack.length) {
@@ -198,7 +216,7 @@ var Core = (function () {
     }
     if (starts.length) {
       flow.steps.forEach(function (s, i) {
-        if (s.id && ids.get(s.id) === s && !seen.has(s.id)) errors.push({ row: i, message: ref(s, i) + ': no es alcanzable desde ningún inicio.' });
+        if (s.id && ids.get(s.id) === s && !seen.has(s.id)) add(i, ref(s, i) + ': no es alcanzable desde ningún inicio.');
       });
     }
     var pointing = flow.steps.some(function (s) { return s.type === 'subflow' || s.type === 'link'; });
@@ -213,8 +231,9 @@ var Core = (function () {
      { name, published } for an existing flow, or null. A link only needs its
      target to exist (it may be unpublished), and flows may link to each other;
      a subflow must be published and must not contain this flow. */
-  /** @param {Flow} flow @param {string|number} selfId @param {FlowLib} lib @returns {FlowError[]} */
+  /** @param {Flow} flow @param {number} selfId @param {FlowLib} lib @returns {RowError[]} */
   function validateRefs(flow, selfId, lib) {
+    /** @type {RowError[]} */
     var errors = [];
     var reaches = function (from, seen) {
       if (from === selfId) return true;
@@ -225,20 +244,20 @@ var Core = (function () {
       return f.published.steps.some(function (s) { return s.type === 'subflow' && s.ref && reaches(s.ref, seen); });
     };
     flow.steps.forEach(function (s, i) {
-      var ref = s.id ? 'Paso ' + s.id : 'Fila ' + (i + 1);
+      var ref = rowLabel(s.id, i);
       if (s.type === 'link') {
-        if (!s.ref) errors.push({ row: i, message: ref + ': falta el flujo de destino (columna Flujo).' });
-        else if (String(s.ref) === String(selfId)) errors.push({ row: i, message: ref + ': un enlace no puede apuntar a su propio flujo.' });
-        else if (!lib(s.ref)) errors.push({ row: i, message: ref + ': el flujo de destino ya no existe.' });
+        if (!s.ref) errors.push({ row: i, message: ref + ': falta el flujo de destino (columna Flujo).', blocking: false });
+        else if (s.ref === selfId) errors.push({ row: i, message: ref + ': un enlace no puede apuntar a su propio flujo.', blocking: false });
+        else if (!lib(s.ref)) errors.push({ row: i, message: ref + ': el flujo de destino ya no existe.', blocking: false });
         return;
       }
       if (s.type !== 'subflow') return;
       var f = s.ref ? lib(s.ref) : null;
-      if (!s.ref) errors.push({ row: i, message: ref + ': elige cuál es el subflujo.' });
-      else if (!f) errors.push({ row: i, message: ref + ': el subflujo ya no existe.' });
-      else if (s.ref === selfId) errors.push({ row: i, message: ref + ': un flujo no puede ser subflujo de sí mismo.' });
-      else if (!f.published) errors.push({ row: i, message: ref + ': el subflujo «' + f.name + '» aún no está publicado.' });
-      else if (reaches(s.ref, new Set())) errors.push({ row: i, message: ref + ': «' + f.name + '» ya contiene este flujo; no pueden incluirse mutuamente.' });
+      if (!s.ref) errors.push({ row: i, message: ref + ': elige cuál es el subflujo.', blocking: false });
+      else if (!f) errors.push({ row: i, message: ref + ': el subflujo ya no existe.', blocking: false });
+      else if (s.ref === selfId) errors.push({ row: i, message: ref + ': un flujo no puede ser subflujo de sí mismo.', blocking: false });
+      else if (!f.published) errors.push({ row: i, message: ref + ': el subflujo «' + f.name + '» aún no está publicado.', blocking: false });
+      else if (reaches(s.ref, new Set())) errors.push({ row: i, message: ref + ': «' + f.name + '» ya contiene este flujo; no pueden incluirse mutuamente.', blocking: false });
     });
     return errors;
   }
@@ -292,22 +311,21 @@ var Core = (function () {
 
   /* Turns a grid into the editable draft: resolves target flow names with
      `resolveFlow(name)` (an id, or null) and merges "Depende de" into exits.
-     Row numbers count the header row, as the spreadsheet does (Fila 2 is the
-     first step). An error is blocking when the draft cannot hold it. */
+     It reports only what it alone knows: target names and "Depende de".
+     Everything about the steps themselves (IDs, types, structure) is
+     reported once, by validate(). */
   /**
    * @param {Grid} grid
-   * @param {(name: string) => string|number|null} [resolveFlow]
-   * @returns {{ steps: DraftStep[], categories: string[], errors: ImportError[] }}
+   * @param {(name: string) => number|null} [resolveFlow]
+   * @returns {{ steps: DraftStep[], categories: string[], errors: RowError[] }}
    */
   function gridToDraft(grid, resolveFlow) {
-    /** @type {{ steps: DraftStep[], categories: string[], errors: ImportError[] }} */
+    /** @type {{ steps: DraftStep[], categories: string[], errors: RowError[] }} */
     var out = { steps: [], categories: (grid.categories || []).slice(), errors: [] };
     var rows = grid.rows || [];
     rows.forEach(function (g, r) {
-      var type = g.type;
-      if (TYPES.indexOf(type) === -1) {
-        out.errors.push({ row: r, message: 'Fila ' + (r + 2) + ': tipo «' + type + '» no reconocido. Usa Inicio, Actividad, Decisión, Espera, Subflujo, Enlace o Fin.', blocking: true });
-      }
+      var type = g.type; // an unknown type is reported once, by validate()
+      var label = rowLabel(String(g.id || '').trim(), r);
       /** @type {Record<string, string>} */
       var tags = {};
       out.categories.forEach(function (c) { tags[c] = (g.tags && g.tags[c]) || ''; });
@@ -317,9 +335,9 @@ var Core = (function () {
       if (refName && (type === 'subflow' || type === 'link')) {
         var rid = resolveFlow ? resolveFlow(refName) : null;
         if (rid != null) step.ref = rid;
-        else out.errors.push({ row: r, message: 'Fila ' + (r + 2) + ': no existe un flujo llamado «' + refName + '».', blocking: true });
+        else out.errors.push({ row: r, message: label + ': no existe un flujo llamado «' + refName + '».', blocking: true });
       } else if (refName) {
-        out.errors.push({ row: r, message: 'Fila ' + (r + 2) + ': la columna Flujo solo se usa en pasos Enlace o Subflujo; se ignoró «' + refName + '».', blocking: false });
+        out.errors.push({ row: r, message: label + ': la columna Flujo solo se usa en pasos Enlace o Subflujo; se ignoró «' + refName + '».', blocking: false });
       }
       out.steps.push(step);
     });
@@ -330,7 +348,7 @@ var Core = (function () {
       // Union with the exits already declared: keep existing predecessors, add the listed ones.
       var merged = [predecessorsText(tmp, out.steps[r].id), dep].filter(Boolean).join(' | ');
       applyDependsOn(tmp, r, merged).unknown.forEach(function (u) {
-        out.errors.push({ row: r, message: 'Fila ' + (r + 2) + ': depende de «' + u + '», que no existe.', blocking: false });
+        out.errors.push({ row: r, message: rowLabel(String(out.steps[r].id || '').trim(), r) + ': depende de «' + u + '», que no existe.', blocking: false });
       });
     });
     return out;
