@@ -23,6 +23,8 @@ worker-configuration.d.ts
 
 # Local prompts and scratch
 PROMPT.md
+# Diagram images from the layout check (phase 2.1), for the owner to look at
+app/.layout-check/
 
 # Per-machine Claude Code settings
 .claude/settings.local.json

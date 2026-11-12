@@ -14,6 +14,45 @@ Entry format:
 
 ---
 
+## 2026-11-12 — Diagram layout: core.js layout() stays (phase 2.1)
+
+- Decision: the viewer keeps the layered `layout()` already in `core.js`,
+  the one `reference/prototype.html` draws with. Dagre is not added. The
+  owner's rule for the check: dagre had to beat `layout()`, which already
+  exists, is the look approved in the prototype, and adds no dependency.
+- Measurement: both reference flows (Apertura de OT, 36 steps; Instalaciones,
+  30) drawn with each engine, with the prototype's node shapes, node size
+  (188 × 56) and spacing. Dagre 3.1.3 (`@dagrejs/dagre`, ESM, 49 KB), as a
+  multigraph with labelled edges. The images and the script live in
+  `app/.layout-check/` (ignored).
+
+  | Criterion | layout() | dagre |
+  |---|---|---|
+  | Decision shapes, two starts (Instalaciones P1, P2) | clean | clean |
+  | Edge crossings; edges over a node; labels over a node or a label | none | none |
+  | Branch order | as written (Sí left, No right) | reordered, and not the same at every decision |
+  | Branch labels | next to the decision | a long edge carries its label halfway down (P6 «Externa», P9 «Sí», P17 «No») |
+  | Cycle P32→P31 | clean loop at the side | loop tangled with the «No» edge |
+  | Three-way decision P26 | symmetric | symmetric |
+  | Two branches to one step (P34 «Sí», «No» → P35) | **merged: one arrow, «No» lost** | two arrows |
+  | Size | 957 × 3012 / 694 × 3244 | 836 × 3092 / 676 × 3308 |
+
+- Defect to fix in 2.2: `layout()` merges edges with the same ends, so
+  P34 shows one arrow where there are two paths and loses a label. The
+  tour is not affected (it reads the exits of the document), but the
+  diagram must draw both.
+- **Open: neither engine fits a real flow on one screen.** On a 1440 × 900
+  desktop the prototype's diagram card shows about 884 × 580 px. Both
+  flows are 26–28 layers deep, about 3000 px high: the card shows 5 of 36
+  steps of Apertura de OT (14 %) and 7 of 30 of Instalaciones (23 %),
+  about five screens of scrolling. Fitting the whole flow takes the text
+  to about 2.4 px. Changing the engine, the spacing or the direction does
+  not change this: it is the depth of the flows. How the overview helps
+  someone learn a process this long is a product decision for the owner,
+  to be taken before 2.4.
+- Reason: owner's decision for phase 2; measurement above.
+- Spec sections affected: 7 (Layout), 9 (Diagram).
+
 ## 2026-11-12 — Deployment check result: the free plan is enough for now
 
 - Result: deployed once to a test address (Worker `flowhow-test`, D1
@@ -497,6 +536,10 @@ Entry format:
 
 ## 2026-11-12 — Auto-layout library for the diagram (provisional)
 
+- *Obsolete (2026-11-12, phase 2.1): measured against the real flows, dagre
+  did not beat the `layout()` already in `core.js`; see "Diagram layout:
+  core.js layout() stays". The vendored path named below belonged to the
+  Django implementation and no longer exists.*
 - Decision: Use `@dagrejs/dagre` (v1.1.5) as the client-side auto-layout
   engine. The UMD build is vendored at
   `app/src/flowhow/spike/static/spike/dagre.min.js` and served as a
