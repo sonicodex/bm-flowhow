@@ -14,6 +14,39 @@ Entry format:
 
 ---
 
+## 2026-11-12 — The overview scrolls; the diagram stays vertical
+
+- Decision:
+  - **The overview scrolls, and that is all.** FlowHow is not a diagram
+    tool. The overview is not meant to be read at once: it is for getting
+    oriented before starting, finding one's place during the tour, and
+    finding something when coming back to look it up. None of those needs
+    36 steps on screen at the same time; learning the process is what the
+    step-by-step tour is for. The "Ver todo" toggle that shrinks the
+    drawing comes in phase 6 with the mobile work, not before.
+  - **The diagram stays vertical** (top to bottom). Boxes are wide and low
+    because they carry text, and these flows are deep and narrow: 26
+    layers, three or four lanes. With depth going down, each layer costs
+    the height of a box: 957 × 3012 px for Apertura de OT. Turned
+    sideways, each layer would cost its width, more than 6,000 px, and the
+    user would scroll in both directions. To be revisited only if a wide,
+    flat flow ever appears.
+- Reason: owner's decision, closing the open question of "Diagram layout:
+  core.js layout() stays".
+- Spec sections affected: 7 (Flow viewer, Layout).
+
+## 2026-11-12 — Assumption: no phases for now (not a closed decision)
+
+- Assumption: the flows are built without phases. The "Dudas" sheets of the
+  reference files are for the business area to resolve, and their answers
+  will arrive when they arrive. If phases ever exist, they will be one more
+  tag category ("Fase: 1", "Fase: 2"). That is additive: it changes
+  neither the document model nor the tour.
+- Status: **an assumption, to be confirmed** when the "Dudas" are answered.
+- Reason: owner's instruction, so that phase 2 is not blocked.
+- Spec sections affected: 5 (Tags with categories), 7 ("Not included:
+  ... phases or step groupings").
+
 ## 2026-11-12 — Diagram layout: core.js layout() stays (phase 2.1)
 
 - Decision: the viewer keeps the layered `layout()` already in `core.js`,
@@ -41,7 +74,8 @@ Entry format:
   P34 shows one arrow where there are two paths and loses a label. The
   tour is not affected (it reads the exits of the document), but the
   diagram must draw both.
-- **Open: neither engine fits a real flow on one screen.** On a 1440 × 900
+- *Closed on 2026-11-12, see "The overview scrolls; the diagram stays
+  vertical":* **neither engine fits a real flow on one screen.** On a 1440 × 900
   desktop the prototype's diagram card shows about 884 × 580 px. Both
   flows are 26–28 layers deep, about 3000 px high: the card shows 5 of 36
   steps of Apertura de OT (14 %) and 7 of 30 of Instalaciones (23 %),
