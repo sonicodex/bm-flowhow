@@ -14,6 +14,44 @@ Entry format:
 
 ---
 
+## 2026-11-12 — Phase 1 choices and the first change to the rules logic
+
+- Decision:
+  - **Link steps keep their target.** `compile()` stores `ref` for `link`
+    as well as `subflow`. The import format's column is "Flujo" (the old
+    "Subflujo" header is still read); `toTSV()` writes "Flujo".
+  - **`validateLinks()`** checks link targets: missing, not existing, or the
+    flow itself. A target only has to exist, not be published. Flows may
+    link to each other. It is a new function because `validateRefs()`
+    covers subflows (stage 2) and its existing test expects the example's
+    link without a target to pass.
+  - **`parseTable()` is split** into `tableToGrid()` (a table, from a paste
+    or an `.xlsx` sheet, into the grid shape; nothing resolved) and
+    `gridToDraft()` (resolves target names, merges "Depende de"), so the
+    server validates the same grid the browser sends with the same code.
+    `parseTable()` is their composition.
+  - **Errors are objects** `{row, message, blocking}`, no longer strings.
+    Blocking: an unknown type (it used to become "Actividad" silently),
+    an unknown target flow, a repeated category column, a table without
+    ID and Título headers or without steps. Not blocking: an unknown
+    "Depende de" step (SPEC §6) and a "Flujo" value on a step that is not
+    a link or subflow, which is ignored and reported.
+  - **xlsx reader is our own**, with no dependency. It fails loudly on
+    anything it does not understand and never guesses; the message tells
+    the user to paste from Excel instead.
+  - The dev loader is a Node script; TypeScript files import each other
+    with the `.ts` extension (`allowImportingTsExtensions`), so Node runs
+    it without a new dependency.
+  - `tools/` in PLAN.md means `app/tools/`. `/flows` is a provisional
+    screen (list and create by name) so the import has a target flow.
+- Known gap, not solved now: a link stores its target as an id inside the
+  document, which has no foreign key. If the target flow is deleted, old
+  releases point at nothing. The viewer must treat such a link as an
+  inaccessible target and must not fail.
+- Reason: Owner's decisions on the phase 1 proposal. Silent fallbacks hide
+  mistakes; a blocking error with a clear message gets fixed.
+- Spec sections affected: 5 (Step), 6 (import), 9.
+
 ## 2026-11-12 — Rules module moved into the app (phase 0.3)
 
 - Decision:

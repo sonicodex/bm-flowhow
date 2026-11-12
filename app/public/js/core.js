@@ -107,7 +107,7 @@ var Core = (function () {
         return {
           id: String(s.id || '').trim(), type: s.type, title: String(s.title || '').trim(),
           description: String(s.description || '').trim(), tags: tags, exits: parseExits(s.exits),
-          ref: s.type === 'subflow' ? String(s.ref || '') : ''
+          ref: s.type === 'subflow' || s.type === 'link' ? String(s.ref || '') : ''
         };
       })
     };
@@ -178,14 +178,35 @@ var Core = (function () {
     return errors;
   }
 
-  /* Parses cells pasted from a spreadsheet (tab separated, header row first). */
-  function parseTable(text, resolveFlow) {
-    var out = { steps: [], categories: [], errors: [] };
-    var lines = String(text || '').split(/\r?\n/).filter(function (l) { return l.trim() !== ''; });
-    if (!lines.length) { out.errors.push('No hay nada pegado.'); return out; }
-    var head = lines[0].split('\t').map(function (h) { return h.trim(); });
+  /* Checks link targets. `lib(id)` returns { name } for an existing flow, or null.
+     A link only needs its target to exist; it may be unpublished. Links may
+     point at each other (A → B → A): a link is not contained, so no cycle check. */
+  function validateLinks(flow, selfId, lib) {
+    var errors = [];
+    flow.steps.forEach(function (s, i) {
+      if (s.type !== 'link') return;
+      var ref = s.id ? 'Paso ' + s.id : 'Fila ' + (i + 1);
+      if (!s.ref) errors.push({ row: i, message: ref + ': falta el flujo de destino (columna Flujo).' });
+      else if (String(s.ref) === String(selfId)) errors.push({ row: i, message: ref + ': un enlace no puede apuntar a su propio flujo.' });
+      else if (!lib(s.ref)) errors.push({ row: i, message: ref + ': el flujo de destino ya no existe.' });
+    });
+    return errors;
+  }
+
+  /* Reads a table (rows of cells: a paste or an .xlsx sheet, header row first)
+     into the grid, the one input shape the server validates:
+     { categories, rows: [{ id, type, ref, title, description, tags, exits, depends_on }] }.
+     `type` is a type code, or the cell as written when it is not a known type;
+     `ref` is the target flow's name. Nothing is resolved here.
+     Errors here are about the table itself and always block. */
+  function tableToGrid(table) {
+    var out = { grid: { categories: [], rows: [] }, errors: [] };
+    var cell = function (v) { return String(v == null ? '' : v).trim(); };
+    var lines = (table || []).filter(function (r) { return (r || []).some(function (v) { return cell(v) !== ''; }); });
+    if (!lines.length) { out.errors.push({ row: null, message: 'No hay nada pegado.', blocking: true }); return out; }
+    var head = lines[0].map(cell);
     var col = { id: -1, type: -1, title: -1, description: -1, exits: -1, dep: -1, ref: -1 };
-    var cats = [];
+    var cats = []; var seen = new Set();
     head.forEach(function (h, i) {
       var n = norm(h);
       if (n === 'id') col.id = i;
@@ -194,55 +215,83 @@ var Core = (function () {
       else if (n === 'descripcion' || n === 'description') col.description = i;
       else if (n === 'salidas' || n === 'exits') col.exits = i;
       else if (n === 'depende de' || n === 'depends on') col.dep = i;
-      else if (n === 'subflujo' || n === 'subflow') col.ref = i;
-      else if (h) cats.push({ name: h, i: i });
+      else if (n === 'flujo' || n === 'subflujo' || n === 'subflow') col.ref = i;
+      else if (h) {
+        if (seen.has(n)) out.errors.push({ row: null, message: 'La columna «' + h + '» está repetida.', blocking: true });
+        else { seen.add(n); cats.push({ name: h, i: i }); }
+      }
     });
     if (col.id === -1 || col.title === -1) {
-      out.errors.push('La primera fila debe traer los encabezados. Como mínimo: ID y Título.');
+      out.errors.push({ row: null, message: 'La primera fila debe traer los encabezados. Como mínimo: ID y Título.', blocking: true });
       return out;
     }
-    out.categories = cats.map(function (c) { return c.name; });
-    lines.slice(1).forEach(function (line, r) {
-      var cells = line.split('\t');
-      var get = function (i) { return i === -1 || cells[i] == null ? '' : cells[i].trim(); };
+    out.grid.categories = cats.map(function (c) { return c.name; });
+    lines.slice(1).forEach(function (cells) {
+      var get = function (i) { return i === -1 ? '' : cell(cells[i]); };
       var rawType = get(col.type);
-      var type = TYPE_ALIASES[norm(rawType)];
-      if (!type) {
-        out.errors.push('Fila ' + (r + 2) + ': tipo «' + rawType + '» no reconocido; se dejó como Actividad.');
-        type = 'activity';
-      }
       var tags = {};
       cats.forEach(function (c) { tags[c.name] = get(c.i); });
-      var step = { id: get(col.id), type: type, title: get(col.title), description: get(col.description), tags: tags, exits: get(col.exits) };
-      var refName = get(col.ref);
-      if (type === 'subflow' && refName) {
+      out.grid.rows.push({
+        id: get(col.id), type: TYPE_ALIASES[norm(rawType)] || rawType, ref: get(col.ref), title: get(col.title),
+        description: get(col.description), tags: tags, exits: get(col.exits), depends_on: get(col.dep)
+      });
+    });
+    if (!out.grid.rows.length) out.errors.push({ row: null, message: 'Solo llegó la fila de encabezados.', blocking: true });
+    return out;
+  }
+
+  /* Turns a grid into the editable draft: resolves target flow names with
+     `resolveFlow(name)` (an id, or null) and merges "Depende de" into exits.
+     Row numbers count the header row, as the spreadsheet does (Fila 2 is the
+     first step). An error is blocking when the draft cannot hold it. */
+  function gridToDraft(grid, resolveFlow) {
+    var out = { steps: [], categories: (grid.categories || []).slice(), errors: [] };
+    var rows = grid.rows || [];
+    rows.forEach(function (g, r) {
+      var type = g.type;
+      if (TYPES.indexOf(type) === -1) {
+        out.errors.push({ row: r, message: 'Fila ' + (r + 2) + ': tipo «' + type + '» no reconocido. Usa Inicio, Actividad, Decisión, Espera, Subflujo, Enlace o Fin.', blocking: true });
+      }
+      var tags = {};
+      out.categories.forEach(function (c) { tags[c] = (g.tags && g.tags[c]) || ''; });
+      var step = { id: g.id, type: type, title: g.title, description: g.description, tags: tags, exits: g.exits };
+      var refName = g.ref || '';
+      if (refName && (type === 'subflow' || type === 'link')) {
         var rid = resolveFlow ? resolveFlow(refName) : null;
-        if (rid) step.ref = rid; else out.errors.push('Fila ' + (r + 2) + ': no existe un flujo llamado «' + refName + '».');
+        if (rid != null) step.ref = rid;
+        else out.errors.push({ row: r, message: 'Fila ' + (r + 2) + ': no existe un flujo llamado «' + refName + '».', blocking: true });
+      } else if (refName) {
+        out.errors.push({ row: r, message: 'Fila ' + (r + 2) + ': la columna Flujo solo se usa en pasos Enlace o Subflujo; se ignoró «' + refName + '».', blocking: false });
       }
       out.steps.push(step);
     });
-    if (col.dep !== -1) {
-      var tmp = { steps: out.steps };
-      lines.slice(1).forEach(function (line, r) {
-        var dep = (line.split('\t')[col.dep] || '').trim();
-        if (!dep) return;
-        // Union with the exits already declared: keep existing predecessors, add the listed ones.
-        var merged = [predecessorsText(tmp, out.steps[r].id), dep].filter(Boolean).join(' | ');
-        applyDependsOn(tmp, r, merged).unknown.forEach(function (u) {
-          out.errors.push('Fila ' + (r + 2) + ': depende de «' + u + '», que no existe.');
-        });
+    var tmp = { steps: out.steps };
+    rows.forEach(function (g, r) {
+      var dep = String(g.depends_on || '').trim();
+      if (!dep) return;
+      // Union with the exits already declared: keep existing predecessors, add the listed ones.
+      var merged = [predecessorsText(tmp, out.steps[r].id), dep].filter(Boolean).join(' | ');
+      applyDependsOn(tmp, r, merged).unknown.forEach(function (u) {
+        out.errors.push({ row: r, message: 'Fila ' + (r + 2) + ': depende de «' + u + '», que no existe.', blocking: false });
       });
-    }
-    if (!out.steps.length) out.errors.push('Solo llegó la fila de encabezados.');
+    });
     return out;
+  }
+
+  /* Parses cells pasted from a spreadsheet (tab separated, header row first). */
+  function parseTable(text, resolveFlow) {
+    var table = String(text || '').split(/\r?\n/).map(function (l) { return l.split('\t'); });
+    var read = tableToGrid(table);
+    if (read.errors.length) return { steps: [], categories: read.grid.categories, errors: read.errors };
+    return gridToDraft(read.grid, resolveFlow);
   }
 
   function toTSV(draft, flowName) {
     var cats = draft.categories || [];
     var clean = function (v) { return String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' '); };
-    var rows = [['ID', 'Tipo', 'Subflujo', 'Título', 'Descripción'].concat(cats, ['Salidas'])];
+    var rows = [['ID', 'Tipo', 'Flujo', 'Título', 'Descripción'].concat(cats, ['Salidas'])];
     draft.steps.forEach(function (s) {
-      rows.push([s.id, TYPE_LABELS[s.type] || '', s.type === 'subflow' && s.ref && flowName ? flowName(s.ref) || '' : '', s.title, s.description].concat(cats.map(function (c) { return (s.tags && s.tags[c]) || ''; }), [s.exits]).map(clean));
+      rows.push([s.id, TYPE_LABELS[s.type] || '', (s.type === 'subflow' || s.type === 'link') && s.ref && flowName ? flowName(s.ref) || '' : '', s.title, s.description].concat(cats.map(function (c) { return (s.tags && s.tags[c]) || ''; }), [s.exits]).map(clean));
     });
     return rows.map(function (r) { return r.join('\t'); }).join('\n');
   }
@@ -598,8 +647,8 @@ var Core = (function () {
   Tour.prototype.prev = function () { if (this.pos > 0) { this.pos--; return true; } return false; };
 
   return {
-    TYPES: TYPES, TYPE_LABELS: TYPE_LABELS, EXAMPLE: EXAMPLE, EXAMPLE_SUB: EXAMPLE_SUB, validateRefs: validateRefs, norm: norm, parseExits: parseExits, parseTags: parseTags, formatExits: formatExits, predecessorsText: predecessorsText, applyDependsOn: applyDependsOn,
-    compile: compile, validate: validate, parseTable: parseTable, toTSV: toTSV, wrapTitle: wrapTitle, layout: layout, Tour: Tour
+    TYPES: TYPES, TYPE_LABELS: TYPE_LABELS, EXAMPLE: EXAMPLE, EXAMPLE_SUB: EXAMPLE_SUB, validateRefs: validateRefs, validateLinks: validateLinks, norm: norm, parseExits: parseExits, parseTags: parseTags, formatExits: formatExits, predecessorsText: predecessorsText, applyDependsOn: applyDependsOn,
+    compile: compile, validate: validate, tableToGrid: tableToGrid, gridToDraft: gridToDraft, parseTable: parseTable, toTSV: toTSV, wrapTitle: wrapTitle, layout: layout, Tour: Tour
   };
 })();
 export default Core;
