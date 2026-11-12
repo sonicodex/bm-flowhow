@@ -31,9 +31,11 @@ Entry format:
     `theme.css` and compares it with `app.css`, so a palette change that
     breaks the table fails the tests. Dark text goes on slots 3, 6, 8, 10
     and 12.
-  - Outlines, arrows, lines and icons use `--flow-strong`:
-    `color-mix(in srgb, var(--flow) 62%, var(--color-text))`. That is the
-    prototype's 38 % toward black, made with a token.
+  - Outlines, arrows and lines use `--flow-strong`:
+    `color-mix(in srgb, var(--flow) var(--flow-shade-mix), var(--color-text))`,
+    the prototype's darker shade made with tokens (`--flow-shade-mix` is
+    62 % in `theme.css`). Diagram icons fill with `currentColor`, the
+    colour of their step (SPEC §9).
   - The overview paints no step with the flow colour, so `--flow-on` shows
     from phase 3 on (the current step). `app/.layout-check/colores.png`
     shows it on all twelve slots.
@@ -41,23 +43,28 @@ Entry format:
     prototype does (`wrapTitle`). A longer title is cut with "…" in the
     box; the whole title is in the step's `<title>`. Ctrl+F finds only
     the visible part.
-  - **Type sizes are tokens:** step text `--text-sm` (14 px; the
-    prototype used 13) and branch labels `--text-xs` (12 px; it used 12.5,
-    weight 500). The labels keep the regular weight: there is no token for
-    a medium weight.
+  - **Type is tokens:** step text `--text-sm` (14 px; the prototype used
+    13) and branch labels `--text-xs` (12 px; it used 12.5) with
+    `--weight-medium`, as in the prototype. The owner confirmed 14 and 12
+    as the real scale.
   - The wait and link icons are the geometry of `public/icons/hold_on.svg`
     and `link.svg`, inlined like the prototype does, filled from CSS. The
     files carry a literal fill that cannot be overridden through `<use>`.
   - A subflow step is drawn as an activity.
   - Vitest empties imported `.css` files, so `vitest.config.ts` passes
     `theme.css` and `app.css` to the tests as a binding (`CSS_FILES`).
-- Not tokens, to be reviewed by the owner: the stroke widths are
-  `calc(var(--border-width) * 1.5)` and `* 3` (end step), the mix ratio is
-  62 %, and the decision's corner cut (16) and the icon positions are
-  geometry in `diagram.js`, as in the prototype.
-- Contrast: slot 2 (`#7D6AC2`, Apertura de OT) gives 4.46:1 with white and
-  4.24:1 with near-black, both below WCAG AA (4.5:1) for normal text.
-  Slots 4 (4.56) and 11 (4.38) are borderline too.
+- Kept as they are (owner, 2026-11-12): the stroke widths computed from
+  `--border-width` (`* 1.5`, and `* 3` for the end step), and the
+  decision's corner cut and icon positions as geometry in `diagram.js`.
+- Contrast: slots 2 and 11 were below WCAG AA (4.46:1 and 4.38:1). The
+  owner changed them in `theme.css` (`#7C69C1`, 4.52:1; `#00838A`,
+  4.55:1, both with white text). The `--flow-on` table did not change.
+- **Icons inherit the text colour.** The six single-colour icons of SPEC
+  §9 (link, close, back, subprocess, hold_on, zoom) carried
+  `fill: #27519b` inside the file, so they ignored `currentColor`
+  everywhere in the app. On the owner's instruction they now say
+  `fill: currentColor`. The four status icons (pending, in_progress, done,
+  alert) keep their colours. A test checks both groups.
 - Reason: owner's instructions for 2.3; SPEC §9 (Visual style).
 - Spec sections affected: 9 (Visual style and theming, Diagram).
 

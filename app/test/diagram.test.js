@@ -93,8 +93,30 @@ describe('app.css flow colours', () => {
     }
   });
 
+  it('darkens the flow colour with the --flow-shade-mix token', () => {
+    assert.match(theme, /--flow-shade-mix:\s*\d+%/);
+    assert.match(appCss, /--flow-strong: color-mix\(in srgb, var\(--flow\) var\(--flow-shade-mix\), var\(--color-text\)\);/);
+  });
+
   it('uses no literal colour, size or radius in the diagram styles', () => {
     const diagram = appCss.slice(appCss.indexOf('/* ---- Diagram')).replace(/\/\*[\s\S]*?\*\//g, '');
     assert.doesNotMatch(diagram, /#[0-9a-f]{3,8}\b|rgba?\(|\d+px|\b(white|black)\b/i);
+  });
+});
+
+describe('icons (SPEC §9)', () => {
+  const fills = (svg) => [...svg.matchAll(/fill:\s*([^;]+);/g)].map((m) => m[1].trim());
+
+  it('the six single-colour icons take the colour of the text around them', () => {
+    for (const name of ['link', 'close', 'back', 'subprocess', 'hold_on', 'zoom']) {
+      assert.deepStrictEqual(fills(env.ICON_FILES[name]), ['currentColor'], name);
+    }
+  });
+
+  it('the four status icons keep their own colour', () => {
+    for (const name of ['pending', 'in_progress', 'done', 'alert']) {
+      const f = fills(env.ICON_FILES[name]);
+      assert.ok(f.length && f.every((v) => /^#[0-9a-f]{6}$/i.test(v)), name);
+    }
   });
 });

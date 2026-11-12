@@ -18,6 +18,14 @@ const CSS_FILES = {
   "app.css": readFileSync("./public/app.css", "utf8"),
 };
 
+// The icons, as text, to check which of them inherit the text colour.
+const ICON_FILES = Object.fromEntries(
+  ["alert", "back", "close", "done", "hold_on", "in_progress", "link", "pending", "subprocess", "zoom"].map((name) => [
+    name,
+    readFileSync(`./public/icons/${name}.svg`, "utf8"),
+  ]),
+);
+
 // Tests run inside the Workers runtime with the bindings from wrangler.jsonc,
 // against a real local D1 with the project's migrations applied.
 export default defineConfig({
@@ -27,7 +35,7 @@ export default defineConfig({
       miniflare: {
         // node:assert for the rules module's tests (test/core.test.js).
         compatibilityFlags: ["nodejs_compat"],
-        bindings: { TEST_MIGRATIONS: await readD1Migrations("./migrations"), XLSX_FIXTURES, CSS_FILES },
+        bindings: { TEST_MIGRATIONS: await readD1Migrations("./migrations"), XLSX_FIXTURES, CSS_FILES, ICON_FILES },
       },
     })),
   ],

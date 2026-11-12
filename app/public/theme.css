@@ -16,6 +16,9 @@
   --font-family: 'Google Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-display: 'iBrand', 'Google Sans', system-ui, sans-serif;
   --weight-display: 400;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-bold: 700;
   --color-bg: #F5F5F5;
   --color-surface: #FFFFFF;
   --color-subtle: #EBEBEB;
@@ -42,8 +45,14 @@
   --color-status-done: #00BB02;
   --color-status-alert: #FFC72A;
   /* Flow colours (palette 2). The app sets --flow, --flow-strong, --flow-on, --flow-tint and --flow-visited per flow. */
-  --flow-1: #28519D; --flow-2: #7D6AC2; --flow-3: #CA88D6; --flow-4: #B45684; --flow-5: #902E33; --flow-6: #E58B52;
-  --flow-7: #976C00; --flow-8: #A8AC3D; --flow-9: #206616; --flow-10: #27BF9A; --flow-11: #00868D; --flow-12: #32B2E8;
+  /* Flow palette. Every colour clears 4.5:1 against white or near-black text,
+     whichever the component picks. Two were nudged a step darker to get there:
+     --flow-2 was #7D6AC2 (4.46:1) and --flow-11 was #00868D (4.38:1). */
+  --flow-1: #28519D; --flow-2: #7C69C1; --flow-3: #CA88D6; --flow-4: #B45684; --flow-5: #902E33; --flow-6: #E58B52;
+  --flow-7: #976C00; --flow-8: #A8AC3D; --flow-9: #206616; --flow-10: #27BF9A; --flow-11: #00838A; --flow-12: #32B2E8;
+  /* How much of --color-text is mixed into a flow colour for borders and
+     walked arrows. One place, so the whole diagram shifts together. */
+  --flow-shade-mix: 62%;
   /* Category conventions (tag badges and legend). Slot N applies to the Nth category. */
   --color-cat-1-bg: #E3E3E3; --color-cat-1-text: #111111; --color-cat-1-border: #111111;
   --color-cat-2-bg: #555555; --color-cat-2-text: #FFFFFF; --color-cat-2-border: #555555;

@@ -110,8 +110,9 @@ textarea:focus-visible,
    the text on the flow colour: white (--color-on-primary) or near-black
    (--color-text), whichever contrasts more with that slot; a test checks
    this table against theme.css. --flow-strong, for outlines, arrows and
-   lines, is the flow colour darkened toward --color-text, as in the
-   prototype. */
+   lines, is the flow colour darkened toward --color-text by
+   --flow-shade-mix, as in the prototype. Icons take the colour of the text
+   around them (currentColor, SPEC §9). */
 .flow-1 { --flow: var(--flow-1); --flow-on: var(--color-on-primary); }
 .flow-2 { --flow: var(--flow-2); --flow-on: var(--color-on-primary); }
 .flow-3 { --flow: var(--flow-3); --flow-on: var(--color-text); }
@@ -125,7 +126,7 @@ textarea:focus-visible,
 .flow-11 { --flow: var(--flow-11); --flow-on: var(--color-on-primary); }
 .flow-12 { --flow: var(--flow-12); --flow-on: var(--color-text); }
 .diagram {
-  --flow-strong: color-mix(in srgb, var(--flow) 62%, var(--color-text));
+  --flow-strong: color-mix(in srgb, var(--flow) var(--flow-shade-mix), var(--color-text));
   display: block;
   max-width: 100%;
   height: auto;
@@ -145,6 +146,7 @@ textarea:focus-visible,
 
 .diagram .edge-label {
   font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
   fill: var(--color-text);
   paint-order: stroke;
   stroke: var(--color-surface);
@@ -170,8 +172,12 @@ textarea:focus-visible,
   stroke-dasharray: var(--space-1) var(--space-1);
 }
 
+.diagram .node {
+  color: var(--flow-strong);
+}
+
 .diagram .node-icon {
-  fill: var(--flow-strong);
+  fill: currentColor;
 }
 
 .diagram .node-text {
