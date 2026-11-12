@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { areas } from "./areas";
 import { renderer } from "./layout";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -14,5 +15,7 @@ app.get("/", (c) =>
     { title: "Inicio" },
   ),
 );
+
+app.route("/areas", areas);
 
 export default app;

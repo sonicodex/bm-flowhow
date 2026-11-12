@@ -42,3 +42,57 @@ body {
   font-size: var(--text-xl);
   color: var(--color-text);
 }
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.plain-list {
+  margin: 0 0 var(--space-6);
+  padding-left: var(--space-6);
+}
+
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.inline-form input {
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius);
+  outline: var(--border-width) solid transparent;
+}
+
+.button-primary {
+  padding: var(--space-2) var(--space-4);
+  font: inherit;
+  color: var(--color-on-primary);
+  background: var(--color-primary);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius);
+  outline: var(--border-width) solid transparent;
+  cursor: pointer;
+}
+
+.button-primary:hover {
+  background: var(--color-primary-strong);
+}
+
+.button-primary:active {
+  background: var(--color-primary-deep);
+}
+
+.inline-form input:focus-visible,
+.button-primary:focus-visible {
+  box-shadow: var(--shadow-focus);
+}
+
+.form-error {
+  color: var(--color-status-pending);
+}

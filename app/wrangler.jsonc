@@ -5,5 +5,10 @@
   "compatibility_date": "2026-08-01",
   "observability": { "enabled": true },
   // Files in public/ are served as they are; any other path reaches the Worker.
-  "assets": { "directory": "./public" }
+  "assets": { "directory": "./public" },
+  // No database_id yet: local dev and tests need none. The remote database
+  // is created at the deployment check (wrangler d1 create).
+  "d1_databases": [
+    { "binding": "DB", "database_name": "flowhow", "migrations_dir": "migrations" }
+  ]
 }

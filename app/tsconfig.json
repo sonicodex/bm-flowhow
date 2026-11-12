@@ -12,5 +12,5 @@
     "skipLibCheck": true,
     "isolatedModules": true
   },
-  "include": ["src", "test", "vitest.config.ts", "worker-configuration.d.ts"]
+  "include": ["src", "worker-configuration.d.ts"]
 }

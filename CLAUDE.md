@@ -25,6 +25,8 @@ Working notes for Claude Code agents on this repo. Keep it short.
 - Root holds the documents and `reference/`. Everything else lives in `app/`,
   a TypeScript Worker (Hono, server-rendered JSX). `app/public/` is the
   Worker's assets directory; any other path reaches the Worker.
+- Schema changes are new files in `app/migrations/`. Never edit a migration
+  that has been applied anywhere but your own local database.
 - Styles use only `theme.css` tokens: no literal colours, type, spacing or radii.
 - Secrets live in `.dev.vars` (ignored), never in the repo.
 - Everything runs locally on the Workers runtime with a local D1.
@@ -40,8 +42,13 @@ Working notes for Claude Code agents on this repo. Keep it short.
   `npx npm@11 install --save-exact <pkg>@<version>`: npm 10 fails resolving
   vitest's peer dependencies ("Cannot read properties of null (reading
   'edgesOut')").
-- Dev server: `npm run dev` — serves at `http://localhost:8787`.
+- Apply D1 migrations to the local database: `npm run db:migrate`
+  (`app/migrations/*.sql`; local state lives in `app/.wrangler/`, ignored).
+- Query the local database: `npx wrangler d1 execute DB --local --command "<sql>"`.
+- Dev server: `npm run dev` — serves at `http://localhost:8787`. Apply the
+  migrations first.
 - Tests: `npm test` — Vitest inside the Workers runtime
   (`@cloudflare/vitest-plugin`), with the bindings from `wrangler.jsonc`.
+  Each test starts from an empty local D1 with every migration applied.
 - Typecheck: `npm run typecheck` (app) and `npx tsc --noEmit -p test` (tests).
 - After changing `wrangler.jsonc`: `npm run types`.

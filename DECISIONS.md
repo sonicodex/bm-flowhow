@@ -14,6 +14,33 @@ Entry format:
 
 ---
 
+## 2026-11-12 — Schema conventions (phase 0.2)
+
+- Decision:
+  - **Case-insensitive names use an app-computed key.** `areas`, `flows`,
+    `tag_categories` and `tags` have a `name_key` column with the UNIQUE
+    constraint; `users.username` is stored as its key. The key is
+    `nameKey()` in `app/src/names.ts`: trimmed, NFC, lower-cased with
+    Spanish rules. Accents still count ("Almacen" ≠ "Almacén").
+  - A `sessions` table is part of the initial schema, because SPEC §9 keeps
+    sessions in D1. It stores a hash of the cookie token, not the token.
+  - The flow colour is its palette slot, 1–12, mapped to `--flow-N`.
+  - `tour_visits` stores `step_path` (with the path prefix for nested
+    steps) and `exit_index`, NULL when no exit was taken.
+  - `review_records` has one row per user and release.
+  - Timestamps are UTC ISO-8601 text; booleans are 0/1 integers with a CHECK.
+  - Releases, and the areas a user or flow points to, cannot be deleted
+    while referenced (`ON DELETE RESTRICT`).
+  - The D1 binding has no `database_id` yet. Local dev and tests need none;
+    the remote database is created at the deployment check.
+  - `/areas` is a provisional screen (list and create) that proves the
+    Worker reads and writes D1. Phase 4 restricts it to the Board.
+- Reason: SQLite's `COLLATE NOCASE` folds ASCII letters only, so
+  "Almacén" and "ALMACÉN" passed as different names; a test on the real D1
+  caught it. The rest are the smallest choices that cover SPEC §4, §5, §7,
+  §8 and §9.
+- Spec sections affected: 4, 5, 7, 8, 9 (Data).
+
 ## 2026-11-12 — `@cloudflare/vitest-plugin` instead of `vitest-pool-workers`
 
 - Decision: Tests use `@cloudflare/vitest-plugin` 1.8.1, with Vitest 4.1.12.
