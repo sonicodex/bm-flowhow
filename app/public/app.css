@@ -7,6 +7,12 @@ body {
   font-size: var(--text-md);
 }
 
+/* Visited links keep the link colour: no browser default purple. */
+a,
+a:visited {
+  color: var(--color-primary-mid);
+}
+
 .site-header {
   display: flex;
   align-items: center;
