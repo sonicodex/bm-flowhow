@@ -92,6 +92,36 @@ export async function reviewGrid(db: D1Database, flowId: number, grid: Grid): Pr
   return review;
 }
 
+// The stored document of a prepared grid, with the categories and tags that
+// exist in `index`; any other is dropped.
+function toDocument(prep: Prepared, index: TagIndex): FlowDocument {
+  const catByKey = new Map(index.categories.map((c) => [c.key, c.id]));
+  const tagByKey = new Map(index.tags.map((t) => [`${t.categoryId}:${t.key}`, t.id]));
+  const steps: DocStep[] = prep.steps.map((s) => {
+    const ids: number[] = [];
+    for (const category of prep.categories) {
+      const catId = catByKey.get(nameKey(category));
+      if (catId === undefined) continue; // rejected category: its column is dropped
+      for (const name of s.tags[category] ?? []) {
+        const id = tagByKey.get(`${catId}:${nameKey(name)}`);
+        if (id !== undefined && !ids.includes(id)) ids.push(id); // rejected tags are dropped
+      }
+    }
+    return { id: s.id, type: s.type, title: s.title, description: s.description, ref: s.ref, tags: ids, exits: s.exits };
+  });
+  return { steps };
+}
+
+// The document an import of this grid would store, when nothing is left to
+// accept or reject; null when something blocks or is new. Read-only: the dev
+// loader uses it to leave an unchanged flow alone.
+export async function documentFor(db: D1Database, flowId: number, grid: Grid): Promise<FlowDocument | null> {
+  const index = await loadTagIndex(db);
+  const prep = await prepare(db, flowId, grid, index);
+  if (prep.blocking || prep.newCategories.length || prep.newTags.length) return null;
+  return toDocument(prep, index);
+}
+
 export type ApplyResult = { ok: true; document: FlowDocument } | { ok: false; errors: RowError[] };
 
 // Replaces the draft with the grid, as one save (draft plus save point).
@@ -137,21 +167,7 @@ export async function applyGrid(
     index = await loadTagIndex(db);
   }
 
-  const catByKey = new Map(index.categories.map((c) => [c.key, c.id]));
-  const tagByKey = new Map(index.tags.map((t) => [`${t.categoryId}:${t.key}`, t.id]));
-  const steps: DocStep[] = prep.steps.map((s) => {
-    const ids: number[] = [];
-    for (const category of prep.categories) {
-      const catId = catByKey.get(nameKey(category));
-      if (catId === undefined) continue; // rejected category: its column is dropped
-      for (const name of s.tags[category] ?? []) {
-        const id = tagByKey.get(`${catId}:${nameKey(name)}`);
-        if (id !== undefined && !ids.includes(id)) ids.push(id); // rejected tags are dropped
-      }
-    }
-    return { id: s.id, type: s.type, title: s.title, description: s.description, ref: s.ref, tags: ids, exits: s.exits };
-  });
-  const document: FlowDocument = { steps };
+  const document = toDocument(prep, index);
   const json = JSON.stringify(document);
   await db.batch([
     db

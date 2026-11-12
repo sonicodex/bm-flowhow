@@ -51,6 +51,9 @@ Working notes for Claude Code agents on this repo. Keep it short.
   'edgesOut')").
 - Apply D1 migrations to the local database: `npm run db:migrate`
   (`app/migrations/*.sql`; local state lives in `app/.wrangler/`, ignored).
+- Load the two reference flows into the local database and publish them:
+  `npm run db:load` (after `db:migrate`). Loading again changes nothing
+  unless a `reference/*.grid.json` changed; then it publishes a minor version.
 - Query the local database: `npx wrangler d1 execute DB --local --command "<sql>"`.
 - Dev server: `npm run dev` — serves at `http://localhost:8787`. Apply the
   migrations first.
