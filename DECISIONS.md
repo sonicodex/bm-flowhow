@@ -14,6 +14,33 @@ Entry format:
 
 ---
 
+## 2026-11-12 — The diagram layout adapter (phase 2.2)
+
+- Decision:
+  - `public/js/diagram-layout.js` is the only door to the layout engine.
+    `layoutFlow(flow)` takes a compiled flow (`compile()` in the browser,
+    `documentToFlow()` on the server) and returns `{width, height, nodes,
+    edges}`. The SVG renderer reads that and nothing else.
+    - Nodes: `{id, x, y, w, h, type, title}`, where `x`, `y` is the centre.
+    - Edges: `{from, to, label, back, points, labelAt}`.
+  - **Points carry their curves.** `layout()` draws edges as cubic curves,
+    straight runs and quadratic entries at the side of a node. A bare list
+    of points cannot redraw that, so a point may hold `c`: the control
+    points of the curve that ends there (two for cubic, one for
+    quadratic, none for a line). A test rebuilds every path of both
+    reference flows from the points and compares it with `layout()`'s own,
+    so the renderer reproduces the prototype exactly. An engine that only
+    gives bare points still fits the contract: its edges are polylines.
+  - Every edge runs from source to target, back edges included.
+  - **P34 fixed in `core.js`:** `layout()` no longer merges edges with the
+    same ends. Each exit is its own edge, and the existing port spreading
+    draws two branches to one step as two parallel arrows, in the order
+    written (Sí left of No), each with its label.
+  - The adapter is type-checked with `core.js` (`tsconfig.core.json`).
+- Reason: owner's instruction for phase 2 (one adapter, engine swappable)
+  and the 2.1 decision.
+- Spec sections affected: 7 (Flow viewer), 9 (Diagram).
+
 ## 2026-11-12 — The overview scrolls; the diagram stays vertical
 
 - Decision:
@@ -70,7 +97,7 @@ Entry format:
   | Two branches to one step (P34 «Sí», «No» → P35) | **merged: one arrow, «No» lost** | two arrows |
   | Size | 957 × 3012 / 694 × 3244 | 836 × 3092 / 676 × 3308 |
 
-- Defect to fix in 2.2: `layout()` merges edges with the same ends, so
+- Defect to fix in 2.2 (*fixed in 2.2*): `layout()` merges edges with the same ends, so
   P34 shows one arrow where there are two paths and loses a label. The
   tour is not affected (it reads the exits of the document), but the
   diagram must draw both.

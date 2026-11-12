@@ -406,7 +406,9 @@ var Core = (function () {
     var edges = [];
     steps.forEach(function (s) {
       s.exits.forEach(function (e) {
-        if (seenIds.has(e.to) && e.to !== s.id && !edges.some(function (x) { return x.from === s.id && x.to === e.to; })) {
+        // One edge per exit: two branches to the same step (Sí:P35 | No:P35) are
+        // two paths, so they get two arrows and keep both labels.
+        if (seenIds.has(e.to) && e.to !== s.id) {
           edges.push({ from: s.id, to: e.to, label: e.label || '' });
         }
       });

@@ -1,8 +1,9 @@
-// Checks public/js/core.js against its JSDoc annotations (checkJs). Not
+// Checks public/js/core.js and the diagram adapter against their JSDoc
+// annotations (checkJs). Not
 // strict: only the functions the server uses carry types; the layout and
 // tour code stay plain JavaScript.
 {
   "extends": "./tsconfig.json",
   "compilerOptions": { "allowJs": true, "checkJs": true, "strict": false },
-  "include": ["public/js/core.js", "worker-configuration.d.ts"]
+  "include": ["public/js/core.js", "public/js/diagram-layout.js", "worker-configuration.d.ts"]
 }
