@@ -186,3 +186,113 @@ textarea:focus-visible,
   text-anchor: middle;
   dominant-baseline: central;
 }
+
+/* ---- Flow viewer, overview (phase 2.4) ----
+   The prototype's viewer: diagram card on the left, step panel on the
+   right, the actions floating in the card's bottom right corner (SPEC §7
+   Layout). The card scrolls; its bottom padding keeps the buttons from
+   hiding the last step. On phones the panel goes above the diagram. */
+.viewer-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.viewer-head p {
+  margin: 0;
+}
+
+.viewer-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-medium);
+}
+
+.flow-dot {
+  flex: none;
+  width: var(--space-3);
+  height: var(--space-3);
+  border-radius: 50%;
+  background: var(--flow);
+}
+
+.viewer-cols {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--space-4);
+}
+
+.card {
+  box-sizing: border-box;
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.diagram-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 999 1 520px;
+  min-width: 0;
+}
+
+.diagram-scroll {
+  overflow: auto;
+  max-height: 76vh;
+  padding: var(--space-4) var(--space-4) calc(var(--space-10) * 2 + var(--space-2));
+}
+
+.diagram-actions {
+  position: absolute;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  left: var(--space-4);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-3);
+  pointer-events: none;
+}
+
+.diagram-actions > * {
+  pointer-events: auto;
+}
+
+.viewer-side {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 340px;
+  gap: var(--space-4);
+  max-width: 100%;
+  padding: var(--space-8) var(--space-6);
+}
+
+.viewer-side p {
+  margin: 0;
+}
+
+.eyebrow {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
+}
+
+.step-title {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-medium);
+}
+
+@media (max-width: 760px) {
+  .viewer-side {
+    order: -1;
+    flex-basis: 100%;
+  }
+}

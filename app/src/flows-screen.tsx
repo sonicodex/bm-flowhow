@@ -31,7 +31,15 @@ function FlowsPage({ items, error, value }: { items: FlowItem[]; error?: string;
           {items.map((f) => (
             <li>
               {f.name} — {f.version ? `publicado en ${f.version}` : "sin publicar"}
-              {f.draft ? ", con borrador" : ""} · <a href={`/flows/${f.id}/import`}>Importar</a>
+              {f.draft ? ", con borrador" : ""}
+              {f.version ? (
+                <>
+                  {" · "}
+                  <a href={`/flows/${f.id}`}>Ver</a>
+                </>
+              ) : null}
+              {" · "}
+              <a href={`/flows/${f.id}/import`}>Importar</a>
             </li>
           ))}
         </ul>

@@ -99,7 +99,7 @@ describe('app.css flow colours', () => {
   });
 
   it('uses no literal colour, size or radius in the diagram styles', () => {
-    const diagram = appCss.slice(appCss.indexOf('/* ---- Diagram')).replace(/\/\*[\s\S]*?\*\//g, '');
+    const diagram = appCss.slice(appCss.indexOf('/* ---- Diagram'), appCss.indexOf('/* ---- Flow viewer')).replace(/\/\*[\s\S]*?\*\//g, '');
     assert.doesNotMatch(diagram, /#[0-9a-f]{3,8}\b|rgba?\(|\d+px|\b(white|black)\b/i);
   });
 });

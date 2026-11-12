@@ -14,6 +14,31 @@ Entry format:
 
 ---
 
+## 2026-11-12 — The flow viewer, overview (phase 2.4)
+
+- Decision:
+  - `GET /flows/:id` (`src/viewer.tsx`) shows the flow's latest release,
+    never the draft. A flow with no release, or an unknown id, is 404.
+    Access by area and role comes in phase 4.
+  - The server sends the compiled release as JSON inside
+    `<script type="application/json">`, with every `<` escaped so step text
+    cannot close the script. `public/js/viewer.js` lays it out and draws it
+    in the browser (SPEC §9). Without JavaScript the card says so.
+  - The page follows the prototype's overview: title with the flow's dot
+    and the objective; the diagram card, which scrolls (76vh); the
+    "Panorama" panel on the right with the step count; and "Iniciar
+    recorrido" floating in the card's bottom right corner. The button does
+    nothing until phase 3. On phones (≤ 760 px) the panel goes above the
+    diagram.
+  - Left out of 2.4: the prototype's phase tabs (Panorama, Recorrido,
+    Repaso), the review status, the subflow count in the panel, the flow
+    selector, and zoom on phones. On a phone the diagram is shrunk to the
+    screen width, as in the prototype, so its text is small until zoom
+    arrives.
+  - `/flows` links "Ver" for flows with a release.
+- Reason: phase 2 plan approved by the owner; SPEC §7 (Layout), §8.
+- Spec sections affected: 7, 8, 9.
+
 ## 2026-11-12 — The SVG renderer and the flow colours (phase 2.3)
 
 - Decision:
