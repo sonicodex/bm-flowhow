@@ -25,11 +25,13 @@ describe("/areas", () => {
     expect(await (await exports.default.fetch("http://example.com/areas")).text()).toContain("<li>Operaciones</li>");
   });
 
-  it("refuses a duplicate name, whatever the case", async () => {
-    await post("Almacén");
-    const res = await post("ALMACÉN");
+  it("refuses a duplicate name ignoring case and accents, and says why", async () => {
+    await post("Diseño");
+    const res = await post("DISENO");
     expect(res.status).toBe(422);
-    expect(await res.text()).toContain("Ya existe un área llamada «ALMACÉN».");
+    expect(await res.text()).toContain(
+      "Ya existe un área llamada «Diseño». Los nombres se comparan sin mayúsculas ni tildes.",
+    );
     const { results } = await env.DB.prepare("SELECT name FROM areas").all();
     expect(results).toHaveLength(1);
   });

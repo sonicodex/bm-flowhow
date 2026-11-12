@@ -1,7 +1,7 @@
 -- FlowHow stage 1 schema (SPEC §4, §5, §7, §8, §9).
 -- Timestamps are UTC ISO-8601 text; booleans are 0/1 integers.
--- Case-insensitive uniqueness uses a name_key column computed by the app
--- (src/names.ts): SQLite's NOCASE folds ASCII letters only.
+-- Names are unique ignoring case and accents, through a name_key column
+-- computed by the app (src/names.ts): SQLite's NOCASE folds ASCII only.
 -- Flow documents (steps, exits, tags) are JSON text, one per draft,
 -- save point and release.
 
@@ -12,23 +12,31 @@ CREATE TABLE areas (
   created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
--- A user belongs to exactly one area (§4).
+-- Areas decide which flows a Standard user sees and which employees a
+-- Leader gets in the progress report (§4). Areas live in user_areas.
 CREATE TABLE users (
   id                   INTEGER PRIMARY KEY,
-  -- Stored as its name key, so login is case-insensitive.
+  -- Stored as its name key, so login ignores case and accents.
   username             TEXT    NOT NULL UNIQUE CHECK (username <> ''),
   full_name            TEXT    NOT NULL CHECK (trim(full_name) <> ''),
   password_hash        TEXT    NOT NULL,
   role                 TEXT    NOT NULL DEFAULT 'standard'
                                CHECK (role IN ('standard', 'leader', 'board')),
-  area_id              INTEGER NOT NULL REFERENCES areas (id) ON DELETE RESTRICT,
   -- Separate from the role on purpose (§4).
   can_edit             INTEGER NOT NULL DEFAULT 0 CHECK (can_edit IN (0, 1)),
   can_view_admin_layer INTEGER NOT NULL DEFAULT 0 CHECK (can_view_admin_layer IN (0, 1)),
   is_active            INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
   created_at           TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
-CREATE INDEX users_area ON users (area_id);
+
+-- Zero, one or more areas per user (§4). "A Standard user has at least one"
+-- is a server rule (src/users.ts), not a schema constraint.
+CREATE TABLE user_areas (
+  user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  area_id INTEGER NOT NULL REFERENCES areas (id) ON DELETE RESTRICT,
+  PRIMARY KEY (user_id, area_id)
+);
+CREATE INDEX user_areas_area ON user_areas (area_id);
 
 -- Login sessions (§9). The id is a hash of the cookie token, never the token.
 CREATE TABLE sessions (

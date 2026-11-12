@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { nameKey } from "./names";
+import { NAME_RULE, nameKey } from "./names";
 
 // Provisional areas screen: proves the Worker reads and writes D1.
 // Phase 4 restricts it to the Board (SPEC §9 Administration screens).
@@ -44,10 +44,14 @@ areas.post("/", async (c) => {
   if (!name) {
     error = "Escribe el nombre del área.";
   } else {
+    const key = nameKey(name);
     const { meta } = await c.env.DB.prepare("INSERT INTO areas (name, name_key) VALUES (?, ?) ON CONFLICT (name_key) DO NOTHING")
-      .bind(name, nameKey(name))
+      .bind(name, key)
       .run();
-    if (meta.changes === 0) error = `Ya existe un área llamada «${name}».`;
+    if (meta.changes === 0) {
+      const existing = await c.env.DB.prepare("SELECT name FROM areas WHERE name_key = ?").bind(key).first<string>("name");
+      error = `Ya existe un área llamada «${existing}». ${NAME_RULE}`;
+    }
   }
   if (!error) return c.redirect("/areas", 303);
   c.status(422);

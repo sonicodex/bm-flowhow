@@ -72,11 +72,24 @@ Scale: one company, about 50 users, about 8 flows.
 
 | Role     | Sees                                   | Gets certified      | Edits |
 |----------|----------------------------------------|---------------------|-------|
-| Standard | Flows assigned to their area           | Yes, on those flows | No    |
+| Standard | Flows assigned to any of their areas   | Yes, on those flows | No    |
 | Leader   | All flows                              | Yes, on all flows   | No    |
 | Board    | All flows plus the admin layer         | No                  | Yes   |
 
-- A user belongs to exactly one area.
+- **A user belongs to zero, one or more areas.** One user, many areas, in its
+  own table. Most employees belong to one, but some work across two, and a
+  leader covers the areas they lead.
+- Areas decide two things and nothing else: which flows a Standard user sees,
+  and which rows a Leader gets in the progress report. A Leader sees every
+  flow whatever their areas.
+- Board members belong to no area. They see everything.
+- **A Standard user must have at least one area.** The server refuses to
+  create or save one without, because a Standard user with no area sees no
+  flows, and every user must see at least one. Leaders and Board members may
+  have none: their role already shows them every flow.
+- Having an area is not the same as having something to see. When a Standard
+  user's areas have no flow assigned yet, the screen says so and lets the
+  admin continue: flows get assigned later.
 - `can_edit` and `can_view_admin_layer` are separate permissions, so the
   second can later be granted to another group without edit rights.
 - Accounts are created by an admin. No open sign-up.
@@ -353,7 +366,7 @@ several parent flows.
     whether the employee passed or failed;
   - certified: yes or no flag.
 - Scope: Board members see every employee. A Leader sees only the employees
-  of their own area. The server applies this filter.
+  who share at least one area with them. The server applies this filter.
 - Sortable and filterable by area, flow and certified status.
 - Stage 1 delivers the table with the review columns. Stage 2 adds the score
   and the certified flag; leave those columns out until then.
@@ -419,7 +432,8 @@ several parent flows.
 
 ### Data
 
-- **Regular tables:** user, area, flow, flow–area assignment, tag category, tag.
+- **Regular tables:** user, area, user–area assignment, flow, flow–area
+  assignment, tag category, tag.
 - **Document per version:** each save point and each release stores the whole
   flow (steps, exits, tags) as one JSON document.
 - **Tracking:** visited steps per user and version with timestamps; reviewed
@@ -437,7 +451,7 @@ Never trust the browser for any of these:
 - Flow structure validation on publish, whatever the input path.
 - Whether a linked flow is accessible to the current user.
 - The progress report is served only to Board members and Leaders, and a
-  Leader receives only the rows of their own area.
+  Leader receives only the rows of employees who share an area with them.
 
 ### Visual style and theming
 

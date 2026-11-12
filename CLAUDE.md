@@ -6,8 +6,9 @@ Working notes for Claude Code agents on this repo. Keep it short.
 
 - `SPEC.md` — the product spec. Only authoritative reference. Do not edit; propose changes.
 - `DECISIONS.md` — append dated entries for every decision not covered by SPEC.md
-  and every deviation. Newest first. Never delete an entry: mark it obsolete or
-  suspended, with the reason.
+  and every deviation. Newest first. Never delete an entry on your own
+  initiative: mark it obsolete or suspended, with the reason, so no decision
+  is rewritten silently.
 - `PLAN.md` — build plan, one `plan_iteration_{n}` per revision. Newest first;
   the iteration marked as current is the approved one.
 - `reference/` — prototype, the rules module `core.js` and its test cases,

@@ -17,11 +17,21 @@ Entry format:
 ## 2026-11-12 — Schema conventions (phase 0.2)
 
 - Decision:
-  - **Case-insensitive names use an app-computed key.** `areas`, `flows`,
-    `tag_categories` and `tags` have a `name_key` column with the UNIQUE
-    constraint; `users.username` is stored as its key. The key is
-    `nameKey()` in `app/src/names.ts`: trimmed, NFC, lower-cased with
-    Spanish rules. Accents still count ("Almacen" ≠ "Almacén").
+  - **Names are compared without case or accents, through an app-computed
+    key.** `areas`, `flows`, `tag_categories` and `tags` have a `name_key`
+    column with the UNIQUE constraint; `users.username` is stored as its
+    key. The key is `nameKey()` in `app/src/names.ts`: trimmed, accents
+    removed (the eñe included) and lower-cased, so "Diseño", "DISEÑO" and
+    "Diseno" are one name. The stored name keeps what the user typed; the
+    key is only for comparing. Every "already exists" message names the
+    existing spelling and states the rule ("Los nombres se comparan sin
+    mayúsculas ni tildes."), so the collision does not look like a bug.
+  - **A user belongs to zero, one or more areas**, in `user_areas`
+    (composite primary key; user deleted → rows deleted, area still
+    referenced → refused, as in `flow_areas`). A Standard user must have at
+    least one area: a server rule in `app/src/users.ts`, applied on create
+    and on save, not a schema constraint. Leaders and Board members may
+    have none (SPEC §4).
   - A `sessions` table is part of the initial schema, because SPEC §9 keeps
     sessions in D1. It stores a hash of the cookie token, not the token.
   - The flow colour is its palette slot, 1–12, mapped to `--flow-N`.
@@ -37,8 +47,14 @@ Entry format:
     Worker reads and writes D1. Phase 4 restricts it to the Board.
 - Reason: SQLite's `COLLATE NOCASE` folds ASCII letters only, so
   "Almacén" and "ALMACÉN" passed as different names; a test on the real D1
-  caught it. The rest are the smallest choices that cover SPEC §4, §5, §7,
-  §8 and §9.
+  caught it. Accents are ignored too (owner's decision): if they counted,
+  "Diseno" typed for "Diseño" would create a duplicate tag silently and
+  split the convention filters; ignored, the collision is visible and is
+  fixed by renaming. The import format's "Flujo" column also matches its
+  target by name, so that match should be tolerant. Users and areas are
+  many-to-many because the Board belongs to no area, a Leader covers one or
+  more, and some employees work in two. The rest are the smallest choices
+  that cover SPEC §4, §5, §7, §8 and §9.
 - Spec sections affected: 4, 5, 7, 8, 9 (Data).
 
 ## 2026-11-12 — `@cloudflare/vitest-plugin` instead of `vitest-pool-workers`
@@ -107,9 +123,6 @@ Entry format:
 
 ## 2026-11-12 — Reference flows as grid JSON, loaded by a dev endpoint
 
-- Status: **Partly obsolete** (plan_iteration_4). The grid JSON files stay
-  as development data. The `/__load_dev_flow__/` endpoint is obsolete with
-  the other `__*__/` endpoints; phase 1 defines the new development load.
 - Decision:
   - `reference/Flujo_Instalaciones.grid.json` and
     `reference/Flujo_Apertura_OT.grid.json` are the two reference xlsx
@@ -117,12 +130,6 @@ Entry format:
     throwaway openpyxl script that is not committed. They are new files in
     `reference/`, added on the owner's instruction (PLAN iteration 1,
     point 1); the xlsx files are untouched.
-  - `POST /__load_dev_flow__/?name=<flow>` (DEBUG only) takes the grid in
-    the request body, because the Worker cannot read files outside `src/`.
-    It calls the same `review_grid` / `apply_grid` / `publish` functions
-    as the import endpoints, accepting every unknown category and tag.
-    It is idempotent: an unchanged grid publishes nothing; a changed one
-    publishes a minor release.
   - The reference flows have no area ("[POR DEFINIR]"), but the first
     publication requires one (SPEC §6). The loader assigns a placeholder
     area "Desarrollo" to a flow it publishes for the first time.

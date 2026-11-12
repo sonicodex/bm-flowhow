@@ -4,13 +4,17 @@ import { nameKey } from "../src/names";
 
 const TABLES = [
   "areas", "drafts", "flow_areas", "flows", "releases", "review_records",
-  "save_points", "sessions", "tag_categories", "tags", "tour_visits", "users",
+  "save_points", "sessions", "tag_categories", "tags", "tour_visits", "user_areas", "users",
 ];
 
 const run = (sql: string, ...params: unknown[]) => env.DB.prepare(sql).bind(...params).run();
 
 async function seedFlow(name = "F", colour = 1) {
   return (await run("INSERT INTO flows (name, name_key, colour) VALUES (?, ?, ?)", name, nameKey(name), colour)).meta.last_row_id;
+}
+
+async function seedUser(username = "ana", role = "standard") {
+  return (await run("INSERT INTO users (username, full_name, password_hash, role) VALUES (?, 'Ana', 'x', ?)", username, role)).meta.last_row_id;
 }
 
 async function seedArea(name = "Operaciones") {
@@ -26,35 +30,50 @@ describe("schema", () => {
   });
 
   it("enforces foreign keys", async () => {
-    await expect(
-      run("INSERT INTO users (username, full_name, password_hash, area_id) VALUES ('ana', 'Ana', 'x', 999)"),
-    ).rejects.toThrow(/FOREIGN KEY/);
+    const user = await seedUser();
+    await expect(run("INSERT INTO user_areas (user_id, area_id) VALUES (?, 999)", user)).rejects.toThrow(/FOREIGN KEY/);
   });
 
   it("refuses an area that is still referenced", async () => {
     const area = await seedArea();
-    await run("INSERT INTO users (username, full_name, password_hash, area_id) VALUES ('ana', 'Ana', 'x', ?)", area);
+    const user = await seedUser();
+    await run("INSERT INTO user_areas (user_id, area_id) VALUES (?, ?)", user, area);
     await expect(run("DELETE FROM areas WHERE id = ?", area)).rejects.toThrow(/FOREIGN KEY/);
   });
 
   it("allows only the three roles", async () => {
-    const area = await seedArea();
-    await expect(
-      run("INSERT INTO users (username, full_name, password_hash, role, area_id) VALUES ('ana', 'Ana', 'x', 'admin', ?)", area),
-    ).rejects.toThrow(/CHECK/);
+    await expect(seedUser("ana", "admin")).rejects.toThrow(/CHECK/);
   });
 
-  it("keeps names unique regardless of case, accented letters included", async () => {
-    await seedArea("Almacén");
-    await expect(seedArea("ALMACÉN")).rejects.toThrow(/UNIQUE/);
-    await seedArea("Almacen"); // accents still count
+  it("keeps names unique ignoring case and accents", async () => {
+    await seedArea("Diseño");
+    await expect(seedArea("DISEÑO")).rejects.toThrow(/UNIQUE/);
+    await expect(seedArea("Diseno")).rejects.toThrow(/UNIQUE/);
+    await expect(seedArea("Almacén")).resolves.toBeTypeOf("number");
+    await expect(seedArea("almacen")).rejects.toThrow(/UNIQUE/);
     await seedFlow("Apertura de OT");
     await expect(seedFlow("APERTURA DE OT")).rejects.toThrow(/UNIQUE/);
   });
 
-  it("builds the name key with Spanish case rules and NFC", () => {
-    expect(nameKey("  ÁREA Ñandú ")).toBe("área ñandú");
+  it("builds the name key without case or accents, the eñe included", () => {
+    expect(nameKey("  ÁREA Ñandú ")).toBe("area nandu");
+    expect(nameKey("Diseño")).toBe(nameKey("Diseno"));
     expect(nameKey("Almace\u0301n")).toBe(nameKey("Almacén")); // decomposed é
+    expect(nameKey("Pingüino")).toBe("pinguino");
+  });
+
+  it("lets a user belong to several areas, to none, but not twice to one", async () => {
+    const [a, b] = [await seedArea("Operaciones"), await seedArea("Compras")];
+    const ana = await seedUser("ana");
+    await seedUser("junta", "board"); // no area at all
+    await run("INSERT INTO user_areas (user_id, area_id) VALUES (?, ?), (?, ?)", ana, a, ana, b);
+    await expect(run("INSERT INTO user_areas (user_id, area_id) VALUES (?, ?)", ana, a)).rejects.toThrow(/UNIQUE|PRIMARY/);
+    const { results } = await env.DB.prepare(
+      "SELECT u.username, count(ua.area_id) AS n FROM users u LEFT JOIN user_areas ua ON ua.user_id = u.id GROUP BY u.id ORDER BY u.username",
+    ).all();
+    expect(results).toEqual([{ username: "ana", n: 2 }, { username: "junta", n: 0 }]);
+    await run("DELETE FROM users WHERE id = ?", ana); // cascades to user_areas
+    expect(await env.DB.prepare("SELECT count(*) AS n FROM user_areas").first("n")).toBe(0);
   });
 
   it("limits the flow colour to the 12 palette slots", async () => {
@@ -70,8 +89,7 @@ describe("schema", () => {
   });
 
   it("keeps one release per version and links visits and reviews to it", async () => {
-    const area = await seedArea();
-    const user = (await run("INSERT INTO users (username, full_name, password_hash, area_id) VALUES ('ana', 'Ana', 'x', ?)", area)).meta.last_row_id;
+    const user = await seedUser();
     const flow = await seedFlow();
     const doc = JSON.stringify({ steps: [] });
     const release = (await run("INSERT INTO releases (flow_id, major, minor, document) VALUES (?, 1, 0, ?)", flow, doc)).meta.last_row_id;
