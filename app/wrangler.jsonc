@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "flowhow",
+  "main": "src/index.tsx",
+  "compatibility_date": "2026-08-01",
+  "observability": { "enabled": true },
+  // Files in public/ are served as they are; any other path reaches the Worker.
+  "assets": { "directory": "./public" }
+}

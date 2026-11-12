@@ -13,10 +13,10 @@ Guiding premise: **less is more**. Build only what is written here.
 | File | What it is |
 |------|------------|
 | `SPEC.md` | This document. |
-| `theme.css` | Theme tokens: colours, type, spacing, radii, shadows. Use as is. |
-| `assets/flowhow_logotype.svg` | Logo for the header. |
-| `assets/icons/*.svg` | The ten icons listed in Visual style. |
-| `assets/fonts/ibrand.woff` | The display typeface, self-hosted. `ibrand.otf` beside it is the source file, not for the web. |
+| `app/public/theme.css` | Theme tokens: colours, type, spacing, radii, shadows. Use as is. |
+| `app/public/flowhow_logotype.svg` | Logo for the header. |
+| `app/public/icons/*.svg` | The ten icons listed in Visual style. |
+| `app/public/fonts/ibrand.woff` | The display typeface, self-hosted. `ibrand.otf` beside it is the source file, not for the web. The `@font-face` rule in `theme.css` resolves `./fonts/ibrand.woff` from this layout, so do not rearrange it. |
 | `reference/prototype.html` | Working single-file prototype. It is the behaviour and look reference for the editor grid, the diagram, the tour, subflows, flow colours and the mobile layout. Open it in a browser. It is not production code: no server, no users, no versioning. |
 | `reference/core.js`, `reference/core.test.js` | The prototype's logic (parsing, validation, layout, tour engine) and its tests. **This is not reference material: it becomes the project's shared rules module**, used by the server and by the browser. Keep the rules and the test cases; replace only the hand-written layout with a library. |
 | `reference/*.grid.json` | Both real flows already converted to the grid shape the importer produces. Development fixtures, loaded from the first phase. |
@@ -26,8 +26,12 @@ Guiding premise: **less is more**. Build only what is written here.
 When this spec and the prototype disagree, this spec wins; log it in
 `DECISIONS.md`.
 
-Repository layout: the spec, `theme.css`, `assets/` and `reference/` stay at
-the repository root. All application code lives in `app/`, a TypeScript Worker.
+Repository layout: the documents (`SPEC.md`, `PLAN.md`, `DECISIONS.md`,
+`CLAUDE.md`, `README.md`) and `reference/` stay at the repository root.
+Everything else lives in `app/`, a TypeScript Worker. The theme, the logo, the
+icons and the fonts sit in `app/public/`, which the Worker serves directly:
+they are the owner's material, not code, but keeping them where they are
+served removes a copy step from every run.
 
 ## 1. Purpose
 
@@ -494,8 +498,8 @@ Never trust the browser for any of these:
   system fallback.
   - Interface text: Google Sans (`--font-family`), from Google Fonts.
   - Titles and display text: iBrand (`--font-display`), self-hosted. The font
-    files ship in `assets/fonts/`; when `theme.css` is served, they sit in a
-    `fonts/` directory beside it, which is the path the `@font-face` rule uses.
+    files sit in `app/public/fonts/`, beside `theme.css`, which is the path
+    the `@font-face` rule uses.
 - **Where iBrand is used:** page titles, section titles and the flow name in
   the viewer header — display sizes only, `--text-lg` and up. Everything else
   is Google Sans: body text, labels, buttons, form fields, table cells, the

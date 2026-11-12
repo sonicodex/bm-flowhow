@@ -14,6 +14,17 @@ Entry format:
 
 ---
 
+## 2026-11-12 — `@cloudflare/vitest-plugin` instead of `vitest-pool-workers`
+
+- Decision: Tests use `@cloudflare/vitest-plugin` 1.8.1, with Vitest 4.1.12.
+- Reason: SPEC §9 names `@cloudflare/vitest-pool-workers`, whose README now
+  says it is deprecated, renamed to `@cloudflare/vitest-plugin`, and will
+  receive no more updates. Its last release (0.23.0) bundles wrangler
+  4.124.0; the plugin bundles 4.161.0, the same version the project uses.
+  It is the same integration under its new name: tests still run inside
+  the Workers runtime against the real bindings.
+- Spec sections affected: 9 (Tests). SPEC should name the new package.
+
 ## 2026-11-12 — Role labels confirmed by the owner
 
 - Decision: The roles show on screen as "Empleado", "Líder" and "Junta

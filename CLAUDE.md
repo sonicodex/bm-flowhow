@@ -13,7 +13,8 @@ Working notes for Claude Code agents on this repo. Keep it short.
 - `reference/` — prototype, the rules module `core.js` and its test cases,
   sample xlsx, and the xlsx converted to grid JSON (development data).
   Do not edit.
-- `theme.css` and `assets/` — delivered design tokens and assets. Do not edit.
+- `app/public/theme.css`, `flowhow_logotype.svg`, `fonts/`, `icons/` — the
+  owner's design tokens and assets, served as they are. Do not edit.
 
 ## Conventions
 
@@ -21,8 +22,10 @@ Working notes for Claude Code agents on this repo. Keep it short.
 - Code, identifiers, comments, commits and docs are in English.
 - Keep changes minimal: no features, abstractions or dependencies beyond SPEC.md.
 - Work branch is `devel`. Small commits, clear English messages. Do not push.
-- Root holds SPEC, PLAN, DECISIONS, theme, assets and reference. Where the
-  app code lives is set in phase 0.
+- Root holds the documents and `reference/`. Everything else lives in `app/`,
+  a TypeScript Worker (Hono, server-rendered JSX). `app/public/` is the
+  Worker's assets directory; any other path reaches the Worker.
+- Styles use only `theme.css` tokens: no literal colours, type, spacing or radii.
 - Secrets live in `.dev.vars` (ignored), never in the repo.
 - Everything runs locally on the Workers runtime with a local D1.
   Tests run inside the Workers runtime too, never against another database.
@@ -30,7 +33,15 @@ Working notes for Claude Code agents on this repo. Keep it short.
 - Propose the slices of each phase and wait for approval before building it.
 - Ask before assuming. Prefer short, concrete answers.
 
-## Commands
+## Commands (run from `app/`)
 
-None yet. The commands for the TypeScript project (dev server, D1 migrations,
-tests) are written here in phase 0.
+- Install: `npm ci`. It also runs `wrangler types`, which generates
+  `worker-configuration.d.ts` (ignored). To add or change a dependency use
+  `npx npm@11 install --save-exact <pkg>@<version>`: npm 10 fails resolving
+  vitest's peer dependencies ("Cannot read properties of null (reading
+  'edgesOut')").
+- Dev server: `npm run dev` — serves at `http://localhost:8787`.
+- Tests: `npm test` — Vitest inside the Workers runtime
+  (`@cloudflare/vitest-plugin`), with the bindings from `wrangler.jsonc`.
+- Typecheck: `npm run typecheck` (app) and `npx tsc --noEmit -p test` (tests).
+- After changing `wrangler.jsonc`: `npm run types`.

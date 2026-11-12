@@ -1,0 +1,44 @@
+/* App styles. Every value comes from a theme.css token (SPEC §9). */
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-size: var(--text-md);
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  padding: var(--space-4) var(--space-6);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.site-logo {
+  display: inline-flex;
+  border-radius: var(--radius);
+  outline: 1px solid transparent;
+}
+
+.site-logo:focus-visible {
+  box-shadow: var(--shadow-focus);
+}
+
+.site-logo img {
+  display: block;
+  height: var(--space-6);
+}
+
+.site-main {
+  padding: var(--space-8) var(--space-6);
+}
+
+.page-title {
+  margin: 0 0 var(--space-4);
+  font-family: var(--font-display);
+  font-weight: var(--weight-display);
+  font-synthesis-weight: none;
+  font-size: var(--text-xl);
+  color: var(--color-text);
+}
