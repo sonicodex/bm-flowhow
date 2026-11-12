@@ -19,7 +19,7 @@ var Core = (function () {
       { id: 'P3', type: 'decision', title: '¿Hay existencias?', description: 'Define si se compra o se despacha.', tags: { Responsable: 'Almacén', Herramienta: 'ERP' }, exits: 'Sí:P5 | No:P4' },
       { id: 'P4', type: 'activity', title: 'Comprar material', description: 'Se genera la orden de compra.', tags: { Responsable: 'Compras', Herramienta: 'ERP, Correo' }, exits: 'P2' },
       { id: 'P5', type: 'subflow', ref: 'sub1', title: 'Alistar y despachar', description: 'Se alista el pedido y se entrega al transporte. Tiene su propio flujo.', tags: { Responsable: 'Almacén, Ventas', Herramienta: '' }, exits: 'P6' },
-      { id: 'P6', type: 'link', title: 'Flujo: Facturación', description: 'Continúa en otro flujo.', tags: { Responsable: '', Herramienta: '' }, exits: 'P7' },
+      { id: 'P6', type: 'link', ref: 'fact', title: 'Pasar a facturación', description: 'Continúa en el flujo de facturación.', tags: { Responsable: '', Herramienta: '' }, exits: 'P7' },
       { id: 'P7', type: 'end', title: 'Pedido cerrado', description: '', tags: { Responsable: '', Herramienta: '' }, exits: '' }
     ]
   };
@@ -113,7 +113,10 @@ var Core = (function () {
     };
   }
 
-  function validate(flow) {
+  /* The one structure validation, shared by import, preview and publish.
+     `refs` = { selfId, lib } is needed whenever the flow has link or subflow
+     steps, so the references are never skipped by mistake; see validateRefs. */
+  function validate(flow, refs) {
     var errors = [];
     var ids = new Map();
     var ref = function (s, i) { return s.id ? 'Paso ' + s.id : 'Fila ' + (i + 1); };
@@ -151,10 +154,18 @@ var Core = (function () {
         if (s.id && ids.get(s.id) === s && !seen.has(s.id)) errors.push({ row: i, message: ref(s, i) + ': no es alcanzable desde ningún inicio.' });
       });
     }
+    var pointing = flow.steps.some(function (s) { return s.type === 'subflow' || s.type === 'link'; });
+    if (pointing && !(refs && refs.lib)) {
+      throw new Error('validate(): this flow has link or subflow steps; pass { selfId, lib } so their targets are checked.');
+    }
+    if (refs && refs.lib) errors = errors.concat(validateRefs(flow, refs.selfId, refs.lib));
     return errors;
   }
 
-  /* Checks subflow references. `lib(id)` returns { name, published } for a flow, or null. */
+  /* Checks the flows that link and subflow steps point at. `lib(id)` returns
+     { name, published } for an existing flow, or null. A link only needs its
+     target to exist (it may be unpublished), and flows may link to each other;
+     a subflow must be published and must not contain this flow. */
   function validateRefs(flow, selfId, lib) {
     var errors = [];
     var reaches = function (from, seen) {
@@ -166,29 +177,20 @@ var Core = (function () {
       return f.published.steps.some(function (s) { return s.type === 'subflow' && s.ref && reaches(s.ref, seen); });
     };
     flow.steps.forEach(function (s, i) {
-      if (s.type !== 'subflow') return;
       var ref = s.id ? 'Paso ' + s.id : 'Fila ' + (i + 1);
+      if (s.type === 'link') {
+        if (!s.ref) errors.push({ row: i, message: ref + ': falta el flujo de destino (columna Flujo).' });
+        else if (String(s.ref) === String(selfId)) errors.push({ row: i, message: ref + ': un enlace no puede apuntar a su propio flujo.' });
+        else if (!lib(s.ref)) errors.push({ row: i, message: ref + ': el flujo de destino ya no existe.' });
+        return;
+      }
+      if (s.type !== 'subflow') return;
       var f = s.ref ? lib(s.ref) : null;
       if (!s.ref) errors.push({ row: i, message: ref + ': elige cuál es el subflujo.' });
       else if (!f) errors.push({ row: i, message: ref + ': el subflujo ya no existe.' });
       else if (s.ref === selfId) errors.push({ row: i, message: ref + ': un flujo no puede ser subflujo de sí mismo.' });
       else if (!f.published) errors.push({ row: i, message: ref + ': el subflujo «' + f.name + '» aún no está publicado.' });
       else if (reaches(s.ref, new Set())) errors.push({ row: i, message: ref + ': «' + f.name + '» ya contiene este flujo; no pueden incluirse mutuamente.' });
-    });
-    return errors;
-  }
-
-  /* Checks link targets. `lib(id)` returns { name } for an existing flow, or null.
-     A link only needs its target to exist; it may be unpublished. Links may
-     point at each other (A → B → A): a link is not contained, so no cycle check. */
-  function validateLinks(flow, selfId, lib) {
-    var errors = [];
-    flow.steps.forEach(function (s, i) {
-      if (s.type !== 'link') return;
-      var ref = s.id ? 'Paso ' + s.id : 'Fila ' + (i + 1);
-      if (!s.ref) errors.push({ row: i, message: ref + ': falta el flujo de destino (columna Flujo).' });
-      else if (String(s.ref) === String(selfId)) errors.push({ row: i, message: ref + ': un enlace no puede apuntar a su propio flujo.' });
-      else if (!lib(s.ref)) errors.push({ row: i, message: ref + ': el flujo de destino ya no existe.' });
     });
     return errors;
   }
@@ -647,7 +649,7 @@ var Core = (function () {
   Tour.prototype.prev = function () { if (this.pos > 0) { this.pos--; return true; } return false; };
 
   return {
-    TYPES: TYPES, TYPE_LABELS: TYPE_LABELS, EXAMPLE: EXAMPLE, EXAMPLE_SUB: EXAMPLE_SUB, validateRefs: validateRefs, validateLinks: validateLinks, norm: norm, parseExits: parseExits, parseTags: parseTags, formatExits: formatExits, predecessorsText: predecessorsText, applyDependsOn: applyDependsOn,
+    TYPES: TYPES, TYPE_LABELS: TYPE_LABELS, EXAMPLE: EXAMPLE, EXAMPLE_SUB: EXAMPLE_SUB, validateRefs: validateRefs, norm: norm, parseExits: parseExits, parseTags: parseTags, formatExits: formatExits, predecessorsText: predecessorsText, applyDependsOn: applyDependsOn,
     compile: compile, validate: validate, tableToGrid: tableToGrid, gridToDraft: gridToDraft, parseTable: parseTable, toTSV: toTSV, wrapTitle: wrapTitle, layout: layout, Tour: Tour
   };
 })();

@@ -20,11 +20,17 @@ Entry format:
   - **Link steps keep their target.** `compile()` stores `ref` for `link`
     as well as `subflow`. The import format's column is "Flujo" (the old
     "Subflujo" header is still read); `toTSV()` writes "Flujo".
-  - **`validateLinks()`** checks link targets: missing, not existing, or the
-    flow itself. A target only has to exist, not be published. Flows may
-    link to each other. It is a new function because `validateRefs()`
-    covers subflows (stage 2) and its existing test expects the example's
-    link without a target to pass.
+  - **One validation gate.** `validate(flow, refs)` checks the structure
+    and, through `validateRefs()`, the flows that link and subflow steps
+    point at. For a link: missing target, target not existing, or the flow
+    itself; the target only has to exist, not be published, and flows may
+    link to each other. `refs = {selfId, lib}` is required whenever the
+    flow has link or subflow steps: without it `validate()` throws, so no
+    caller can skip the references by mistake (SPEC §9: one validation,
+    shared by import and publish). The example's link P6 now carries its
+    target ("Facturación", as in SPEC §5); three original test lines pass
+    it. (A first version had a separate `validateLinks()`; merged on the
+    owner's instruction.)
   - **`parseTable()` is split** into `tableToGrid()` (a table, from a paste
     or an `.xlsx` sheet, into the grid shape; nothing resolved) and
     `gridToDraft()` (resolves target names, merges "Depende de"), so the

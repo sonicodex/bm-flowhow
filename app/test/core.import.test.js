@@ -1,5 +1,5 @@
 // New cases for the rules module (phase 1.1): link targets, the "Flujo"
-// column, the grid shape, and unknown types that block the import.
+// column, one validation gate, the grid shape, and unknown types that block.
 import assert from 'node:assert';
 import { describe, it } from 'vitest';
 import C from '../public/js/core.js';
@@ -69,28 +69,47 @@ describe('parseTable with the Flujo column', () => {
   });
 });
 
-describe('validateLinks', () => {
-  const lib = (id) => ({ inst: { name: 'Instalaciones' }, self: { name: 'Yo' } }[id] || null);
+describe('validateRefs on link steps', () => {
+  const lib = (id) => ({ inst: { name: 'Instalaciones', published: null }, self: { name: 'Yo', published: null } }[id] || null);
 
-  it('accepts a link to an existing flow', () => {
-    assert.deepStrictEqual(C.validateLinks(linkFlow('inst'), 'self', lib), []);
+  it('accepts a link to an existing flow, published or not', () => {
+    assert.deepStrictEqual(C.validateRefs(linkFlow('inst'), 'self', lib), []);
   });
 
   it('reports a missing target, an unknown target and a link to its own flow', () => {
-    assert.deepStrictEqual(messages(C.validateLinks(linkFlow(''), 'self', lib)), ['Paso B: falta el flujo de destino (columna Flujo).']);
-    assert.deepStrictEqual(messages(C.validateLinks(linkFlow('zzz'), 'self', lib)), ['Paso B: el flujo de destino ya no existe.']);
-    assert.deepStrictEqual(messages(C.validateLinks(linkFlow('self'), 'self', lib)), ['Paso B: un enlace no puede apuntar a su propio flujo.']);
+    assert.deepStrictEqual(messages(C.validateRefs(linkFlow(''), 'self', lib)), ['Paso B: falta el flujo de destino (columna Flujo).']);
+    assert.deepStrictEqual(messages(C.validateRefs(linkFlow('zzz'), 'self', lib)), ['Paso B: el flujo de destino ya no existe.']);
+    assert.deepStrictEqual(messages(C.validateRefs(linkFlow('self'), 'self', lib)), ['Paso B: un enlace no puede apuntar a su propio flujo.']);
   });
 
   it('allows two flows that link to each other', () => {
-    const both = (id) => ({ a: { name: 'A' }, b: { name: 'B' } }[id] || null);
-    assert.deepStrictEqual(C.validateLinks(linkFlow('b'), 'a', both), []);
-    assert.deepStrictEqual(C.validateLinks(linkFlow('a'), 'b', both), []);
+    const both = (id) => ({ a: { name: 'A', published: null }, b: { name: 'B', published: null } }[id] || null);
+    assert.deepStrictEqual(C.validateRefs(linkFlow('b'), 'a', both), []);
+    assert.deepStrictEqual(C.validateRefs(linkFlow('a'), 'b', both), []);
+  });
+});
+
+describe('validate: one gate for structure and references', () => {
+  const lib = (id) => ({ inst: { name: 'Instalaciones', published: null } }[id] || null);
+
+  it('includes the reference errors with the structure errors', () => {
+    const f = flowWith([
+      { id: 'A', type: 'start', title: 'a', exits: 'B' },
+      { id: 'B', type: 'link', title: 'b', exits: '' },
+    ]);
+    assert.deepStrictEqual(messages(C.validate(f, { selfId: 'self', lib })), [
+      'Paso B: no tiene salida y no es de tipo Fin.',
+      'Paso B: falta el flujo de destino (columna Flujo).',
+    ]);
   });
 
-  it('ignores subflow steps, which validateRefs checks', () => {
-    const f = flowWith([{ id: 'A', type: 'start', title: 'a', exits: 'B' }, { id: 'B', type: 'subflow', title: 'b', exits: '' }]);
-    assert.deepStrictEqual(C.validateLinks(f, 'self', lib), []);
+  it('refuses to run without refs on a flow with link or subflow steps', () => {
+    assert.throws(() => C.validate(linkFlow('inst')), /pass \{ selfId, lib \}/);
+    assert.deepStrictEqual(C.validate(linkFlow('inst'), { selfId: 'self', lib }), []);
+  });
+
+  it('needs no refs on a flow without link or subflow steps', () => {
+    assert.deepStrictEqual(C.validate(C.compile(C.EXAMPLE_SUB)), []);
   });
 });
 
@@ -160,8 +179,7 @@ describe('gridToDraft', () => {
     const p13 = f.steps.find((s) => s.id === 'P13');
     assert.strictEqual(p13.type, 'link');
     assert.strictEqual(p13.ref, 'inst');
-    assert.deepStrictEqual(C.validate(f), []);
-    assert.deepStrictEqual(C.validateLinks(f, 'apertura', (id) => (id === 'inst' ? { name: 'Instalaciones' } : null)), []);
+    assert.deepStrictEqual(C.validate(f, { selfId: 'apertura', lib: (id) => (id === 'inst' ? { name: 'Instalaciones', published: null } : null) }), []);
 
     const missing = C.gridToDraft(apertura, () => null);
     assert.deepStrictEqual(missing.errors, [{ row: 12, message: 'Fila 14: no existe un flujo llamado «Instalaciones».', blocking: true }]);

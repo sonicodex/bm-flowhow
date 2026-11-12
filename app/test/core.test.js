@@ -2,12 +2,15 @@
 // Every original line is kept as it was; only the first line (require
 // becomes import) and the it() wrappers are new. One it() per commented
 // block of the original; "no repeats" was an empty block and stays empty.
+// Phase 1.1 gave the example's link step (P6) its target flow, "fact", so
+// three lines pass it: validate(f, refs), the paste round trip and the lib
+// of "subflow refs".
 import assert from 'node:assert';
 import { afterAll, it } from 'vitest';
 import C from '../public/js/core.js';
 const f=C.compile(C.EXAMPLE);
 it("example flow validates with no errors", () => {
-assert.deepStrictEqual(C.validate(f),[]);
+assert.deepStrictEqual(C.validate(f,{selfId:'main',lib:id=>({sub1:{name:'S',published:C.compile(C.EXAMPLE_SUB)},fact:{name:'Facturación',published:null}}[id]||null)}),[]);
 });
 // overlap check
 function overlaps(L){for(const a of L.nodes)for(const b of L.nodes){if(a!==b&&a.y===b.y&&Math.abs(a.x-b.x)<a.w)return true;if(!isFinite(a.x)||!isFinite(a.y))return true;}return L.edges.some(e=>!e.d||/NaN|undefined/.test(e.d));}
@@ -52,7 +55,7 @@ it("pure cycle without decisions never hangs", () => {
 });
 it("paste: TSV round trip compiles to the same flow", () => {
 // paste
-const tsv=C.toTSV(C.EXAMPLE,id=>id==='sub1'?'Alistamiento de pedido':'');const p=C.parseTable(tsv,n=>n==='Alistamiento de pedido'?'sub1':null);assert.deepStrictEqual(p.errors,[]);assert.deepStrictEqual(C.compile({name:C.EXAMPLE.name,objective:C.EXAMPLE.objective,categories:p.categories,steps:p.steps}),f);
+const tsv=C.toTSV(C.EXAMPLE,id=>({sub1:'Alistamiento de pedido',fact:'Facturación'}[id]||''));const p=C.parseTable(tsv,n=>({'Alistamiento de pedido':'sub1','Facturación':'fact'}[n]||null));assert.deepStrictEqual(p.errors,[]);assert.deepStrictEqual(C.compile({name:C.EXAMPLE.name,objective:C.EXAMPLE.objective,categories:p.categories,steps:p.steps}),f);
 console.log(C.wrapTitle('Coordinación de transporte y elementos adicionales requeridos'));
 });
 it("depends on: predecessors text and applyDependsOn", () => {
@@ -65,7 +68,7 @@ it("depends on: predecessors text and applyDependsOn", () => {
 });
 it("subflow refs", () => {
 // subflow refs
-{const lib=id=>({main:{name:'M',published:f},sub1:{name:'S',published:C.compile(C.EXAMPLE_SUB)},draft:{name:'D',published:null}}[id]||null);
+{const lib=id=>({main:{name:'M',published:f},sub1:{name:'S',published:C.compile(C.EXAMPLE_SUB)},draft:{name:'D',published:null},fact:{name:'Facturación',published:null}}[id]||null);
  assert.deepStrictEqual(C.validateRefs(f,'main',lib),[]);assert.deepStrictEqual(C.validate(C.compile(C.EXAMPLE_SUB)),[]);
  const mk=ref=>C.compile({name:'x',categories:[],steps:[{id:'A',type:'start',title:'a',exits:'B'},{id:'B',type:'subflow',ref,title:'b',exits:'C'},{id:'C',type:'end',title:'c',exits:''}]});
  console.log(['','zzz','self','draft','main'].map(r=>C.validateRefs(mk(r),r==='self'?'self':'sub1',lib).map(e=>e.message)));}

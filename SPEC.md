@@ -22,6 +22,7 @@ Guiding premise: **less is more**. Build only what is written here.
 | `reference/*.grid.json` | Both real flows already converted to the grid shape the importer produces. Development fixtures, loaded from the first phase. |
 | `reference/Flujo_Instalaciones.xlsx` | A real flow (30 steps) in the import format, with a sheet of open doubts. Use it as test data. |
 | `reference/Flujo_Apertura_OT.xlsx` | A second real flow (36 steps), in the same format. It adds a cycle, a three-branch decision and a `link` step to the other flow. Also carries a sheet of open doubts. |
+| `reference/Flujo_Instalaciones.resaved.xlsx` | The same first flow, written by a different program. The two files above were written by openpyxl, which stores every cell as an inline string and ships no `xl/sharedStrings.xml` at all; this one has the shared-strings table that Excel and most other writers produce. Same content, different container. The reader must pass on both. |
 
 When this spec and the prototype disagree, this spec wins; log it in
 `DECISIONS.md`.
@@ -140,17 +141,21 @@ belongs to, so it can filter and highlight the diagram by category.
 ### Example step table (illustrative data)
 
 ```
-ID  TYPE      TITLE               DESCRIPTION                      RESPONSABLE      HERRAMIENTA  EXITS
-P1  start     Recibir solicitud   Llega el pedido del cliente.     Ventas           Correo       P2
-P2  activity  Revisar inventario  Se consulta si hay existencias.  Almacén          ERP          P3
-P3  decision  ¿Hay existencias?   Define si se compra o despacha.  Almacén          ERP          Sí:P5 | No:P4
-P4  activity  Comprar material    Se genera la orden de compra.    Compras          ERP, Correo  P2
-P5  activity  Despachar pedido    Se alista y se envía.            Almacén, Ventas               P6
-P6  link      Flujo: Facturación  Continúa en otro flujo.                                        P7
-P7  end       Pedido cerrado
+ID  TYPE      FLUJO        TITLE               DESCRIPTION                      RESPONSABLE      HERRAMIENTA  EXITS
+P1  start                  Recibir solicitud   Llega el pedido del cliente.     Ventas           Correo       P2
+P2  activity               Revisar inventario  Se consulta si hay existencias.  Almacén          ERP          P3
+P3  decision               ¿Hay existencias?   Define si se compra o despacha.  Almacén          ERP          Sí:P5 | No:P4
+P4  activity               Comprar material    Se genera la orden de compra.    Compras          ERP, Correo  P2
+P5  activity               Despachar pedido    Se alista y se envía.            Almacén, Ventas               P6
+P6  link      Facturación  Pasar a facturación  Continúa en el flujo de facturación.                          P7
+P7  end                    Pedido cerrado
 ```
 
 "Responsable" and "Herramienta" are example categories. Each category is a column.
+
+`FLUJO` carries the name of the flow a `link` or a `subflow` step points at, and
+is empty for every other type. A `link` or `subflow` without it is an error:
+the step would point nowhere.
 
 ## 6. Editor (Board only)
 
