@@ -42,9 +42,11 @@ Entry format:
     deletes the draft and its save points, all in one batch. Two
     simultaneous publications collide on `UNIQUE (flow_id, major, minor)`,
     and the second one gets a message asking to reload.
-  - **A new flow** starts with an empty draft and the first colour not in
-    use (SPEC §9). Once all twelve are taken, it gets the least used one,
-    lowest slot first: the spec does not say.
+  - **A new flow** starts with an empty draft. Its colour follows the rule
+    in SPEC §9 (first colour not in use; once all twelve are taken, the
+    least used, lowest number first). The rule was this entry's choice
+    until the owner added it to the spec on 2026-11-12; it is now a
+    product rule, and `nextColour()` implements it.
   - Server modules import each other with the `.ts` extension
     (`allowImportingTsExtensions`, `verbatimModuleSyntax`), so the dev
     loader of 1.4 can run them in Node without a build step.

@@ -11,7 +11,7 @@ export async function getFlow(db: D1Database, id: number): Promise<FlowRow | nul
 }
 
 // SPEC §9: a new flow gets the first colour not yet in use. Once all twelve
-// are taken, the least used one, lowest slot first.
+// are taken, the least used one, lowest number first.
 export function nextColour(used: number[]): number {
   const count = new Map<number, number>();
   for (const c of used) count.set(c, (count.get(c) ?? 0) + 1);

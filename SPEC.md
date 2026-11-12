@@ -473,7 +473,8 @@ Never trust the browser for any of these:
 - **Each flow has its own colour**, chosen by the admin in the flow form from
   this palette of 12: `#28519D`, `#7D6AC2`, `#CA88D6`, `#B45684`, `#902E33`,
   `#E58B52`, `#976C00`, `#A8AC3D`, `#206616`, `#27BF9A`, `#00868D`, `#32B2E8`.
-  A new flow gets the first colour not yet in use.
+  A new flow gets the first colour not yet in use. Once all twelve are taken,
+  it gets the least used one, lowest number first, so repeats stay spread out.
   - The flow colour drives everything that belongs to the flow: the current
     step (filled with the colour and marked by a soft shadow, with no ring or
     extra border around it), visited steps (filled

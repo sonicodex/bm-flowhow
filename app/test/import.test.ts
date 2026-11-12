@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Grid } from "../public/js/core.js";
 import instalaciones from "../../reference/Flujo_Instalaciones.grid.json";
 import apertura from "../../reference/Flujo_Apertura_OT.grid.json";
-import { createFlow } from "../src/flows.ts";
+import { createFlow, nextColour } from "../src/flows.ts";
 import { applyGrid, parseGrid, reviewGrid, type Accepted } from "../src/import.ts";
 import { publishFlow } from "../src/publish.ts";
 
@@ -124,6 +124,65 @@ describe("reviewGrid and applyGrid", () => {
   });
 });
 
+describe("applyGrid after a failed draft write", () => {
+  // The first attempt creates the categories and tags, then its draft batch
+  // fails. The retry must find them, not duplicate them.
+  it("finds the categories and tags the failed attempt created", async () => {
+    const id = await flow("Instalaciones");
+    const accepted = await acceptAll(id, INST);
+    // Statements are recognised by their SQL: the batch that writes the
+    // draft fails, every other one reaches D1.
+    const sqlOf = new WeakMap<D1PreparedStatement, string>();
+    let failed = 0;
+    const failing = new Proxy(db(), {
+      get(target, prop) {
+        if (prop === "prepare") {
+          return (sql: string) => {
+            const stmt = target.prepare(sql);
+            sqlOf.set(stmt, sql);
+            const bind = stmt.bind.bind(stmt);
+            // bind() returns a new statement: remember its SQL too.
+            stmt.bind = (...args: unknown[]) => {
+              const bound = bind(...args);
+              sqlOf.set(bound, sql);
+              return bound;
+            };
+            return stmt;
+          };
+        }
+        if (prop === "batch") {
+          return (stmts: D1PreparedStatement[]) => {
+            if (stmts.some((st) => /INSERT INTO drafts/.test(sqlOf.get(st) ?? ""))) {
+              failed++;
+              return Promise.reject(new Error("D1_ERROR: simulated failure"));
+            }
+            return target.batch(stmts);
+          };
+        }
+        const v = Reflect.get(target, prop);
+        return typeof v === "function" ? v.bind(target) : v;
+      },
+    });
+    await expect(applyGrid(failing, id, INST, accepted)).rejects.toThrow("simulated failure");
+    expect(failed).toBe(1);
+    const tagsAfterFailure = await db().prepare("SELECT id, category_id, name FROM tags ORDER BY id").all();
+    const catsAfterFailure = await db().prepare("SELECT id, name FROM tag_categories ORDER BY id").all();
+    expect(tagsAfterFailure.results.length).toBeGreaterThan(0);
+    expect(await count("SELECT count(*) AS n FROM save_points")).toBe(0);
+
+    // The user imports again, with the same choices (what the screen shows
+    // now is nothing new to accept).
+    expect(await reviewGrid(db(), id, INST)).toMatchObject({ newCategories: [], newTags: [] });
+    const r = await applyGrid(db(), id, INST, accepted);
+    if (!r.ok) throw new Error("refused");
+    expect((await db().prepare("SELECT id, category_id, name FROM tags ORDER BY id").all()).results).toEqual(tagsAfterFailure.results);
+    expect((await db().prepare("SELECT id, name FROM tag_categories ORDER BY id").all()).results).toEqual(catsAfterFailure.results);
+    const ids = new Set(tagsAfterFailure.results.map((t) => t.id));
+    expect(r.document.steps.flatMap((s) => s.tags).every((t) => ids.has(t))).toBe(true);
+    expect(await count("SELECT count(*) AS n FROM save_points")).toBe(1);
+  });
+});
+
 describe("publishFlow", () => {
   it("publishes both real flows in 1.0 and deletes their drafts and save points", async () => {
     const inst = await flow("Instalaciones");
@@ -174,6 +233,17 @@ describe("publishFlow", () => {
     expect(r.ok ? [] : r.errors.map((e) => e.message)).toEqual(["Fila 3 (B): el flujo de destino ya no existe."]);
     await db().prepare("DELETE FROM drafts WHERE flow_id = ?").bind(id).run();
     expect(await publishFlow(db(), id)).toMatchObject({ ok: false, errors: [{ message: "No hay borrador para publicar." }] });
+  });
+});
+
+describe("nextColour (SPEC §9)", () => {
+  it("takes the first free colour, then the least used, lowest number first", () => {
+    expect(nextColour([])).toBe(1);
+    expect(nextColour([1, 2, 4])).toBe(3);
+    const all = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    expect(nextColour(all)).toBe(1);
+    expect(nextColour([...all, 1, 2])).toBe(3);
+    expect(nextColour([...all, ...all, 5])).toBe(1);
   });
 });
 
