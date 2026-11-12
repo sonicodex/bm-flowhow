@@ -14,6 +14,32 @@ Entry format:
 
 ---
 
+## 2026-11-12 — The .xlsx reader (phase 1.2)
+
+- Decision:
+  - `app/public/js/xlsx.js` reads one sheet (by name, "Flujo") as rows of
+    text cells. No dependency: the zip is read from its central directory
+    and inflated with `DecompressionStream`; the XML is read with regular
+    expressions that accept namespace prefixes. Every part is checked
+    against its CRC.
+  - It understands inline strings (openpyxl), the shared-strings table
+    (Excel, LibreOffice), rich-text runs (phonetic hints dropped), `_xHHHH_`
+    escapes, plain numbers (kept as written), formulas with a stored
+    result, and cells or rows without a reference.
+  - It refuses, with an `XlsxError`, anything else: not a zip, ZIP64,
+    damaged or encrypted files, compression other than deflate, a missing
+    sheet, a formula without a stored result, dates (by number format),
+    booleans, error cells, merged cells, CDATA. Every message ends with the
+    way out: "Abre el archivo en Excel, copia las celdas de la hoja y
+    pégalas en el cuadro de pegado."
+  - `app/tools/xlsx-to-grid.mjs` generates `reference/*.grid.json` with the
+    same reader and `tableToGrid()`. It reproduces both committed files
+    byte for byte, from the openpyxl files and from the re-saved one.
+- Reason: Owner's decision 1 (own reader, loud failure, explicit fallback).
+  The reference xlsx files have no shared-strings table, so
+  `Flujo_Instalaciones.resaved.xlsx` covers the form Excel writes.
+- Spec sections affected: 0, 6 (import), 9 (Excel and paste).
+
 ## 2026-11-12 — Phase 1 choices and the first change to the rules logic
 
 - Decision:

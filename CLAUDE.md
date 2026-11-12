@@ -17,6 +17,9 @@ Working notes for Claude Code agents on this repo. Keep it short.
   layout, tour engine), moved from `reference/`. The server imports it and
   the browser loads the same file from `/js/core.js` as an ES module. Its
   test cases are `app/test/core.test.js`; keep every one of them.
+- `app/public/js/xlsx.js` — the .xlsx reader, shared by the browser and
+  `app/tools/`. It refuses what it does not understand instead of guessing,
+  and every message tells the user to paste from Excel instead.
 - `app/public/theme.css`, `flowhow_logotype.svg`, `fonts/`, `icons/` — the
   owner's design tokens and assets, served as they are. Do not edit.
 
@@ -56,3 +59,6 @@ Working notes for Claude Code agents on this repo. Keep it short.
   Each test starts from an empty local D1 with every migration applied.
 - Typecheck: `npm run typecheck` (app) and `npx tsc --noEmit -p test` (tests).
 - After changing `wrangler.jsonc`: `npm run types`.
+- Regenerate a reference grid after the owner changes an xlsx:
+  `node tools/xlsx-to-grid.mjs ../reference/Flujo_X.xlsx ../reference/Flujo_X.grid.json`
+  (same reader, `public/js/xlsx.js`, and rules module as the browser).
