@@ -6,13 +6,10 @@
   "observability": { "enabled": true },
   // Files in public/ are served as they are; any other path reaches the Worker.
   "assets": { "directory": "./public" },
-  // The remote database of the deployment check (test address).
+  // No database_id: local dev and tests need none. The test database of the
+  // deployment check was deleted; a remote one is created again at the next
+  // deployment (wrangler d1 create).
   "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "flowhow-test",
-      "database_id": "bd50629e-f3d0-49f5-89d9-c4acf915a1e2",
-      "migrations_dir": "migrations"
-    }
+    { "binding": "DB", "database_name": "flowhow-test", "migrations_dir": "migrations" }
   ]
 }

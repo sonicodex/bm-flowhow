@@ -14,6 +14,34 @@ Entry format:
 
 ---
 
+## 2026-11-12 — Deployment check result: the free plan is enough for now
+
+- Result: deployed once to a test address (Worker `flowhow-test`, D1
+  `flowhow-test`), migrations applied remotely. Instalaciones was imported
+  through the import screen's requests against that address (30 steps, 2
+  categories, 9 tags, draft and save point in the remote D1). Measured
+  with `wrangler tail`:
+  - Cold start: the first request after 15 minutes idle took about 50 ms
+    more inside the Worker (79 ms wall, against 31 ms warm). Worker startup
+    is 1 ms.
+  - CPU per request: pages 1–3 ms. Import review and apply: 5 ms median,
+    8 ms maximum warm; up to 17 ms (review), 14 ms (apply) and 12 ms
+    (create flow) on the first requests after deploying. Those finished
+    with outcome ok. Waiting on D1 does not count as CPU.
+  - Requests: static assets do not reach the Worker and do not count;
+    only pages do, far below 100,000 a day.
+- Decision: stay on the Workers free plan (10 ms CPU per request, 100,000
+  requests a day). Only the first import requests after a deployment go
+  over 10 ms; imports are rare and Board-only, and can be repeated.
+- **Measure again** when the tour (phase 3) and the progress report
+  (phase 6) exist: they will add requests and server work. D1's daily
+  limits (rows read and written) were not measured.
+- The Worker and the D1 were deleted after the check: until phase 4
+  there is no authentication, and the URL exposed the Instalaciones flow
+  to anyone who found it. `wrangler.jsonc` has no `database_id` again.
+- Reason: SPEC §11 deployment check; owner's decision.
+- Spec sections affected: 9, 11.
+
 ## 2026-11-12 — Provisional import screen (phase 1.5)
 
 - Decision:
