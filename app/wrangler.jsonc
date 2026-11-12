@@ -1,14 +1,18 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "flowhow",
+  "name": "flowhow-test",
   "main": "src/index.tsx",
   "compatibility_date": "2026-08-01",
   "observability": { "enabled": true },
   // Files in public/ are served as they are; any other path reaches the Worker.
   "assets": { "directory": "./public" },
-  // No database_id yet: local dev and tests need none. The remote database
-  // is created at the deployment check (wrangler d1 create).
+  // The remote database of the deployment check (test address).
   "d1_databases": [
-    { "binding": "DB", "database_name": "flowhow", "migrations_dir": "migrations" }
+    {
+      "binding": "DB",
+      "database_name": "flowhow-test",
+      "database_id": "bd50629e-f3d0-49f5-89d9-c4acf915a1e2",
+      "migrations_dir": "migrations"
+    }
   ]
 }
