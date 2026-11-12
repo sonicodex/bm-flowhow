@@ -11,6 +11,13 @@ const XLSX_FIXTURES = Object.fromEntries(
   ]),
 );
 
+// The stylesheets, as text: Vitest empties imported .css files, and the
+// diagram tests check app.css against theme.css.
+const CSS_FILES = {
+  "theme.css": readFileSync("./public/theme.css", "utf8"),
+  "app.css": readFileSync("./public/app.css", "utf8"),
+};
+
 // Tests run inside the Workers runtime with the bindings from wrangler.jsonc,
 // against a real local D1 with the project's migrations applied.
 export default defineConfig({
@@ -20,7 +27,7 @@ export default defineConfig({
       miniflare: {
         // node:assert for the rules module's tests (test/core.test.js).
         compatibilityFlags: ["nodejs_compat"],
-        bindings: { TEST_MIGRATIONS: await readD1Migrations("./migrations"), XLSX_FIXTURES },
+        bindings: { TEST_MIGRATIONS: await readD1Migrations("./migrations"), XLSX_FIXTURES, CSS_FILES },
       },
     })),
   ],

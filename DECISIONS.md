@@ -14,6 +14,53 @@ Entry format:
 
 ---
 
+## 2026-11-12 — The SVG renderer and the flow colours (phase 2.3)
+
+- Decision:
+  - `public/js/diagram.js` `renderDiagram(layout, {name, colour})` returns
+    the SVG markup. It reads only what the layout adapter returns and
+    writes only geometry (positions, sizes, path data, the half circles of
+    start and end steps) and class names. A test refuses any colour or
+    presentation attribute (`fill`, `stroke`, `font-size`, `rx`, `style`…)
+    in the output of both reference flows.
+  - **Colour by flow.** The `<svg>` carries `flow-N`, its palette slot.
+    `app.css` has one rule per slot: `--flow: var(--flow-N)` and
+    `--flow-on`, the text on that colour. White (`--color-on-primary`) or
+    near-black (`--color-text`), whichever contrasts more (WCAG formula, as
+    in the prototype). A test computes the choice from the hex values in
+    `theme.css` and compares it with `app.css`, so a palette change that
+    breaks the table fails the tests. Dark text goes on slots 3, 6, 8, 10
+    and 12.
+  - Outlines, arrows, lines and icons use `--flow-strong`:
+    `color-mix(in srgb, var(--flow) 62%, var(--color-text))`. That is the
+    prototype's 38 % toward black, made with a token.
+  - The overview paints no step with the flow colour, so `--flow-on` shows
+    from phase 3 on (the current step). `app/.layout-check/colores.png`
+    shows it on all twelve slots.
+  - **Step titles are real `<text>`**, wrapped in two lines as the
+    prototype does (`wrapTitle`). A longer title is cut with "…" in the
+    box; the whole title is in the step's `<title>`. Ctrl+F finds only
+    the visible part.
+  - **Type sizes are tokens:** step text `--text-sm` (14 px; the
+    prototype used 13) and branch labels `--text-xs` (12 px; it used 12.5,
+    weight 500). The labels keep the regular weight: there is no token for
+    a medium weight.
+  - The wait and link icons are the geometry of `public/icons/hold_on.svg`
+    and `link.svg`, inlined like the prototype does, filled from CSS. The
+    files carry a literal fill that cannot be overridden through `<use>`.
+  - A subflow step is drawn as an activity.
+  - Vitest empties imported `.css` files, so `vitest.config.ts` passes
+    `theme.css` and `app.css` to the tests as a binding (`CSS_FILES`).
+- Not tokens, to be reviewed by the owner: the stroke widths are
+  `calc(var(--border-width) * 1.5)` and `* 3` (end step), the mix ratio is
+  62 %, and the decision's corner cut (16) and the icon positions are
+  geometry in `diagram.js`, as in the prototype.
+- Contrast: slot 2 (`#7D6AC2`, Apertura de OT) gives 4.46:1 with white and
+  4.24:1 with near-black, both below WCAG AA (4.5:1) for normal text.
+  Slots 4 (4.56) and 11 (4.38) are borderline too.
+- Reason: owner's instructions for 2.3; SPEC §9 (Visual style).
+- Spec sections affected: 9 (Visual style and theming, Diagram).
+
 ## 2026-11-12 — The diagram layout adapter (phase 2.2)
 
 - Decision:

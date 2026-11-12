@@ -104,3 +104,79 @@ textarea:focus-visible,
 .form-error {
   color: var(--color-status-pending);
 }
+
+/* ---- Diagram (phase 2.3) ----
+   Each flow paints with its palette slot (theme.css --flow-N). --flow-on is
+   the text on the flow colour: white (--color-on-primary) or near-black
+   (--color-text), whichever contrasts more with that slot; a test checks
+   this table against theme.css. --flow-strong, for outlines, arrows and
+   lines, is the flow colour darkened toward --color-text, as in the
+   prototype. */
+.flow-1 { --flow: var(--flow-1); --flow-on: var(--color-on-primary); }
+.flow-2 { --flow: var(--flow-2); --flow-on: var(--color-on-primary); }
+.flow-3 { --flow: var(--flow-3); --flow-on: var(--color-text); }
+.flow-4 { --flow: var(--flow-4); --flow-on: var(--color-on-primary); }
+.flow-5 { --flow: var(--flow-5); --flow-on: var(--color-on-primary); }
+.flow-6 { --flow: var(--flow-6); --flow-on: var(--color-text); }
+.flow-7 { --flow: var(--flow-7); --flow-on: var(--color-on-primary); }
+.flow-8 { --flow: var(--flow-8); --flow-on: var(--color-text); }
+.flow-9 { --flow: var(--flow-9); --flow-on: var(--color-on-primary); }
+.flow-10 { --flow: var(--flow-10); --flow-on: var(--color-text); }
+.flow-11 { --flow: var(--flow-11); --flow-on: var(--color-on-primary); }
+.flow-12 { --flow: var(--flow-12); --flow-on: var(--color-text); }
+.diagram {
+  --flow-strong: color-mix(in srgb, var(--flow) 62%, var(--color-text));
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  font-family: var(--font-family);
+}
+
+.diagram .edge {
+  fill: none;
+  stroke: var(--flow-strong);
+  stroke-width: calc(var(--border-width) * 1.5);
+}
+
+.diagram .edge-arrow {
+  fill: var(--flow-strong);
+}
+
+.diagram .edge-label {
+  font-size: var(--text-xs);
+  fill: var(--color-text);
+  paint-order: stroke;
+  stroke: var(--color-surface);
+  stroke-width: var(--space-1);
+  stroke-linejoin: round;
+}
+
+.diagram .node-shape {
+  fill: var(--color-surface);
+  stroke: var(--flow-strong);
+  stroke-width: calc(var(--border-width) * 1.5);
+}
+
+.diagram rect.node-shape {
+  rx: var(--radius);
+}
+
+.diagram .t-end .node-shape {
+  stroke-width: calc(var(--border-width) * 3);
+}
+
+.diagram .t-link .node-shape {
+  stroke-dasharray: var(--space-1) var(--space-1);
+}
+
+.diagram .node-icon {
+  fill: var(--flow-strong);
+}
+
+.diagram .node-text {
+  font-size: var(--text-sm);
+  fill: var(--color-text);
+  text-anchor: middle;
+  dominant-baseline: central;
+}
