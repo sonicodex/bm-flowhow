@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { areas } from "./areas.tsx";
+import { flowsScreen } from "./flows-screen.tsx";
 import { renderer } from "./layout.tsx";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -17,5 +18,6 @@ app.get("/", (c) =>
 );
 
 app.route("/areas", areas);
+app.route("/flows", flowsScreen);
 
 export default app;

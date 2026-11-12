@@ -14,6 +14,32 @@ Entry format:
 
 ---
 
+## 2026-11-12 — Provisional import screen (phase 1.5)
+
+- Decision:
+  - `/flows` lists and creates flows. `/flows/:id/import` takes a paste or
+    an .xlsx, then shows a review, then imports into the draft. It is a
+    scaffold to exercise the import contract: phase 5 replaces it with
+    the editor and phase 4 restricts it to editors. It reuses the existing
+    `app.css` classes only (the text field rule now also covers
+    `textarea`).
+  - The paste or file is read in the browser by `public/js/import-form.js`
+    (SPEC §9). Its two pure functions, `gridFromText` and `gridFromXlsx`,
+    are tested in the Workers runtime. The DOM wiring is not tested.
+  - The .xlsx sheet read is "Flujo", as in the reference files. If both a
+    file and a paste are given, the file wins, and the screen says so.
+  - Table-level errors (no headers, an unreadable file) are shown in the
+    browser and nothing is sent. Everything else goes to the server, which
+    answers 400 for a grid of another shape and 422 for a review that
+    blocks, and reviews the grid again on apply.
+  - New categories and tags come pre-checked; unchecked ones are dropped.
+  - The review shows no diagram yet: the diagram is phase 2.
+  - `core.js` gained `textToTable(text)`, the split that `parseTable` used
+    inline, so the browser does not repeat it.
+- Reason: SPEC §6 import rules; PLAN phase 1; owner's instruction that the
+  screen be disposable and invent no visual patterns.
+- Spec sections affected: 6, 9.
+
 ## 2026-11-12 — Dev load of the reference flows (phase 1.4)
 
 - Decision:

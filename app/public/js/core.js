@@ -355,8 +355,14 @@ var Core = (function () {
   }
 
   /* Parses cells pasted from a spreadsheet (tab separated, header row first). */
+  /* Cells copied from Excel arrive as text: one row per line, cells split by tabs. */
+  /** @param {string} text @returns {string[][]} */
+  function textToTable(text) {
+    return String(text || '').split(/\r?\n/).map(function (l) { return l.split('\t'); });
+  }
+
   function parseTable(text, resolveFlow) {
-    var table = String(text || '').split(/\r?\n/).map(function (l) { return l.split('\t'); });
+    var table = textToTable(text);
     var read = tableToGrid(table);
     if (read.errors.length) return { steps: [], categories: read.grid.categories, errors: read.errors };
     return gridToDraft(read.grid, resolveFlow);
@@ -724,7 +730,7 @@ var Core = (function () {
 
   return {
     TYPES: TYPES, TYPE_LABELS: TYPE_LABELS, EXAMPLE: EXAMPLE, EXAMPLE_SUB: EXAMPLE_SUB, validateRefs: validateRefs, norm: norm, parseExits: parseExits, parseTags: parseTags, formatExits: formatExits, predecessorsText: predecessorsText, applyDependsOn: applyDependsOn,
-    compile: compile, validate: validate, tableToGrid: tableToGrid, gridToDraft: gridToDraft, parseTable: parseTable, toTSV: toTSV, wrapTitle: wrapTitle, layout: layout, Tour: Tour
+    compile: compile, validate: validate, textToTable: textToTable, tableToGrid: tableToGrid, gridToDraft: gridToDraft, parseTable: parseTable, toTSV: toTSV, wrapTitle: wrapTitle, layout: layout, Tour: Tour
   };
 })();
 export default Core;
