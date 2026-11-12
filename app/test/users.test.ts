@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { nameKey } from "../src/names";
-import { createUser, saveUser, type NewUser } from "../src/users";
+import { nameKey } from "../src/names.ts";
+import { createUser, saveUser, type NewUser } from "../src/users.ts";
 
 async function area(name: string) {
   return (await env.DB.prepare("INSERT INTO areas (name, name_key) VALUES (?, ?)").bind(name, nameKey(name)).run()).meta.last_row_id;

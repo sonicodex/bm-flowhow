@@ -1,6 +1,6 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { nameKey } from "../src/names";
+import { nameKey } from "../src/names.ts";
 
 const TABLES = [
   "areas", "drafts", "flow_areas", "flows", "releases", "review_records",

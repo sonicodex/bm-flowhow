@@ -1,4 +1,4 @@
-import { NAME_RULE, nameKey } from "./names";
+import { NAME_RULE, nameKey } from "./names.ts";
 
 export type Role = "standard" | "leader" | "board";
 

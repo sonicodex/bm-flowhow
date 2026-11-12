@@ -14,6 +14,43 @@ Entry format:
 
 ---
 
+## 2026-11-12 — Server contract for import and publish (phase 1.3)
+
+- Decision:
+  - **`parseGrid(body)`** checks the grid's exact shape: every row field
+    is text, `tags` has exactly the grid's categories, categories are not
+    blank or repeated (ignoring case and accents), at least one row. A
+    grid that fails did not come from our parser and is refused whole
+    (400), not reviewed row by row.
+  - **`reviewGrid`** is read-only. It returns the errors of
+    `gridToDraft()` and `validate()` in one list, whether any blocks, the
+    categories and tags not yet known, and the compiled flow for the
+    review's diagram.
+  - **`applyGrid`** reviews again (the server never trusts the review the
+    browser saw), refuses if anything blocks, and otherwise replaces the
+    draft. An import is a save: it writes the draft and a save point in
+    one batch. New categories and tags are created only if they are in
+    the accepted list; anything new and not listed is dropped, and a
+    dropped category takes its column with them.
+  - Accepted categories and tags are written in a batch of their own,
+    before the draft, so the document can hold their ids. If the draft
+    write then failed they would remain, accepted but unused. That is
+    harmless, and simpler than building the document inside SQL.
+  - **`publishFlow(db, flowId, "minor"|"major")`**: every validation error
+    blocks it (`validate()` with refs, plus the area on the first
+    publication). It writes release `1.0`, `x.(y+1)` or `(x+1).0`, and
+    deletes the draft and its save points, all in one batch. Two
+    simultaneous publications collide on `UNIQUE (flow_id, major, minor)`,
+    and the second one gets a message asking to reload.
+  - **A new flow** starts with an empty draft and the first colour not in
+    use (SPEC §9). Once all twelve are taken, it gets the least used one,
+    lowest slot first: the spec does not say.
+  - Server modules import each other with the `.ts` extension
+    (`allowImportingTsExtensions`, `verbatimModuleSyntax`), so the dev
+    loader of 1.4 can run them in Node without a build step.
+- Reason: SPEC §6, §8 and §9; the owner's decisions for phase 1.
+- Spec sections affected: 6, 8, 9.
+
 ## 2026-11-12 — One row numbering, one error shape, numeric ids (phase 1.2.6)
 
 - Decision:
@@ -255,11 +292,16 @@ Entry format:
     is the only way to keep identity across imports.
   - `Flow.name` is unique, because the import format names subflow and
     link targets by name.
-  - Errors that the document cannot hold block the import: missing or
-    duplicate ID, unknown type, unknown target flow, a flow pointing to
-    itself, blank or duplicate category column. Unknown "Depende de" ids
-    are reported and change nothing (SPEC §6). Publish rules (§6) are
-    reported on review but only block publishing; a draft may be invalid.
+  - *Superseded on 2026-11-12 by "One row numbering, one error shape,
+    numeric ids" (phase 1.2.6), which holds the current list:* errors that
+    the document cannot hold block the import: missing or duplicate ID,
+    unknown type, unknown target flow, a flow pointing to itself, blank or
+    duplicate category column. Unknown "Depende de" ids are reported and
+    change nothing (SPEC §6). Publish rules (§6) are reported on review but
+    only block publishing; a draft may be invalid. (Since 1.2.6 a link to
+    its own flow is a reference check: it blocks publishing, not the
+    import. A blank or repeated category is refused whole by the grid
+    shape check of phase 1.3.)
   - Unknown categories (columns) go through the same accept/reject step as
     unknown tags. Rejecting a category drops its column.
   - Tag and category names match case-insensitively; the stored spelling

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { areas } from "./areas";
-import { renderer } from "./layout";
+import { areas } from "./areas.tsx";
+import { renderer } from "./layout.tsx";
 
 const app = new Hono<{ Bindings: Env }>();
 

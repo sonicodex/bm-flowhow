@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { NAME_RULE, nameKey } from "./names";
+import { NAME_RULE, nameKey } from "./names.ts";
 
 // Provisional areas screen: proves the Worker reads and writes D1.
 // Phase 4 restricts it to the Board (SPEC §9 Administration screens).

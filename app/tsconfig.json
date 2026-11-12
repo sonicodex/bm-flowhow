@@ -11,6 +11,10 @@
     "noEmit": true,
     "skipLibCheck": true,
     "isolatedModules": true,
+    // Imports carry the .ts extension and type-only imports say so, so Node
+    // can run server modules directly (app/tools) with no build step.
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
     // core.js is JavaScript: its JSDoc types reach the server through allowJs.
     // It is type-checked on its own by tsconfig.core.json.
     "allowJs": true
