@@ -40,14 +40,23 @@ Entry format:
     `/tour/step` (`{at, action, exit?}`) and `/tour/finish`. A refusal is
     409 with the message to show; a malformed body is 400.
   - **A repeated tour leaves the first review as it was** (insert ignored
-    on conflict), so the date and duration of the first review stand.
-    `review_records` keeps one row per user and version. To be confirmed
-    in 3.4.
-  - A run left open on an older release is not resumed: a new release
-    means a new run on it. Its steps answer "No tienes un recorrido
-    abierto…".
-  - `latestRelease()` moves to `src/flows.ts`; the viewer and the tour
-    share it.
+    on conflict): the date and duration of the first review stand.
+    Confirmed by the owner: that is the moment the person complied, and a
+    voluntary repetition must not rewrite it. Each repetition stays as its
+    own run in `tour_runs`, so "last time reviewed" can be derived if it is
+    ever needed.
+  - **A run finishes on the release it started on**, even after a newer
+    one is published. Owner's decision: interrupting someone at step 25 of
+    36 throws away real work for nothing, and releases are immutable and
+    kept forever, so the document being toured still exists. The start
+    route resumes the open run on its own release and returns that
+    release's flow, for the browser to draw. After a minor release the
+    review keeps "Revisado"; after a major one it stays on the old version
+    and the new one shows as pending (§8). Finishing a release that is no
+    longer the latest returns one line saying so, so "Pendiente de
+    revisión" after finishing does not look like a failure.
+  - `latestRelease()` moves to `src/flows.ts`, next to `getRelease()`; the
+    viewer and the tour share them.
 - Found while testing: in Apertura de OT the state "every step visited,
   P34 with one branch" cannot occur. P34 lies on every path, and from P36
   the engine always returns to the nearest decision with a branch left,

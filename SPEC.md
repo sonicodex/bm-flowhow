@@ -281,8 +281,9 @@ Tour rules:
   and returns to its parent. Only the end of the main flow's tour triggers it.
 - The time rule is invisible to the user: no timer, no countdown, and the
   minimum duration is never stated. If the user tries to finish too early, show
-  only: "Fuiste muy veloz, ¿no se te habrá pasado algo?" and let them keep
-  reviewing.
+  only: "Fuiste muy veloz, ¿no se te habrá pasado algo? Repasa el flujo y
+  vuelve a intentarlo." and let them keep reviewing. The second sentence is
+  not optional: the first alone scolds without saying what to do.
 - Record the time each user took to complete the tour (per user and flow
   version). It is always at least the minimum time, because the rule blocks earlier
   completion.

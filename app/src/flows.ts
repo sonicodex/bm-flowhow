@@ -12,16 +12,32 @@ export async function getFlow(db: D1Database, id: number): Promise<FlowRow | nul
 
 export type Release = { id: number; major: number; minor: number; flow: Flow };
 
+type ReleaseRow = { id: number; major: number; minor: number; document: string };
+
+async function compileRelease(db: D1Database, flow: FlowRow, row: ReleaseRow | null): Promise<Release | null> {
+  if (!row) return null;
+  const document = JSON.parse(row.document) as FlowDocument;
+  return { id: row.id, major: row.major, minor: row.minor, flow: documentToFlow(flow.name, flow.objective, document, await loadTagIndex(db)) };
+}
+
 // The flow's latest release, compiled: what users see and tour (§8). Null
 // when the flow has never been published.
 export async function latestRelease(db: D1Database, flow: FlowRow): Promise<Release | null> {
   const row = await db
     .prepare("SELECT id, major, minor, document FROM releases WHERE flow_id = ? ORDER BY major DESC, minor DESC LIMIT 1")
     .bind(flow.id)
-    .first<{ id: number; major: number; minor: number; document: string }>();
-  if (!row) return null;
-  const document = JSON.parse(row.document) as FlowDocument;
-  return { id: row.id, major: row.major, minor: row.minor, flow: documentToFlow(flow.name, flow.objective, document, await loadTagIndex(db)) };
+    .first<ReleaseRow>();
+  return compileRelease(db, flow, row);
+}
+
+// One release of the flow, compiled. Releases are kept forever (§8), so a
+// tour started on one can always finish on it.
+export async function getRelease(db: D1Database, flow: FlowRow, releaseId: number): Promise<Release | null> {
+  const row = await db
+    .prepare("SELECT id, major, minor, document FROM releases WHERE id = ? AND flow_id = ?")
+    .bind(releaseId, flow.id)
+    .first<ReleaseRow>();
+  return compileRelease(db, flow, row);
 }
 
 // SPEC §9: a new flow gets the first colour not yet in use. Once all twelve

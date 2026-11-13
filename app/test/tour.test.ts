@@ -7,6 +7,8 @@ import instalaciones from "../../reference/Flujo_Instalaciones.grid.json";
 import apertura from "../../reference/Flujo_Apertura_OT.grid.json";
 import { loadDevFlows } from "../src/devload.ts";
 import { getFlow, latestRelease } from "../src/flows.ts";
+import { applyGrid } from "../src/import.ts";
+import { publishFlow, type Bump } from "../src/publish.ts";
 import { finishTour, startTour, takeStep, TOO_FAST } from "../src/tour.ts";
 
 const db = () => env.DB;
@@ -98,7 +100,7 @@ describe("the tour on the server (SPEC §7)", () => {
     expect(await count("review_records")).toBe(0);
     const end = await walk(s, t);
     expect(replay(s.flow, await logOf(s.user)).taken.has("P2#1")).toBe(true);
-    expect(await finishTour(db(), s.user, s.flowId, at(end + 30))).toEqual({ ok: true, durationSeconds: end + 30 });
+    expect(await finishTour(db(), s.user, s.flowId, at(end + 30))).toEqual({ ok: true, durationSeconds: end + 30, newer: null });
   });
 
   it("in Apertura de OT, goes back to P34 for «No» although P35 is already visited", async () => {
@@ -139,7 +141,7 @@ describe("the tour on the server (SPEC §7)", () => {
     expect(TOO_FAST).toBe("Fuiste muy veloz, ¿no se te habrá pasado algo? Repasa el flujo y vuelve a intentarlo.");
     expect(await count("review_records")).toBe(0);
     expect(await db().prepare("SELECT finished_at FROM tour_runs").first("finished_at")).toBeNull();
-    expect(await finishTour(db(), s.user, s.flowId, at(minimum))).toEqual({ ok: true, durationSeconds: minimum });
+    expect(await finishTour(db(), s.user, s.flowId, at(minimum))).toEqual({ ok: true, durationSeconds: minimum, newer: null });
     expect(await db().prepare("SELECT duration_seconds, completed_at FROM review_records").first()).toEqual({
       duration_seconds: minimum,
       completed_at: at(minimum).toISOString(),
@@ -188,6 +190,35 @@ describe("the tour on the server (SPEC §7)", () => {
     expect(await db().prepare("SELECT * FROM review_records").all()).toMatchObject({ results: [review] });
     expect(await count("tour_runs")).toBe(2);
   });
+
+  for (const [bump, line] of [
+    ["minor", "Mientras lo recorrías se publicó la versión 1.1, con cambios menores: tu revisión sigue vigente."],
+    ["major", "Mientras lo recorrías se publicó la versión 2.0, con cambios importantes: esa versión queda pendiente de revisión."],
+  ] as [Bump, string][]) {
+    it(`finishes on the version it started on after a ${bump} release, and says so in one line`, async () => {
+      const s = await setup("Ramas gemelas");
+      const started = (await startTour(db(), s.user, s.flowId, at(0)))!;
+      expect(started.version).toBe("1.0");
+      await walk(s, 0, { stop: (tour) => tour.trail.length > 2 });
+      const changed = structuredClone(TWINS);
+      changed.rows.push(row("P7", "end", ""));
+      changed.rows[2]!.exits = "Sigue:P4 | Corta:P7";
+      changed.rows[2]!.type = "decision";
+      expect((await applyGrid(db(), s.flowId, changed, { categories: [], tags: [] })).ok).toBe(true);
+      expect((await publishFlow(db(), s.flowId, bump)).ok).toBe(true);
+      // Resuming keeps the run, its release and the flow it draws.
+      const resumed = (await startTour(db(), s.user, s.flowId, at(50)))!;
+      expect(resumed).toMatchObject({ runId: started.runId, version: "1.0", flow: { steps: { length: 6 } } });
+      const end = await walk(s, 50);
+      expect(await finishTour(db(), s.user, s.flowId, at(end + 30))).toEqual({ ok: true, durationSeconds: end + 30, newer: line });
+      const review = await db()
+        .prepare("SELECT rel.major, rel.minor FROM review_records rr JOIN releases rel ON rel.id = rr.release_id")
+        .all();
+      expect(review.results).toEqual([{ major: 1, minor: 0 }]);
+      // The next tour starts on the latest release.
+      expect((await startTour(db(), s.user, s.flowId, at(end + 100)))!.version).toBe(bump === "minor" ? "1.1" : "2.0");
+    });
+  }
 
   it("refuses steps and finishing without an open run", async () => {
     const s = await setup();

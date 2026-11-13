@@ -1,6 +1,6 @@
 import type { Flow } from "../public/js/core.js";
 import { apply, replay, type Action, type LogRow } from "../public/js/tour-log.js";
-import { getFlow, latestRelease } from "./flows.ts";
+import { getFlow, getRelease, latestRelease, type Release } from "./flows.ts";
 
 // The tour on the server (SPEC §7; phase 3.2). The browser only proposes
 // actions: the server rebuilds the tour from its own log, checks each action
@@ -11,44 +11,59 @@ import { getFlow, latestRelease } from "./flows.ts";
 export const SECONDS_PER_STEP = 5;
 export const TOO_FAST = "Fuiste muy veloz, ¿no se te habrá pasado algo? Repasa el flujo y vuelve a intentarlo.";
 const RELOAD = "El recorrido cambió en otra pestaña o ventana. Recarga la página para seguir.";
-const NO_RUN = "No tienes un recorrido abierto en la versión vigente de este flujo. Recarga la página.";
+const NO_RUN = "No tienes un recorrido abierto en este flujo. Recarga la página.";
 
 export type Refused = { ok: false; error: string };
 
-type OpenRun = { id: number; startedAt: string; flow: Flow; log: LogRow[] };
+type OpenRun = { id: number; startedAt: string; release: Release; log: LogRow[] };
 
-// The user's open run on the flow's latest release, with its log. A run left
-// open on an older release is not resumed: the user tours the current one.
+const version = (r: { major: number; minor: number }) => `${r.major}.${r.minor}`;
+
+// The user's open run on this flow, with its release and its log. A run
+// finishes on the release it started on, even after a newer one is
+// published: interrupting someone at step 25 of 36 would throw away their
+// work for nothing (owner's decision, phase 3.2).
 async function openRun(db: D1Database, userId: number, flowId: number): Promise<OpenRun | null> {
   const flow = await getFlow(db, flowId);
-  const release = flow && (await latestRelease(db, flow));
-  if (!release) return null;
+  if (!flow) return null;
   const run = await db
-    .prepare("SELECT id, started_at FROM tour_runs WHERE user_id = ? AND release_id = ? AND finished_at IS NULL")
-    .bind(userId, release.id)
-    .first<{ id: number; started_at: string }>();
+    .prepare(
+      `SELECT r.id, r.release_id, r.started_at FROM tour_runs r JOIN releases rel ON rel.id = r.release_id
+       WHERE r.user_id = ? AND rel.flow_id = ? AND r.finished_at IS NULL
+       ORDER BY r.started_at DESC, r.id DESC LIMIT 1`,
+    )
+    .bind(userId, flowId)
+    .first<{ id: number; release_id: number; started_at: string }>();
   if (!run) return null;
+  const release = (await getRelease(db, flow, run.release_id))!;
   const { results } = await db
     .prepare("SELECT step_path, exit_index FROM tour_visits WHERE run_id = ? ORDER BY id")
     .bind(run.id)
     .all<{ step_path: string; exit_index: number | null }>();
-  return { id: run.id, startedAt: run.started_at, flow: release.flow, log: results.map((r) => ({ step: r.step_path, exit: r.exit_index })) };
+  return { id: run.id, startedAt: run.started_at, release, log: results.map((r) => ({ step: r.step_path, exit: r.exit_index })) };
 }
 
-// "Iniciar recorrido" and "Continuar recorrido": resumes the open run, or
-// opens one. After a finished run, this is "Repetir recorrido": a new run,
-// and the saved review is left alone. Null when the flow has no release.
-export async function startTour(db: D1Database, userId: number, flowId: number, now: Date): Promise<{ runId: number; log: LogRow[] } | null> {
-  const flow = await getFlow(db, flowId);
-  const release = flow && (await latestRelease(db, flow));
-  if (!release) return null;
-  // The partial unique index allows one open run per user and release.
-  await db
-    .prepare("INSERT INTO tour_runs (user_id, release_id, started_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING")
-    .bind(userId, release.id, now.toISOString())
-    .run();
-  const run = await openRun(db, userId, flowId);
-  return run && { runId: run.id, log: run.log };
+export type Started = { runId: number; version: string; flow: Flow; log: LogRow[] };
+
+// "Iniciar recorrido" and "Continuar recorrido": resumes the open run, on
+// the release it started on, or opens one on the latest release. After a
+// finished run this is "Repetir recorrido": a new run, and the saved review
+// is left alone. The answer carries the release's flow, which the browser
+// draws. Null when the flow has no release.
+export async function startTour(db: D1Database, userId: number, flowId: number, now: Date): Promise<Started | null> {
+  let run = await openRun(db, userId, flowId);
+  if (!run) {
+    const flow = await getFlow(db, flowId);
+    const release = flow && (await latestRelease(db, flow));
+    if (!release) return null;
+    // The partial unique index allows one open run per user and release.
+    await db
+      .prepare("INSERT INTO tour_runs (user_id, release_id, started_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING")
+      .bind(userId, release.id, now.toISOString())
+      .run();
+    run = (await openRun(db, userId, flowId))!;
+  }
+  return { runId: run.id, version: version(run.release), flow: run.release.flow, log: run.log };
 }
 
 // One action of the tour. The row is written only if the log is still the
@@ -56,7 +71,7 @@ export async function startTour(db: D1Database, userId: number, flowId: number, 
 export async function takeStep(db: D1Database, userId: number, flowId: number, action: Action, now: Date): Promise<{ ok: true; row: LogRow } | Refused> {
   const run = await openRun(db, userId, flowId);
   if (!run) return { ok: false, error: NO_RUN };
-  const tour = replay(run.flow, run.log);
+  const tour = replay(run.release.flow, run.log);
   if (!tour) throw new Error(`Tour run ${run.id} does not replay`);
   const applied = apply(tour, action);
   if (!applied.ok) return { ok: false, error: RELOAD };
@@ -79,14 +94,16 @@ export async function takeStep(db: D1Database, userId: number, flowId: number, a
 // clock. Too early, nothing is saved and the answer is only the warning.
 // The duration is end minus start, pauses included: see DECISIONS.md,
 // "Known flaw: tour duration is end minus start".
-export async function finishTour(db: D1Database, userId: number, flowId: number, now: Date): Promise<{ ok: true; durationSeconds: number } | Refused> {
+export type Finished = { ok: true; durationSeconds: number; newer: string | null };
+
+export async function finishTour(db: D1Database, userId: number, flowId: number, now: Date): Promise<Finished | Refused> {
   const run = await openRun(db, userId, flowId);
   if (!run) return { ok: false, error: NO_RUN };
-  const tour = replay(run.flow, run.log);
+  const tour = replay(run.release.flow, run.log);
   if (!tour) throw new Error(`Tour run ${run.id} does not replay`);
   if (!tour.canFinish()) return { ok: false, error: RELOAD };
   const elapsed = now.getTime() - Date.parse(run.startedAt);
-  if (elapsed < run.flow.steps.length * SECONDS_PER_STEP * 1000) return { ok: false, error: TOO_FAST };
+  if (elapsed < run.release.flow.steps.length * SECONDS_PER_STEP * 1000) return { ok: false, error: TOO_FAST };
   const durationSeconds = Math.floor(elapsed / 1000);
   const finishedAt = now.toISOString();
   const [closed] = await db.batch([
@@ -106,5 +123,19 @@ export async function finishTour(db: D1Database, userId: number, flowId: number,
       .bind(run.id, durationSeconds, finishedAt),
   ]);
   if (closed!.meta.changes !== 1) return { ok: false, error: RELOAD };
-  return { ok: true, durationSeconds };
+  return { ok: true, durationSeconds, newer: await newerVersion(db, flowId, run.release) };
+}
+
+// One line for a user who finishes a release that is no longer the latest,
+// so that "Pendiente de revisión" after a major one does not look like a
+// failure. A minor release keeps "Revisado", a major one does not (§8).
+async function newerVersion(db: D1Database, flowId: number, toured: Release): Promise<string | null> {
+  const latest = await db
+    .prepare("SELECT major, minor FROM releases WHERE flow_id = ? ORDER BY major DESC, minor DESC LIMIT 1")
+    .bind(flowId)
+    .first<{ major: number; minor: number }>();
+  if (!latest || (latest.major === toured.major && latest.minor === toured.minor)) return null;
+  return latest.major > toured.major
+    ? `Mientras lo recorrías se publicó la versión ${version(latest)}, con cambios importantes: esa versión queda pendiente de revisión.`
+    : `Mientras lo recorrías se publicó la versión ${version(latest)}, con cambios menores: tu revisión sigue vigente.`;
 }

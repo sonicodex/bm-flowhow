@@ -93,5 +93,5 @@ viewer.post("/:id{[0-9]+}/tour/finish", async (c) => {
   const user = await currentUser(c);
   const result = await finishTour(c.env.DB, user.id, flowId(c), new Date());
   if (result.ok === false) return c.json({ error: result.error }, 409);
-  return c.json({ durationSeconds: result.durationSeconds });
+  return c.json({ durationSeconds: result.durationSeconds, newer: result.newer });
 });
