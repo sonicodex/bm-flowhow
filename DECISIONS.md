@@ -14,6 +14,55 @@ Entry format:
 
 ---
 
+## 2026-11-13 — The tour on screen (phase 3.3)
+
+- Decision:
+  - "Iniciar recorrido" turns the same page into the tour (no tabs).
+    `public/js/viewer.js` asks the server to start or resume, rebuilds the
+    engine from the log with `tour-log.js`, and draws the release the
+    server returns, which is the run's own release. Every action is sent
+    first and applied to the local engine only once the server has stored
+    it; buttons are disabled while it is on its way. A refusal shows the
+    server's message next to the buttons. "Anterior", and "Siguiente" while
+    going forward again over steps already walked, stay in the browser.
+  - Finishing returns to the overview with a note: "Flujo revisado.", plus
+    the server's line when a newer version was published meanwhile. The
+    status and Continuar / Repetir arrive in 3.4.
+  - The step panel follows the prototype: the "Esa rama terminó en «X»…"
+    note, type, title, description, tags as chips, and either "Sigue con"
+    or the branch buttons, tinted with `--flow-tint-mix` and marked "Ya
+    recorrida" with the done icon once taken, plus "Ir a lo que falta por
+    visitar" when the engine offers it.
+  - The diagram (`renderDiagram(layout, flow, marks)`, still geometry and
+    class names only): the current step filled with the flow colour, text
+    in `--flow-on`, lifted by `--shadow-focus-svg`, no extra outline;
+    visited steps in `--flow-visited-mix`; pending steps and unwalked edges
+    in `--color-edge` / `--color-text-dim`. It scrolls to the current step.
+  - **Tag badges** beside the current step, as in the prototype: odd
+    categories on the left, even ones on the right, values longer than 16
+    characters shortened with "…" (the full value in the tooltip). The
+    category in position N takes slot `((N − 1) mod 4) + 1` of
+    `--color-cat-N`. **A fifth category takes slot 1 again**, so its
+    badges look exactly like the first category's, on the same side of the
+    step; only the tooltip tells them apart. Today no flow has more than
+    two categories. A fifth slot is a `theme.css` change
+    for the owner, plus one CSS line per slot.
+  - The progress bar's width is set inline (`style="width:N%"`): it is
+    data, not a style choice, and no token applies.
+  - New `.button-secondary` for "Anterior", and a disabled state for both
+    buttons.
+  - `.diagram-scroll` now uses `box-sizing: border-box`, so its 76vh
+    includes the bottom padding. Before, the card was 88 px taller than
+    meant, and on a 900 px screen the tour buttons fell below the window.
+    The overview (2.4) changes the same way.
+  - Not built (out of scope or later): the "Convenciones" legend (phase 6),
+    mobile zoom (phase 6), the review status (3.4).
+  - Browser check: `app/.layout-check/3.3/tour-check.mjs` drives real
+    Chrome through the DevTools protocol against `npm run dev` (no new
+    dependency). Screenshots in the same folder.
+- Reason: phase 3 plan, slice 3.3.
+- Spec sections affected: 7 (Viewer: tour, layout), 9 (Architecture: theme).
+
 ## 2026-11-13 — The tour on the server (phase 3.2)
 
 - Decision:

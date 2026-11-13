@@ -65,6 +65,38 @@ describe('renderDiagram', () => {
     assert.match(svg, /c &lt;&amp;&gt; &quot;d&quot;/);
   });
 
+  it('marks the tour on the diagram: current, visited and dimmed steps, walked edges, badges', () => {
+    const visited = new Set(['P1', 'P2', 'P3']);
+    const svg = renderDiagram(layoutFlow(APERTURA), { name: APERTURA.name, colour: 2 }, {
+      state: (id) => (id === 'P3' ? 'current' : visited.has(id) ? 'visited' : 'dim'),
+      walked: (from, to) => visited.has(from) && visited.has(to),
+      badges: { id: 'P3', items: [{ category: 'Responsable', index: 0, value: 'Diseño' }, { category: 'Herramienta', index: 1, value: 'TC' }] },
+    });
+    assert.match(svg, /class="diagram flow-2 touring"/);
+    assert.match(svg, /<g class="node t-activity current" data-id="P3"/);
+    assert.match(svg, /<g class="node t-activity visited" data-id="P2"/);
+    assert.match(svg, /<g class="node t-activity dim" data-id="P4"/);
+    const edges = [...svg.matchAll(/<path class="edge( soft)?" [^>]*marker-end="url\(#arrow-(soft)?\d+\)"/g)];
+    assert.strictEqual(edges.length, layoutFlow(APERTURA).edges.length);
+    assert.strictEqual(edges.filter((m) => !m[1]).length, 2); // P1→P2, P2→P3
+    for (const m of edges) assert.strictEqual(m[1], m[2] && ' soft'); // soft edges get the soft arrow
+    assert.match(svg, /<g class="badge c1"><title>Responsable: Diseño<\/title><rect [^>]*\/><text [^>]*>Diseño<\/text><\/g>/);
+    assert.match(svg, /<g class="badge c2"><title>Herramienta: TC<\/title>/);
+    assert.doesNotMatch(svg, /#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i, 'colour literal');
+    assert.doesNotMatch(svg, / (style|fill|stroke|stroke-width|stroke-dasharray|font-size|font-family|font-weight|rx|ry|opacity|filter)="/, 'presentation attribute');
+  });
+
+  it('gives badges the category slot, repeats the four slots from the fifth category, and shortens long values', () => {
+    const items = [0, 1, 2, 3, 4].map((index) => ({ category: `Cat ${index + 1}`, index, value: index === 4 ? 'Planeación de Producción' : `v${index + 1}` }));
+    const svg = renderDiagram(layoutFlow(APERTURA), { name: APERTURA.name, colour: 2 }, { state: () => '', walked: () => true, badges: { id: 'P1', items } });
+    // Odd categories (1st, 3rd, 5th) on the left of the step, even ones on the right.
+    const found = [...svg.matchAll(/<g class="badge (c\d)"><title>Cat (\d)[^<]*<\/title><rect x="(-?[\d.]+)"/g)]
+      .map((m) => [m[2], m[1], Number(m[3]) < 0 ? 'left' : 'right'])
+      .sort();
+    assert.deepStrictEqual(found, [['1', 'c1', 'left'], ['2', 'c2', 'right'], ['3', 'c3', 'left'], ['4', 'c4', 'right'], ['5', 'c1', 'left']]);
+    assert.match(svg, /<title>Cat 5: Planeación de Producción<\/title><rect [^>]*\/><text [^>]*>Planeación de P…<\/text>/);
+  });
+
   it('falls back to the first slot for an unknown colour, and draws nothing without steps', () => {
     assert.match(draw(INSTALACIONES, 99), /class="diagram flow-1"/);
     assert.strictEqual(renderDiagram(layoutFlow({ steps: [] }), { name: 'x', colour: 1 }), '<p class="muted">Este flujo todavía no tiene pasos.</p>');

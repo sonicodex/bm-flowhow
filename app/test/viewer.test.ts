@@ -27,10 +27,10 @@ describe("GET /flows/:id (overview)", () => {
     expect(html).toContain('<section class="viewer flow-2">');
     expect(html).toContain("Apertura de OT</h1>");
     expect(html).toContain("36 pasos");
-    expect(html).toContain('<button type="button" class="button-primary">Iniciar recorrido</button>');
+    expect(html).toContain('<button type="button" class="button-primary" data-start="true">Iniciar recorrido</button>');
     expect(html).toContain('<script type="module" src="/js/viewer.js"></script>');
     const data = flowData(html);
-    expect(data).toMatchObject({ name: "Apertura de OT", colour: 2 });
+    expect(data).toMatchObject({ id, name: "Apertura de OT", colour: 2 });
     expect(data.flow.steps).toHaveLength(36);
     // Tags travel by name, as the step panel will show them.
     expect(data.flow.categories).toEqual(["Responsable", "Herramienta"]);

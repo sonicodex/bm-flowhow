@@ -66,28 +66,72 @@ function label(n) {
   return `<text class="node-text" x="${num(n.w / 2)}" y="${num(n.h / 2)}">${spans}</text>`;
 }
 
+// Tag badges beside the active step (SPEC §7): odd categories on the left,
+// even ones on the right, as in the prototype. Each badge carries its
+// category slot, `c1`…`c4` (theme.css --color-cat-N); with more than four
+// categories the slots repeat, so the fifth looks like the first.
+export const CATEGORY_SLOTS = 4;
+const BADGE = { h: 24, gap: 4, overlap: 10, maxChars: 16, charW: 7.4, padX: 22 };
+
+/**
+ * @param {LayoutNode} n
+ * @param {{ category: string, index: number, value: string }[]} items
+ */
+function badges(n, items) {
+  const sides = [[], []];
+  for (const b of items) sides[b.index % 2].push(b);
+  let out = `<g class="badges" transform="translate(${num(n.x - n.w / 2)} ${num(n.y - n.h / 2)})">`;
+  sides.forEach((list, side) => {
+    list.forEach((b, i) => {
+      const text = b.value.length > BADGE.maxChars ? `${b.value.slice(0, BADGE.maxChars - 1)}…` : b.value;
+      const w = Math.round(text.length * BADGE.charW + BADGE.padX);
+      const x = side === 0 ? -w + BADGE.overlap : n.w - BADGE.overlap;
+      const y = n.h / 2 + (i - (list.length - 1) / 2) * (BADGE.h + BADGE.gap) - BADGE.h / 2;
+      out += `<g class="badge c${(b.index % CATEGORY_SLOTS) + 1}"><title>${esc(`${b.category}: ${b.value}`)}</title>`;
+      out += `<rect x="${num(x)}" y="${num(y)}" width="${w}" height="${BADGE.h}"/>`;
+      out += `<text x="${num(x + w / 2)}" y="${num(y + BADGE.h / 2)}">${esc(text)}</text></g>`;
+    });
+  });
+  return out + '</g>';
+}
+
 let seq = 0;
+
+/**
+ * The tour's marks on the diagram (phase 3.3). `state` gives each step a
+ * class: `current`, `visited` or `dim`. `walked` tells the edges already
+ * walked from the rest. `badges` are the tags of the active step.
+ * @typedef {{ state: (id: string) => string, walked: (from: string, to: string) => boolean,
+ *   badges?: { id: string, items: { category: string, index: number, value: string }[] } }} TourMarks
+ */
 
 /**
  * The diagram as SVG markup.
  * @param {DiagramLayout} layout
  * @param {{ name: string, colour: number }} flow  colour: palette slot 1-12
+ * @param {TourMarks} [tour]  only during the tour
  * @returns {string}
  */
-export function renderDiagram(layout, flow) {
+export function renderDiagram(layout, flow, tour) {
   const slot = Number.isInteger(flow.colour) && flow.colour >= 1 && flow.colour <= FLOW_COLOURS ? flow.colour : 1;
   const name = `Diagrama del flujo ${flow.name}`;
   if (!layout.nodes.length) return `<p class="muted">Este flujo todavía no tiene pasos.</p>`;
-  const arrow = `arrow-${++seq}`;
-  let out = `<svg xmlns="http://www.w3.org/2000/svg" class="diagram flow-${slot}" viewBox="0 0 ${layout.width} ${layout.height}" width="${layout.width}" height="${layout.height}" role="img" aria-label="${esc(name)}">`;
-  out += `<defs><marker id="${arrow}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="edge-arrow" d="M0 0L10 5L0 10z"/></marker></defs>`;
-  for (const e of layout.edges) out += `<path class="edge" d="${edgePath(e.points)}" marker-end="url(#${arrow})"/>`;
+  const id = ++seq;
+  const marker = (kind) => `<marker id="arrow-${kind}${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="edge-arrow${kind ? ` ${kind}` : ''}" d="M0 0L10 5L0 10z"/></marker>`;
+  const walked = (e) => !tour || tour.walked(e.from, e.to);
+  const kind = (e) => (walked(e) ? '' : 'soft');
+  let out = `<svg xmlns="http://www.w3.org/2000/svg" class="diagram flow-${slot}${tour ? ' touring' : ''}" viewBox="0 0 ${layout.width} ${layout.height}" width="${layout.width}" height="${layout.height}" role="img" aria-label="${esc(name)}">`;
+  out += `<defs>${marker('')}${tour ? marker('soft') : ''}</defs>`;
+  for (const e of layout.edges) out += `<path class="edge${walked(e) ? '' : ' soft'}" d="${edgePath(e.points)}" marker-end="url(#arrow-${kind(e)}${id})"/>`;
   for (const e of layout.edges) {
-    if (e.label && e.labelAt) out += `<text class="edge-label" x="${num(e.labelAt.x)}" y="${num(e.labelAt.y)}" text-anchor="${esc(e.labelAt.anchor)}">${esc(e.label)}</text>`;
+    if (e.label && e.labelAt) out += `<text class="edge-label${walked(e) ? '' : ' soft'}" x="${num(e.labelAt.x)}" y="${num(e.labelAt.y)}" text-anchor="${esc(e.labelAt.anchor)}">${esc(e.label)}</text>`;
   }
   for (const n of layout.nodes) {
-    out += `<g class="node t-${esc(n.type)}" data-id="${esc(n.id)}" transform="translate(${num(n.x - n.w / 2)} ${num(n.y - n.h / 2)})">`;
+    const state = tour ? tour.state(n.id) : '';
+    out += `<g class="node t-${esc(n.type)}${state ? ` ${esc(state)}` : ''}" data-id="${esc(n.id)}" transform="translate(${num(n.x - n.w / 2)} ${num(n.y - n.h / 2)})">`;
     out += `<title>${esc(n.title)}</title>${shape(n)}${icon(n)}${label(n)}</g>`;
   }
+  const active = tour && tour.badges && layout.nodes.find((n) => n.id === tour.badges.id);
+  if (active && tour.badges.items.length) out += badges(active, tour.badges.items);
   return out + '</svg>';
 }

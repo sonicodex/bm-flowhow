@@ -6,9 +6,10 @@ import { currentUser } from "./current-user.ts";
 import { getFlow, latestRelease, type FlowRow } from "./flows.ts";
 import { finishTour, startTour, takeStep } from "./tour.ts";
 
-// The flow viewer, overview mode (SPEC §7; phase 2.4). Users always see the
-// latest release, never a draft (§8). The tour comes in phase 3, and access
-// by area and role in phase 4.
+// The flow viewer (SPEC §7): the overview (phase 2.4) and the tour (phase 3).
+// Users always see the latest release, never a draft (§8); a tour already
+// started finishes on its own release. Access by area and role comes in
+// phase 4.
 export const viewer = new Hono<{ Bindings: Env }>();
 
 // JSON inside <script>: "<" is escaped so no text in a step can close it.
@@ -33,8 +34,10 @@ function ViewerPage({ flow, compiled }: { flow: FlowRow; compiled: Flow }) {
             </noscript>
           </div>
           <div class="diagram-actions">
-            {/* The tour arrives in phase 3; until then the button does nothing. */}
-            <button type="button" class="button-primary">Iniciar recorrido</button>
+            {/* public/js/viewer.js turns the page into the tour. */}
+            <button type="button" class="button-primary" data-start>
+              Iniciar recorrido
+            </button>
           </div>
         </div>
         <aside class="card viewer-side">
@@ -45,7 +48,7 @@ function ViewerPage({ flow, compiled }: { flow: FlowRow; compiled: Flow }) {
         </aside>
       </div>
       <script type="application/json" id="flow-data">
-        {raw(scriptJson({ name: flow.name, colour: flow.colour, flow: compiled }))}
+        {raw(scriptJson({ id: flow.id, name: flow.name, colour: flow.colour, flow: compiled }))}
       </script>
       <script type="module" src="/js/viewer.js"></script>
     </section>
