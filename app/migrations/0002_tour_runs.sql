@@ -18,10 +18,12 @@ CREATE UNIQUE INDEX tour_runs_open ON tour_runs (user_id, release_id) WHERE fini
 -- foreign key column to an existing table.
 DROP TABLE tour_visits;
 
--- One row per step shown in a tour (§7). step_path is the step id, prefixed
--- by the path for nested steps ("P6>S3"); exit_index is the exit taken from
--- it, NULL when none was taken. The key is "<step_path>#<exit_index>".
--- visited_at is the server's time, never the browser's.
+-- One row per tour action, at the step the tour stood on (§7; see
+-- public/js/tour-log.js). step_path is the step id, prefixed by the path for
+-- nested steps ("P6>S3"); exit_index is the exit followed from it, NULL when
+-- the tour did not leave through an exit (a dead end, "Ir a lo que falta por
+-- visitar"). The key is "<step_path>#<exit_index>". visited_at is the
+-- server's time, never the browser's.
 CREATE TABLE tour_visits (
   id         INTEGER PRIMARY KEY,
   run_id     INTEGER NOT NULL REFERENCES tour_runs (id) ON DELETE CASCADE,

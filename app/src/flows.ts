@@ -1,5 +1,5 @@
-import type { FlowEntry, FlowLib } from "../public/js/core.js";
-import { EMPTY_DOCUMENT, type FlowDocument } from "./document.ts";
+import type { Flow, FlowEntry, FlowLib } from "../public/js/core.js";
+import { documentToFlow, EMPTY_DOCUMENT, loadTagIndex, type FlowDocument } from "./document.ts";
 import { NAME_RULE, nameKey } from "./names.ts";
 
 export const COLOURS = 12;
@@ -8,6 +8,20 @@ export type FlowRow = { id: number; name: string; objective: string; colour: num
 
 export async function getFlow(db: D1Database, id: number): Promise<FlowRow | null> {
   return db.prepare("SELECT id, name, objective, colour FROM flows WHERE id = ?").bind(id).first<FlowRow>();
+}
+
+export type Release = { id: number; major: number; minor: number; flow: Flow };
+
+// The flow's latest release, compiled: what users see and tour (§8). Null
+// when the flow has never been published.
+export async function latestRelease(db: D1Database, flow: FlowRow): Promise<Release | null> {
+  const row = await db
+    .prepare("SELECT id, major, minor, document FROM releases WHERE flow_id = ? ORDER BY major DESC, minor DESC LIMIT 1")
+    .bind(flow.id)
+    .first<{ id: number; major: number; minor: number; document: string }>();
+  if (!row) return null;
+  const document = JSON.parse(row.document) as FlowDocument;
+  return { id: row.id, major: row.major, minor: row.minor, flow: documentToFlow(flow.name, flow.objective, document, await loadTagIndex(db)) };
 }
 
 // SPEC §9: a new flow gets the first colour not yet in use. Once all twelve

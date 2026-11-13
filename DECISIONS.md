@@ -14,6 +14,50 @@ Entry format:
 
 ---
 
+## 2026-11-13 — The tour on the server (phase 3.2)
+
+- Decision:
+  - **The log is one row per action**, at the step the tour stood on:
+    `choose` a branch at a decision, `skip` ("Ir a lo que falta por
+    visitar") at a decision, `next` anywhere else. `exit_index` is the exit
+    followed; NULL when the tour did not leave through an exit (a dead end,
+    a skip, the engine breaking an endless cycle). The step the tour starts
+    on, and the one where the user finishes, have no row: the run's
+    `started_at` and `finished_at` carry those times.
+  - `public/js/tour-log.js`: `apply(tour, action)` checks one action
+    against the engine and returns the row to store; `replay(flow, rows)`
+    rebuilds the engine from the log and refuses a log that does not replay
+    exactly. Shared with the browser (3.3). `core.js` is untouched.
+  - `src/tour.ts`, with the time as a parameter: `startTour` resumes the
+    open run on the latest release or opens one; `takeStep` replays,
+    checks and stores the action with the server's time; `finishTour`
+    requires `canFinish()` and steps × 5 s since `started_at`, then closes
+    the run and saves the review in one batch.
+  - Writes are conditional on the log length the action was checked
+    against, so two tabs cannot interleave actions: the second gets the
+    "reload" message.
+  - Routes, JSON, as the placeholder user: `POST /flows/:id/tour`,
+    `/tour/step` (`{at, action, exit?}`) and `/tour/finish`. A refusal is
+    409 with the message to show; a malformed body is 400.
+  - **A repeated tour leaves the first review as it was** (insert ignored
+    on conflict), so the date and duration of the first review stand.
+    `review_records` keeps one row per user and version. To be confirmed
+    in 3.4.
+  - A run left open on an older release is not resumed: a new release
+    means a new run on it. Its steps answer "No tienes un recorrido
+    abierto…".
+  - `latestRelease()` moves to `src/flows.ts`; the viewer and the tour
+    share it.
+- Found while testing: in Apertura de OT the state "every step visited,
+  P34 with one branch" cannot occur. P34 lies on every path, and from P36
+  the engine always returns to the nearest decision with a branch left,
+  which is P34. So the tests check two things: that Apertura returns to
+  P34 for «No» although P35 is visited, and, in a test flow where the twin
+  decision comes first, that every step visited with one twin branch
+  untaken does not finish.
+- Reason: phase 3 plan, slice 3.2.
+- Spec sections affected: 7 (Viewer: tour rules).
+
 ## 2026-11-13 — Placeholder user, tour runs and the viewer header (phase 3.1)
 
 - Decision:

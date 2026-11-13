@@ -1,15 +1,15 @@
 import { Hono } from "hono";
 import { raw } from "hono/html";
 import type { Flow } from "../public/js/core.js";
-import { documentToFlow, loadTagIndex, type FlowDocument } from "./document.ts";
-import { getFlow, type FlowRow } from "./flows.ts";
+import type { Action } from "../public/js/tour-log.js";
+import { currentUser } from "./current-user.ts";
+import { getFlow, latestRelease, type FlowRow } from "./flows.ts";
+import { finishTour, startTour, takeStep } from "./tour.ts";
 
 // The flow viewer, overview mode (SPEC §7; phase 2.4). Users always see the
 // latest release, never a draft (§8). The tour comes in phase 3, and access
 // by area and role in phase 4.
 export const viewer = new Hono<{ Bindings: Env }>();
-
-type Release = { major: number; minor: number; document: string };
 
 // JSON inside <script>: "<" is escaped so no text in a step can close it.
 const scriptJson = (value: unknown) => JSON.stringify(value).replace(/</g, "\\u003c");
@@ -55,13 +55,43 @@ function ViewerPage({ flow, compiled }: { flow: FlowRow; compiled: Flow }) {
 viewer.get("/:id{[0-9]+}", async (c) => {
   const flow = await getFlow(c.env.DB, Number(c.req.param("id")));
   if (!flow) return c.notFound();
-  const release = await c.env.DB.prepare(
-    "SELECT major, minor, document FROM releases WHERE flow_id = ? ORDER BY major DESC, minor DESC LIMIT 1",
-  )
-    .bind(flow.id)
-    .first<Release>();
+  const release = await latestRelease(c.env.DB, flow);
   if (!release) return c.notFound();
-  const document = JSON.parse(release.document) as FlowDocument;
-  const compiled = documentToFlow(flow.name, flow.objective, document, await loadTagIndex(c.env.DB));
-  return c.render(<ViewerPage flow={flow} compiled={compiled} />, { title: flow.name });
+  return c.render(<ViewerPage flow={flow} compiled={release.flow} />, { title: flow.name });
+});
+
+// The tour (phase 3.2). JSON in and out; the server's clock, never the
+// browser's. A refused action answers 409 with the message to show.
+const flowId = (c: { req: { param: (name: "id") => string } }) => Number(c.req.param("id"));
+
+function readAction(body: unknown): Action | null {
+  if (typeof body !== "object" || body === null) return null;
+  const { at, action, exit } = body as Record<string, unknown>;
+  if (typeof at !== "string") return null;
+  if (action === "next" || action === "skip") return { at, action };
+  if (action === "choose" && Number.isInteger(exit)) return { at, action, exit: exit as number };
+  return null;
+}
+
+viewer.post("/:id{[0-9]+}/tour", async (c) => {
+  const user = await currentUser(c);
+  const run = await startTour(c.env.DB, user.id, flowId(c), new Date());
+  if (!run) return c.notFound();
+  return c.json(run);
+});
+
+viewer.post("/:id{[0-9]+}/tour/step", async (c) => {
+  const action = readAction(await c.req.json().catch(() => null));
+  if (!action) return c.json({ error: "Acción no válida." }, 400);
+  const user = await currentUser(c);
+  const result = await takeStep(c.env.DB, user.id, flowId(c), action, new Date());
+  if (result.ok === false) return c.json({ error: result.error }, 409);
+  return c.json({ row: result.row });
+});
+
+viewer.post("/:id{[0-9]+}/tour/finish", async (c) => {
+  const user = await currentUser(c);
+  const result = await finishTour(c.env.DB, user.id, flowId(c), new Date());
+  if (result.ok === false) return c.json({ error: result.error }, 409);
+  return c.json({ durationSeconds: result.durationSeconds });
 });
