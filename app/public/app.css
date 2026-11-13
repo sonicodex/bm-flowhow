@@ -208,8 +208,10 @@ textarea:focus-visible,
   align-items: center;
   gap: var(--space-3);
   margin: 0;
+  font-family: var(--font-display);
+  font-weight: var(--weight-display);
+  font-synthesis-weight: none;
   font-size: var(--text-xl);
-  font-weight: var(--weight-medium);
 }
 
 .flow-dot {

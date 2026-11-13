@@ -53,6 +53,10 @@
   /* How much of --color-text is mixed into a flow colour for borders and
      walked arrows. One place, so the whole diagram shifts together. */
   --flow-shade-mix: 62%;
+  /* How much of a flow colour is mixed into white: the light tone of visited
+     steps, and the tint behind branch buttons. */
+  --flow-visited-mix: 30%;
+  --flow-tint-mix: 12%;
   /* Category conventions (tag badges and legend). Slot N applies to the Nth category. */
   --color-cat-1-bg: #E3E3E3; --color-cat-1-text: #111111; --color-cat-1-border: #111111;
   --color-cat-2-bg: #555555; --color-cat-2-text: #FFFFFF; --color-cat-2-border: #555555;

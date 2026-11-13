@@ -37,6 +37,25 @@ describe("GET /flows/:id (overview)", () => {
     expect(data.flow.steps.find((s: { id: string }) => s.id === "P13").ref).toBe(await idOf("Instalaciones"));
   });
 
+  it("shows the flow name in the display type and the objective under it", async () => {
+    await load();
+    const id = await idOf("Instalaciones");
+    let html = await (await get(`/flows/${id}`)).text();
+    // Neither reference flow has an objective: no empty line is drawn.
+    expect(html).toContain("Instalaciones</h1></div>");
+    await env.DB.prepare("UPDATE flows SET objective = ? WHERE id = ?")
+      .bind("Dejar el servicio <instalado> y probado en casa del cliente.", id)
+      .run();
+    html = await (await get(`/flows/${id}`)).text();
+    expect(html).toContain('<h1 class="viewer-title">');
+    expect(html).toContain('Instalaciones</h1><p class="muted">Dejar el servicio &lt;instalado&gt; y probado en casa del cliente.</p>');
+    expect(flowData(html).flow.objective).toBe("Dejar el servicio <instalado> y probado en casa del cliente.");
+    const rule = env.CSS_FILES["app.css"].match(/\.viewer-title \{[^}]*\}/)![0];
+    expect(rule).toContain("font-family: var(--font-display)");
+    expect(rule).toContain("font-weight: var(--weight-display)");
+    expect(rule).toContain("font-synthesis-weight: none");
+  });
+
   it("never shows a draft: an import after publishing changes nothing until it is published", async () => {
     await load();
     const id = await idOf("Instalaciones");

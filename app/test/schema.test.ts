@@ -4,7 +4,7 @@ import { nameKey } from "../src/names.ts";
 
 const TABLES = [
   "areas", "drafts", "flow_areas", "flows", "releases", "review_records",
-  "save_points", "sessions", "tag_categories", "tags", "tour_visits", "user_areas", "users",
+  "save_points", "sessions", "tag_categories", "tags", "tour_runs", "tour_visits", "user_areas", "users",
 ];
 
 const run = (sql: string, ...params: unknown[]) => env.DB.prepare(sql).bind(...params).run();
@@ -94,9 +94,36 @@ describe("schema", () => {
     const doc = JSON.stringify({ steps: [] });
     const release = (await run("INSERT INTO releases (flow_id, major, minor, document) VALUES (?, 1, 0, ?)", flow, doc)).meta.last_row_id;
     await expect(run("INSERT INTO releases (flow_id, major, minor, document) VALUES (?, 1, 0, ?)", flow, doc)).rejects.toThrow(/UNIQUE/);
-    await run("INSERT INTO tour_visits (user_id, release_id, step_path, exit_index) VALUES (?, ?, 'P6>S3', 1)", user, release);
+    const tourRun = (await run("INSERT INTO tour_runs (user_id, release_id) VALUES (?, ?)", user, release)).meta.last_row_id;
+    await run("INSERT INTO tour_visits (run_id, step_path, exit_index) VALUES (?, 'P6>S3', 1)", tourRun);
     await run("INSERT INTO review_records (user_id, release_id, duration_seconds) VALUES (?, ?, 150)", user, release);
     await expect(run("INSERT INTO review_records (user_id, release_id, duration_seconds) VALUES (?, ?, 200)", user, release)).rejects.toThrow(/UNIQUE/);
     await expect(run("DELETE FROM releases WHERE id = ?", release)).rejects.toThrow(/FOREIGN KEY/);
+  });
+
+  it("keeps one open tour run per user and version, and any number of finished ones", async () => {
+    const user = await seedUser();
+    const flow = await seedFlow();
+    const release = (await run("INSERT INTO releases (flow_id, major, minor, document) VALUES (?, 1, 0, '{}')", flow)).meta.last_row_id;
+    const open = "INSERT INTO tour_runs (user_id, release_id) VALUES (?, ?)";
+    const first = (await run(open, user, release)).meta.last_row_id;
+    await expect(run(open, user, release)).rejects.toThrow(/UNIQUE/);
+    await run("UPDATE tour_runs SET finished_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?", first);
+    await run(open, user, release); // "Repetir recorrido"
+    await expect(run(open, user, release)).rejects.toThrow(/UNIQUE/);
+    expect(await env.DB.prepare("SELECT count(*) AS n FROM tour_runs").first("n")).toBe(2);
+  });
+
+  it("ties every visit to a run, and deletes a user's runs and visits with the user", async () => {
+    const user = await seedUser();
+    const flow = await seedFlow();
+    const release = (await run("INSERT INTO releases (flow_id, major, minor, document) VALUES (?, 1, 0, '{}')", flow)).meta.last_row_id;
+    await expect(run("INSERT INTO tour_visits (run_id, step_path) VALUES (999, 'P1')")).rejects.toThrow(/FOREIGN KEY/);
+    const tourRun = (await run("INSERT INTO tour_runs (user_id, release_id) VALUES (?, ?)", user, release)).meta.last_row_id;
+    await run("INSERT INTO tour_visits (run_id, step_path, exit_index) VALUES (?, 'P1', 0), (?, 'P2', NULL)", tourRun, tourRun);
+    await expect(run("DELETE FROM releases WHERE id = ?", release)).rejects.toThrow(/FOREIGN KEY/);
+    await run("DELETE FROM users WHERE id = ?", user);
+    expect(await env.DB.prepare("SELECT count(*) AS n FROM tour_runs").first("n")).toBe(0);
+    expect(await env.DB.prepare("SELECT count(*) AS n FROM tour_visits").first("n")).toBe(0);
   });
 });

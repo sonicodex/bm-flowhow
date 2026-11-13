@@ -14,6 +14,96 @@ Entry format:
 
 ---
 
+## 2026-11-13 — Placeholder user, tour runs and the viewer header (phase 3.1)
+
+- Decision:
+  - `src/current-user.ts` `currentUser(c)` is the only place that knows
+    who is making the request. Until phase 4 it returns a placeholder user,
+    "Usuario de prueba" (username `usuario de prueba`, role `standard`, no
+    areas), and creates its row on first use. Its password hash is empty,
+    which matches no password, so nobody can log in as it. Phase 4 replaces
+    the body of that function with the session user.
+  - Migration `0002_tour_runs.sql` adds `tour_runs` (user, release,
+    `started_at`, `finished_at`, NULL while open). A partial unique index
+    allows one open run per user and release, and any number of finished
+    ones.
+  - **Deviation from the approved slice:** the slice said "a `run_id`
+    column in `tour_visits`". Instead `tour_visits` is dropped and
+    recreated with `run_id NOT NULL` and without `user_id` and
+    `release_id`, which the run already carries. SQLite cannot add a
+    NOT NULL foreign key column to an existing table, and keeping the
+    user and release on each visit as well would let them disagree with
+    the run. The table had never held a row: nothing wrote to it before
+    phase 3, and the only D1 outside a local machine (the deployment
+    check's) was deleted.
+  - Fix from 2.4: the flow name in the viewer header uses iBrand
+    (`--font-display`, `--weight-display`, `font-synthesis-weight: none`),
+    as SPEC §9 says. The side panel title ("El flujo completo") was left in
+    Google Sans; it becomes the step title in 3.3.
+  - The objective line is covered by a test that sets an objective on a
+    reference flow: it shows under the name, escaped, and no empty line
+    appears when the flow has none.
+- Reason: phase 3 plan approved by the owner (entry below).
+- Spec sections affected: 4 (Roles and permissions), 7 (Viewer), 9 (Typefaces).
+
+## 2026-11-13 — Phase 3 plan: the tour
+
+- Decision: four slices, approved by the owner.
+  - **3.1** Placeholder user, tour runs, the objective line, the iBrand fix
+    in the viewer header.
+  - **3.2** The tour on the server. A shared module rebuilds the `Tour`
+    engine from the log (`next`, `choose(i)`, `skip`), so `core.js` stays
+    untouched. Routes to start or resume, to take a step, and to finish.
+    The server checks every action against the rebuilt engine and stores
+    it with its own time.
+  - **3.3** The tour on screen: step panel, branch buttons, the "branch
+    ended" note, buttons in the diagram card's bottom right corner,
+    progress bar, visited/active/pending styling, tag badges.
+  - **3.4** "Revisado": status in the viewer, Iniciar / Continuar / Repetir,
+    and minor versions keep the review while major ones reset it (§8).
+- The owner's answers:
+  1. **Tour runs.** "Iniciar recorrido" opens a run, "Continuar" resumes
+     the open one, "Repetir" opens a new one without touching the review
+     already saved.
+  2. **Two tokens in `theme.css`**, added by Claude as a one-off exception
+     to the rule of not editing that file: `--flow-visited-mix: 30%` (the
+     light tone of visited steps) and `--flow-tint-mix: 12%` (the tint
+     behind branch buttons), next to `--flow-shade-mix`. Nothing else in
+     the file changes.
+  3. **Tag badges use `--color-cat-N`**, by category slot. Phase 6's
+     conventions use the same colours, so a neutral badge would have to be
+     recoloured later. The legend waits for phase 6. Only four slots are
+     defined; the 3.3 report says what happens with a fifth category.
+  4. **No tabs.** "Iniciar recorrido" turns the same page into tour mode,
+     and finishing returns to the overview with "Revisado". Three tabs with
+     one disabled is worse than none.
+  5. **The speed warning uses the prototype's full text:** «Fuiste muy
+     veloz, ¿no se te habrá pasado algo? Repasa el flujo y vuelve a
+     intentarlo.» The first sentence alone scolds without saying what to
+     do. This replaces the owner's earlier instruction to use only the
+     first sentence; the owner updates SPEC §7.
+  6. Not acted on, by the owner's decision: the engine's exit index can
+     differ from the sheet's only in drafts (publishing blocks both
+     causes), and "Anterior" only moves the view back, so it is not logged.
+- Reason: owner's approval of the phase 3 proposal.
+- Spec sections affected: 7 (Viewer), 9 (Architecture: theme).
+
+## 2026-11-13 — Known flaw: tour duration is end minus start
+
+- Decision: a review's duration is the time from the start of its run to
+  "Terminar recorrido", pauses included. **This is wrong for the progress
+  report**, and is accepted only until then: someone will leave the tab
+  open and finish the next day, and the Leader will read "14 h" in a
+  column meant to say how much time they gave it. It is not fixed now
+  because the report does not exist until phase 6. Each visit keeps its
+  server time, so the duration can be recomputed later by capping long
+  gaps between visits.
+- The minimum time (5 s per step) is measured on the same wall clock, and
+  that is right: a pause only helps to pass, and what stops someone from
+  rushing is having to visit every step and take every branch.
+- Reason: owner's decision.
+- Spec sections affected: 7 (Viewer: tour, progress report).
+
 ## 2026-11-12 — The flow viewer, overview (phase 2.4)
 
 - Decision:
