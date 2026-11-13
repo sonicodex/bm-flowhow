@@ -14,6 +14,38 @@ Entry format:
 
 ---
 
+## 2026-11-13 — "Revisado" in the viewer (phase 3.4)
+
+- Decision:
+  - **Status line** under the flow name: icon plus label, never colour
+    alone (§7): "Pendiente de revisión" (`pending.svg`), "Recorrido en
+    curso" (`in_progress.svg`), "Revisado" (`done.svg`). One function,
+    `reviewStatus` in `src/tour.ts`, decides it; phase 4's home screen can
+    use the same one.
+  - **Revisado** holds while the user has a review on a release with the
+    latest release's major version: a minor release keeps it, a major one
+    resets it to "Pendiente de revisión" (§8). The line under it gives the
+    date of the newest release reviewed, in Bogotá ("El 13 de noviembre de
+    2026."), plus ", en la versión 1.0" when that is not the latest.
+    After a major release the pending line says "Revisaste la versión 1.0.
+    La 2.0 trae cambios importantes."
+  - **"Revisado" wins over "en curso"**: someone repeating a reviewed flow
+    stays "Revisado" while the new run is open. A run still open on an
+    older release after a major one says "Lo empezaste en la versión 1.0 y
+    lo terminas en esa versión."
+  - **The button**: "Continuar recorrido" while a run is open; otherwise
+    "Repetir recorrido" if the current major version is reviewed, else
+    "Iniciar recorrido" (also after a major release: it is a new tour).
+  - Starting and finishing answer with the new status, and the page
+    redraws the line and the button without a reload.
+  - Owner's decision on the step title, recorded in SPEC §9 by the owner:
+    it stays in Google Sans. What decides the type is what the text is,
+    not its size; iBrand only names the page.
+  - Browser check: `app/.layout-check/3.4/` (overview pending, in progress,
+    after finishing, and after a reload).
+- Reason: phase 3 plan, slice 3.4.
+- Spec sections affected: 7 (Viewer), 8 (Versioning).
+
 ## 2026-11-13 — The tour on screen (phase 3.3)
 
 - Decision:
@@ -27,7 +59,7 @@ Entry format:
     going forward again over steps already walked, stay in the browser.
   - Finishing returns to the overview with a note: "Flujo revisado.", plus
     the server's line when a newer version was published meanwhile. The
-    status and Continuar / Repetir arrive in 3.4.
+    status and Continuar / Repetir arrive in 3.4 (done).
   - The step panel follows the prototype: the "Esa rama terminó en «X»…"
     note, type, title, description, tags as chips, and either "Sigue con"
     or the branch buttons, tinted with `--flow-tint-mix` and marked "Ya

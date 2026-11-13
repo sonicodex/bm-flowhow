@@ -42,7 +42,7 @@ describe("GET /flows/:id (overview)", () => {
     const id = await idOf("Instalaciones");
     let html = await (await get(`/flows/${id}`)).text();
     // Neither reference flow has an objective: no empty line is drawn.
-    expect(html).toContain("Instalaciones</h1></div>");
+    expect(html).toContain(`Instalaciones</h1><p class="review-status"`);
     await env.DB.prepare("UPDATE flows SET objective = ? WHERE id = ?")
       .bind("Dejar el servicio <instalado> y probado en casa del cliente.", id)
       .run();

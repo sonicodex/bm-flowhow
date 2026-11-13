@@ -21,6 +21,15 @@ const cols = page && page.querySelector('.viewer-cols');
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const quoted = (s) => `«${esc(s)}»`;
 const DONE_ICON = '<img class="icon" src="/icons/done.svg" alt="" width="18" height="18">';
+// The same line as StatusLine in src/viewer.tsx, redrawn when the server
+// answers a start or a finish with the new status (phase 3.4).
+const STATUS_ICONS = { pending: 'pending', in_progress: 'in_progress', reviewed: 'done' };
+const showStatus = (status) => {
+  const line = document.getElementById('review-status');
+  if (!line || !status) return;
+  line.dataset.state = status.state;
+  line.innerHTML = `<img class="icon" src="/icons/${STATUS_ICONS[status.state]}.svg" alt="" width="18" height="18"><strong>${esc(status.label)}</strong>${status.detail ? `<span class="muted">${esc(status.detail)}</span>` : ''}`;
+};
 
 if (data && cols) {
   const { id, name, colour, flow } = JSON.parse(data.textContent);
@@ -123,10 +132,14 @@ if (data && cols) {
     if (target && !target.disabled) target.focus({ preventScroll: true });
   };
 
-  const showOverview = (lines) => {
+  // `status.action` relabels the button: "Repetir recorrido" after a
+  // finish, or "Iniciar recorrido" if a major release came out meanwhile.
+  const showOverview = (lines, status) => {
     state = null;
     cols.innerHTML = overview;
     drawOverview();
+    const button = cols.querySelector('[data-start]');
+    if (button && status) button.textContent = status.action;
     const side = cols.querySelector('.viewer-side');
     if (side && lines.length) side.insertAdjacentHTML('afterbegin', `<p class="note">${DONE_ICON}<span>${lines.map(esc).join(' ')}</span></p>`);
   };
@@ -150,7 +163,10 @@ if (data && cols) {
     renderTour('[data-finish]');
     const res = await post('/finish').catch(() => ({ ok: false, json: {} }));
     state.busy = false;
-    if (res.ok) return showOverview(['Flujo revisado.', res.json.newer].filter(Boolean));
+    if (res.ok) {
+      showStatus(res.json.status);
+      return showOverview(['Flujo revisado.', res.json.newer].filter(Boolean), res.json.status);
+    }
     state.message = res.json.error || 'No se pudo terminar el recorrido. Revisa la conexión e inténtalo de nuevo.';
     renderTour('[data-finish]');
   };
@@ -164,6 +180,7 @@ if (data && cols) {
       button.insertAdjacentHTML('beforebegin', '<p class="tour-message" role="status">No se pudo iniciar el recorrido. Recarga la página e inténtalo de nuevo.</p>');
       return;
     }
+    showStatus(res.json.status);
     state = { flow: res.json.flow, layout: layoutFlow(res.json.flow), tour, busy: false, message: '' };
     renderTour();
   };

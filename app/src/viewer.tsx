@@ -4,7 +4,7 @@ import type { Flow } from "../public/js/core.js";
 import type { Action } from "../public/js/tour-log.js";
 import { currentUser } from "./current-user.ts";
 import { getFlow, latestRelease, type FlowRow } from "./flows.ts";
-import { finishTour, startTour, takeStep } from "./tour.ts";
+import { finishTour, reviewStatus, startTour, takeStep, type ReviewState, type ReviewStatus } from "./tour.ts";
 
 // The flow viewer (SPEC §7): the overview (phase 2.4) and the tour (phase 3).
 // Users always see the latest release, never a draft (§8); a tour already
@@ -15,7 +15,20 @@ export const viewer = new Hono<{ Bindings: Env }>();
 // JSON inside <script>: "<" is escaped so no text in a step can close it.
 const scriptJson = (value: unknown) => JSON.stringify(value).replace(/</g, "\\u003c");
 
-function ViewerPage({ flow, compiled }: { flow: FlowRow; compiled: Flow }) {
+// public/js/viewer.js draws the same line again when the status changes.
+const STATUS_ICONS: Record<ReviewState, string> = { pending: "pending", in_progress: "in_progress", reviewed: "done" };
+
+function StatusLine({ status }: { status: ReviewStatus }) {
+  return (
+    <p class="review-status" id="review-status" data-state={status.state}>
+      <img class="icon" src={`/icons/${STATUS_ICONS[status.state]}.svg`} alt="" width="18" height="18" />
+      <strong>{status.label}</strong>
+      {status.detail && <span class="muted">{status.detail}</span>}
+    </p>
+  );
+}
+
+function ViewerPage({ flow, compiled, status }: { flow: FlowRow; compiled: Flow; status: ReviewStatus }) {
   const steps = compiled.steps.length;
   return (
     <section class={`viewer flow-${flow.colour}`}>
@@ -25,6 +38,7 @@ function ViewerPage({ flow, compiled }: { flow: FlowRow; compiled: Flow }) {
           {flow.name}
         </h1>
         {flow.objective && <p class="muted">{flow.objective}</p>}
+        <StatusLine status={status} />
       </div>
       <div class="viewer-cols">
         <div class="card diagram-card">
@@ -36,7 +50,7 @@ function ViewerPage({ flow, compiled }: { flow: FlowRow; compiled: Flow }) {
           <div class="diagram-actions">
             {/* public/js/viewer.js turns the page into the tour. */}
             <button type="button" class="button-primary" data-start>
-              Iniciar recorrido
+              {status.action}
             </button>
           </div>
         </div>
@@ -60,12 +74,20 @@ viewer.get("/:id{[0-9]+}", async (c) => {
   if (!flow) return c.notFound();
   const release = await latestRelease(c.env.DB, flow);
   if (!release) return c.notFound();
-  return c.render(<ViewerPage flow={flow} compiled={release.flow} />, { title: flow.name });
+  const user = await currentUser(c);
+  const status = await reviewStatus(c.env.DB, user.id, flow.id, release);
+  return c.render(<ViewerPage flow={flow} compiled={release.flow} status={status} />, { title: flow.name });
 });
 
 // The tour (phase 3.2). JSON in and out; the server's clock, never the
 // browser's. A refused action answers 409 with the message to show.
 const flowId = (c: { req: { param: (name: "id") => string } }) => Number(c.req.param("id"));
+
+// The status after starting or finishing, so the page can redraw it.
+async function statusOf(db: D1Database, userId: number, id: number) {
+  const flow = (await getFlow(db, id))!;
+  return reviewStatus(db, userId, id, (await latestRelease(db, flow))!);
+}
 
 function readAction(body: unknown): Action | null {
   if (typeof body !== "object" || body === null) return null;
@@ -80,7 +102,7 @@ viewer.post("/:id{[0-9]+}/tour", async (c) => {
   const user = await currentUser(c);
   const run = await startTour(c.env.DB, user.id, flowId(c), new Date());
   if (!run) return c.notFound();
-  return c.json(run);
+  return c.json({ ...run, status: await statusOf(c.env.DB, user.id, flowId(c)) });
 });
 
 viewer.post("/:id{[0-9]+}/tour/step", async (c) => {
@@ -96,5 +118,6 @@ viewer.post("/:id{[0-9]+}/tour/finish", async (c) => {
   const user = await currentUser(c);
   const result = await finishTour(c.env.DB, user.id, flowId(c), new Date());
   if (result.ok === false) return c.json({ error: result.error }, 409);
-  return c.json({ durationSeconds: result.durationSeconds, newer: result.newer });
+  const status = await statusOf(c.env.DB, user.id, flowId(c));
+  return c.json({ durationSeconds: result.durationSeconds, newer: result.newer, status });
 });

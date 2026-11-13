@@ -527,6 +527,11 @@ Never trust the browser for any of these:
   is Google Sans: body text, labels, buttons, form fields, table cells, the
   editor grid and the step titles inside the diagram, which are small, dense
   and sit on filled colour.
+- **The rule is what the text *is*, not how big it is.** iBrand names the page
+  and does not change while the reader stays on it. Anything that changes as
+  they work — the title of the current step, a flow's objective, a message —
+  is content and stays in Google Sans however large it is set. A step title
+  can run to four lines and must stay comfortable to read.
 - **iBrand has one weight.** Display text uses `--weight-display`; never apply
   a bolder weight to it and never let the browser synthesise one
   (`font-synthesis-weight: none`). It already reads heavy at title sizes.

@@ -139,3 +139,52 @@ async function newerVersion(db: D1Database, flowId: number, toured: Release): Pr
     ? `Mientras lo recorrías se publicó la versión ${version(latest)}, con cambios importantes: esa versión queda pendiente de revisión.`
     : `Mientras lo recorrías se publicó la versión ${version(latest)}, con cambios menores: tu revisión sigue vigente.`;
 }
+
+// The user's review status on a flow, shown in the viewer (phase 3.4) and
+// later on the home screen. "Revisado" holds while the latest release has
+// the same major version as a release the user reviewed: a minor release
+// keeps it, a major one resets it (§8). Status never relies on colour
+// alone (§7): the viewer pairs `label` with an icon.
+export type ReviewState = "pending" | "in_progress" | "reviewed";
+export type ReviewStatus = { state: ReviewState; label: string; detail: string | null; action: string };
+
+const LABELS: Record<ReviewState, string> = {
+  pending: "Pendiente de revisión",
+  in_progress: "Recorrido en curso",
+  reviewed: "Revisado",
+};
+
+const longDate = new Intl.DateTimeFormat("es-CO", { timeZone: "America/Bogota", day: "numeric", month: "long", year: "numeric" });
+
+export async function reviewStatus(db: D1Database, userId: number, flowId: number, latest: Release): Promise<ReviewStatus> {
+  const [open, review] = await Promise.all([
+    db
+      .prepare(
+        `SELECT rel.major, rel.minor FROM tour_runs r JOIN releases rel ON rel.id = r.release_id
+         WHERE r.user_id = ? AND rel.flow_id = ? AND r.finished_at IS NULL LIMIT 1`,
+      )
+      .bind(userId, flowId)
+      .first<{ major: number; minor: number }>(),
+    // The newest release reviewed; for it, its first review (a repeated
+    // tour never replaces it).
+    db
+      .prepare(
+        `SELECT rel.major, rel.minor, rr.completed_at FROM review_records rr JOIN releases rel ON rel.id = rr.release_id
+         WHERE rr.user_id = ? AND rel.flow_id = ? ORDER BY rel.major DESC, rel.minor DESC LIMIT 1`,
+      )
+      .bind(userId, flowId)
+      .first<{ major: number; minor: number; completed_at: string }>(),
+  ]);
+  const current = version(latest);
+  const action = open ? "Continuar recorrido" : review?.major === latest.major ? "Repetir recorrido" : "Iniciar recorrido";
+  if (review && review.major === latest.major) {
+    const on = version(review) === current ? "" : `, en la versión ${version(review)}`;
+    return { state: "reviewed", label: LABELS.reviewed, detail: `El ${longDate.format(new Date(review.completed_at))}${on}.`, action };
+  }
+  if (open) {
+    const detail = version(open) === current ? null : `Lo empezaste en la versión ${version(open)} y lo terminas en esa versión.`;
+    return { state: "in_progress", label: LABELS.in_progress, detail, action };
+  }
+  const detail = review ? `Revisaste la versión ${version(review)}. La ${current} trae cambios importantes.` : null;
+  return { state: "pending", label: LABELS.pending, detail, action };
+}

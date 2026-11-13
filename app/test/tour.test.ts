@@ -9,7 +9,7 @@ import { loadDevFlows } from "../src/devload.ts";
 import { getFlow, latestRelease } from "../src/flows.ts";
 import { applyGrid } from "../src/import.ts";
 import { publishFlow, type Bump } from "../src/publish.ts";
-import { finishTour, startTour, takeStep, TOO_FAST } from "../src/tour.ts";
+import { finishTour, reviewStatus, startTour, takeStep, TOO_FAST } from "../src/tour.ts";
 
 const db = () => env.DB;
 const T0 = Date.parse("2026-11-13T15:00:00.000Z");
@@ -228,6 +228,65 @@ describe("the tour on the server (SPEC §7)", () => {
   });
 });
 
+describe("review status (phase 3.4)", () => {
+  const statusOf = async (s: { flowId: number; user: number }) =>
+    reviewStatus(db(), s.user, s.flowId, (await latestRelease(db(), (await getFlow(db(), s.flowId))!))!);
+  const bump = async (s: { flowId: number }, kind: Bump, end: string) => {
+    const changed = structuredClone(TWINS);
+    changed.rows.find((r) => r.id === "P6")!.title = end;
+    expect((await applyGrid(db(), s.flowId, changed, { categories: [], tags: [] })).ok).toBe(true);
+    expect((await publishFlow(db(), s.flowId, kind)).ok).toBe(true);
+  };
+  const tour = async (s: { flowId: number; user: number; flow: any }, from: number) => {
+    await startTour(db(), s.user, s.flowId, at(from));
+    const end = await walk(s, from);
+    expect((await finishTour(db(), s.user, s.flowId, at(end + 60))).ok).toBe(true);
+    return end + 60;
+  };
+
+  it("goes from pending to in progress to reviewed, with the date in Bogotá", async () => {
+    const s = await setup("Ramas gemelas");
+    expect(await statusOf(s)).toEqual({ state: "pending", label: "Pendiente de revisión", detail: null, action: "Iniciar recorrido" });
+    await startTour(db(), s.user, s.flowId, at(0));
+    expect(await statusOf(s)).toEqual({ state: "in_progress", label: "Recorrido en curso", detail: null, action: "Continuar recorrido" });
+    await walk(s, 0);
+    // 03:00 UTC on the 14th is still the 13th in Bogotá.
+    expect((await finishTour(db(), s.user, s.flowId, new Date("2026-11-14T03:00:00Z"))).ok).toBe(true);
+    expect(await statusOf(s)).toEqual({ state: "reviewed", label: "Revisado", detail: "El 13 de noviembre de 2026.", action: "Repetir recorrido" });
+    // Repeating: still reviewed, and the button resumes the new run.
+    await startTour(db(), s.user, s.flowId, new Date("2026-11-20T15:00:00Z"));
+    expect(await statusOf(s)).toMatchObject({ state: "reviewed", detail: "El 13 de noviembre de 2026.", action: "Continuar recorrido" });
+  });
+
+  it("keeps the review after a minor release and resets it after a major one (§8)", async () => {
+    const s = await setup("Ramas gemelas");
+    await tour(s, 0);
+    await bump(s, "minor", "Cierre B");
+    expect(await statusOf(s)).toMatchObject({ state: "reviewed", detail: "El 13 de noviembre de 2026, en la versión 1.0.", action: "Repetir recorrido" });
+    await bump(s, "major", "Cierre C");
+    expect(await statusOf(s)).toEqual({
+      state: "pending",
+      label: "Pendiente de revisión",
+      detail: "Revisaste la versión 1.0. La 2.0 trae cambios importantes.",
+      action: "Iniciar recorrido",
+    });
+    await tour({ ...s, flow: (await latestRelease(db(), (await getFlow(db(), s.flowId))!))!.flow }, 1000);
+    expect(await statusOf(s)).toMatchObject({ state: "reviewed", detail: "El 13 de noviembre de 2026." });
+  });
+
+  it("is in progress on the old version while a run started before a major release is open", async () => {
+    const s = await setup("Ramas gemelas");
+    await startTour(db(), s.user, s.flowId, at(0));
+    await bump(s, "major", "Cierre C");
+    expect(await statusOf(s)).toEqual({
+      state: "in_progress",
+      label: "Recorrido en curso",
+      detail: "Lo empezaste en la versión 1.0 y lo terminas en esa versión.",
+      action: "Continuar recorrido",
+    });
+  });
+});
+
 describe("tour routes", () => {
   const post = (path: string, body?: unknown) =>
     exports.default.fetch(`http://example.com${path}`, {
@@ -252,5 +311,19 @@ describe("tour routes", () => {
     const runs = await db().prepare("SELECT u.username FROM tour_runs r JOIN users u ON u.id = r.user_id").all();
     expect(runs.results).toEqual([{ username: "usuario de prueba" }]);
     expect((await post("/flows/999/tour")).status).toBe(404);
+  });
+
+  it("answers start and finish with the new status, and the page shows it", async () => {
+    const s = await setup("Ramas gemelas");
+    const page = async () => (await exports.default.fetch(`http://example.com/flows/${s.flowId}`)).text();
+    expect(await page()).toContain('data-state="pending"');
+    expect(await page()).toContain(">Iniciar recorrido</button>");
+    expect(((await (await post(`/flows/${s.flowId}/tour`)).json()) as any).status).toMatchObject({ state: "in_progress" });
+    const html = await page();
+    expect(html).toContain('<img class="icon" src="/icons/in_progress.svg" alt="" width="18" height="18"/><strong>Recorrido en curso</strong>');
+    expect(html).toContain(">Continuar recorrido</button>");
+    // Finishing is refused this early; the status stays as it was.
+    expect((await post(`/flows/${s.flowId}/tour/finish`)).status).toBe(409);
+    expect(await page()).toContain('data-state="in_progress"');
   });
 });
