@@ -4,6 +4,7 @@ import type { Grid } from "../public/js/core.js";
 import instalaciones from "../../reference/Flujo_Instalaciones.grid.json";
 import { loadDevFlows } from "../src/devload.ts";
 import { createFlow } from "../src/flows.ts";
+import { NO_AREAS_WARNING } from "../src/flows-screen.tsx";
 import { nameKey } from "../src/names.ts";
 import { signIn, type Signed } from "./session.ts";
 
@@ -69,5 +70,29 @@ describe("flow form (phase 4.4)", () => {
     // Taking the area away hides it again.
     await save(board, id, { name: "Instalaciones", areas: [] });
     expect((await ana.fetch(`/flows/${id}`)).status).toBe(404);
+  });
+
+  it("warns, and still saves, when a published flow is left with no area", async () => {
+    await loadDevFlows(env.DB, [{ name: "Instalaciones", grid: instalaciones as Grid }]);
+    const id = (await env.DB.prepare("SELECT id FROM flows WHERE name = 'Instalaciones'").first<number>("id"))!;
+    const board = await signIn();
+    let res = await save(board, id, { name: "Instalaciones", areas: [] });
+    expect(res.status).toBe(303);
+    expect(await areasOf(id)).toEqual([]);
+    let html = await (await board.fetch(res.headers.get("location")!)).text();
+    expect(html).toContain("Cambios guardados.");
+    expect(html).toContain(NO_AREAS_WARNING);
+    // Only right after saving, not on every visit.
+    expect(await (await board.fetch(`/flows/${id}/details`)).text()).not.toContain(NO_AREAS_WARNING);
+    // With an area, no warning.
+    res = await save(board, id, { name: "Instalaciones", areas: [await area("Ventas")] });
+    expect(await (await board.fetch(res.headers.get("location")!)).text()).not.toContain(NO_AREAS_WARNING);
+    // A draft with no area: nobody sees it yet, and publishing asks for one.
+    const draft = await createFlow(env.DB, "Borrador");
+    if (!draft.ok) throw new Error(draft.error);
+    res = await save(board, draft.id, { name: "Borrador", areas: [] });
+    html = await (await board.fetch(res.headers.get("location")!)).text();
+    expect(html).toContain("Cambios guardados.");
+    expect(html).not.toContain(NO_AREAS_WARNING);
   });
 });

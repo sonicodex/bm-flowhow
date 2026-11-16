@@ -55,7 +55,10 @@ Entry format:
   - **The flow form** at `/flows/:id/details` (`editor`): name, objective
     and areas. Areas are optional there; the first publication requires
     one. Taking every area from a published flow is allowed and hides it
-    from Empleados. The subflow/area exclusivity (§7) waits for subflows
+    from Empleados; after saving, the page warns that no Empleado will see
+    it (owner's request on approving phase 4). Not for a draft, which
+    nobody sees and which needs an area to publish. Not blocked, only said.
+    The subflow/area exclusivity (§7) waits for subflows
     (stage 2).
   - The import screen stays provisional, for editors, until phase 5.
   - Browser check: `app/.layout-check/4.4/` (areas, users, new user, the

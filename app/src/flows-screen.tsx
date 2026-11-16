@@ -220,7 +220,27 @@ flowsScreen.post("/:id/import/apply", "editor", async (c) => {
 // areas whose Empleados see it. Editors only.
 type AreaOption = { id: number; name: string };
 
-function DetailsPage({ flow, values, areas, error, saved }: { flow: { id: number; name: string }; values: FlowDetails; areas: AreaOption[]; error?: string; saved?: boolean }) {
+// Saving a published flow with no area is allowed (DECISIONS, phase 4.4), but
+// it leaves every Empleado without it, so the page says so. A draft is left
+// out: publishing it asks for an area anyway.
+export const NO_AREAS_WARNING =
+  "Este flujo publicado quedó sin áreas, así que ningún Empleado lo verá. Solo lo verán los Líderes y la Junta directiva.";
+
+function DetailsPage({
+  flow,
+  values,
+  areas,
+  error,
+  saved,
+  warning,
+}: {
+  flow: { id: number; name: string };
+  values: FlowDetails;
+  areas: AreaOption[];
+  error?: string;
+  saved?: boolean;
+  warning?: string | null;
+}) {
   return (
     <>
       <h1 class="page-title">Datos: {flow.name}</h1>
@@ -230,6 +250,11 @@ function DetailsPage({ flow, values, areas, error, saved }: { flow: { id: number
         </p>
       )}
       {saved && <p role="status">Cambios guardados.</p>}
+      {warning && (
+        <p class="form-warning" role="status">
+          {warning}
+        </p>
+      )}
       <form method="post" action={`/flows/${flow.id}/details`} class="stacked-form admin-form">
         <label for="flow-name">Nombre</label>
         <input id="flow-name" name="name" value={values.name} required maxlength={100} />
@@ -271,7 +296,10 @@ flowsScreen.get("/:id{[0-9]+}/details", "editor", async (c) => {
   if (!flow) return c.notFound();
   const { results } = await db.prepare("SELECT area_id FROM flow_areas WHERE flow_id = ?").bind(flow.id).all<{ area_id: number }>();
   const values = { name: flow.name, objective: flow.objective, areaIds: results.map((r) => r.area_id) };
-  return c.render(<DetailsPage flow={flow} values={values} areas={await listAreaOptions(db)} saved={c.req.query("guardado") === "1"} />, {
+  const saved = c.req.query("guardado") === "1";
+  const published = saved && !!(await db.prepare("SELECT 1 FROM releases WHERE flow_id = ?").bind(flow.id).first());
+  const warning = published && values.areaIds.length === 0 ? NO_AREAS_WARNING : null;
+  return c.render(<DetailsPage flow={flow} values={values} areas={await listAreaOptions(db)} saved={saved} warning={warning} />, {
     title: `Datos ${flow.name}`,
   });
 });
