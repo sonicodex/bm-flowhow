@@ -1,10 +1,11 @@
 import { Hono } from "hono";
 import { csrf } from "hono/csrf";
+import { assertGuarded, Router, signInFirst } from "./access.tsx";
 import { areas } from "./areas.tsx";
 import { flowsScreen } from "./flows-screen.tsx";
 import { renderer } from "./layout.tsx";
 import { HOME, login } from "./login.tsx";
-import { loadSession, requireUser, userOf, type AppEnv } from "./session.ts";
+import { loadSession, userOf, type AppEnv } from "./session.ts";
 import { viewer } from "./viewer.tsx";
 
 const app = new Hono<AppEnv>();
@@ -16,26 +17,24 @@ app.use(csrf());
 app.use(loadSession);
 app.use(renderer);
 
-// The only routes without a session: the login, and leaving.
-app.route("/", login);
-
-app.use(requireUser);
-
 // Provisional until phase 4.3 builds the home screen.
-app.get(HOME, (c) =>
-  c.render(
-    <>
-      <h1 class="page-title">Hola, {userOf(c).fullName}</h1>
-      <p>
-        <a href="/flows">Flujos</a>
-      </p>
-    </>,
-    { title: "Inicio" },
-  ),
+const home = new Router().get(HOME, "user", (c) =>
+  c.render(<h1 class="page-title">Hola, {userOf(c).fullName}</h1>, { title: "Inicio" }),
 );
 
-app.route("/areas", areas);
-app.route("/flows", viewer);
-app.route("/flows", flowsScreen);
+// Each route declares who may reach it (src/access.tsx); the order here
+// does not decide it.
+app.route("/", login.app);
+app.route("/", home.app);
+app.route("/areas", areas.app);
+app.route("/flows", viewer.app);
+app.route("/flows", flowsScreen.app);
+
+// Without a session, an unknown path goes to the login too: only the
+// public routes answer anything else.
+app.notFound((c) => (c.get("user") ? c.text("404 Not Found", 404) : signInFirst(c)));
+
+// A route without a declared access stops the Worker from starting.
+assertGuarded(app);
 
 export default app;

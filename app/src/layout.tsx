@@ -7,6 +7,19 @@ declare module "hono" {
   }
 }
 
+// The screens the user's permissions open (phase 4.2). Hiding a link is a
+// courtesy: the server refuses the route anyway (src/access.tsx).
+function Nav() {
+  const user = useRequestContext<AppEnv>().get("user");
+  if (!user?.canEdit) return null;
+  return (
+    <nav class="site-nav" aria-label="Administración">
+      <a href="/flows">Flujos</a>
+      <a href="/areas">Áreas</a>
+    </nav>
+  );
+}
+
 // The signed-in user's name and "Salir". Leaving is a POST, so a link on
 // another site cannot sign anyone out.
 function Account() {
@@ -37,6 +50,7 @@ export const renderer = jsxRenderer(({ children, title }) => (
         <a href="/" class="site-logo">
           <img src="/flowhow_logotype.svg" alt="FlowHow" />
         </a>
+        <Nav />
         <Account />
       </header>
       <main class="site-main">{children}</main>

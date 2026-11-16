@@ -106,15 +106,5 @@ export const loadSession: MiddlewareHandler<AppEnv> = async (c, next) => {
   await next();
 };
 
-// Everything after this middleware needs a session. Pages send the browser
-// to the login; the tour's JSON routes answer 401 with the message to show.
-export const requireUser: MiddlewareHandler<AppEnv> = async (c, next) => {
-  if (c.get("user")) return next();
-  if (c.req.method !== "GET" && c.req.header("content-type")?.startsWith("application/json")) {
-    return c.json({ error: "Tu sesión terminó. Vuelve a entrar y sigue donde ibas." }, 401);
-  }
-  return c.redirect("/", c.req.method === "GET" ? 302 : 303);
-};
-
-// The user of a request that passed requireUser.
+// The user of a request whose route needs a session (src/access.tsx).
 export const userOf = (c: Context<AppEnv>): SessionUser => c.get("user")!;

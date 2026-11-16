@@ -1,10 +1,10 @@
-import { Hono } from "hono";
 import { nameKey } from "./names.ts";
 import { verifyPassword } from "./password.ts";
-import { createSession, endSession, type AppEnv } from "./session.ts";
+import { Router } from "./access.tsx";
+import { createSession, endSession } from "./session.ts";
 
 // The root URL is the login (SPEC §7: no landing page, no open sign-up).
-export const login = new Hono<AppEnv>();
+export const login = new Router();
 
 export const HOME = "/home";
 export const LOGIN_FAILED = "Usuario o contraseña incorrectos.";
@@ -46,9 +46,9 @@ function LoginPage({ username, error }: { username?: string; error?: boolean }) 
   );
 }
 
-login.get("/", (c) => (c.get("user") ? c.redirect(HOME, 302) : c.render(<LoginPage />, { title: "Entrar" })));
+login.get("/", "public", (c) => (c.get("user") ? c.redirect(HOME, 302) : c.render(<LoginPage />, { title: "Entrar" })));
 
-login.post("/login", async (c) => {
+login.post("/login", "public", async (c) => {
   const form = await c.req.parseBody();
   const typed = String(form.username ?? "");
   const password = String(form.password ?? "");
@@ -68,7 +68,7 @@ login.post("/login", async (c) => {
   return c.redirect(HOME, 303);
 });
 
-login.post("/logout", async (c) => {
+login.post("/logout", "public", async (c) => {
   await endSession(c);
   return c.redirect("/", 303);
 });

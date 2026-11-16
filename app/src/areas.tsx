@@ -1,9 +1,10 @@
-import { Hono } from "hono";
+import { Router } from "./access.tsx";
 import { NAME_RULE, nameKey } from "./names.ts";
 
-// Provisional areas screen: proves the Worker reads and writes D1.
-// Phase 4 restricts it to the Board (SPEC §9 Administration screens).
-export const areas = new Hono<{ Bindings: Env }>();
+// Provisional areas screen: proves the Worker reads and writes D1. An
+// administration screen (SPEC §9), behind `can_edit` (phase 4.2); 4.4
+// replaces it.
+export const areas = new Router();
 
 type Area = { id: number; name: string };
 
@@ -35,9 +36,9 @@ function AreasPage({ items, error, value }: { items: Area[]; error?: string; val
   );
 }
 
-areas.get("/", async (c) => c.render(<AreasPage items={await listAreas(c.env.DB)} />, { title: "Áreas" }));
+areas.get("/", "editor", async (c) => c.render(<AreasPage items={await listAreas(c.env.DB)} />, { title: "Áreas" }));
 
-areas.post("/", async (c) => {
+areas.post("/", "editor", async (c) => {
   const form = await c.req.parseBody();
   const name = String(form.name ?? "").trim();
   let error: string | undefined;

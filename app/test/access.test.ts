@@ -1,0 +1,165 @@
+import { env } from "cloudflare:test";
+import { Hono } from "hono";
+import { describe, expect, it } from "vitest";
+import type { Grid } from "../public/js/core.js";
+import instalaciones from "../../reference/Flujo_Instalaciones.grid.json";
+import apertura from "../../reference/Flujo_Apertura_OT.grid.json";
+import { assertGuarded, guardedRoutes, Router, type Access } from "../src/access.tsx";
+import { loadDevFlows } from "../src/devload.ts";
+import { createFlow } from "../src/flows.ts";
+import app from "../src/index.tsx";
+import { renderer } from "../src/layout.tsx";
+import { loadSession, type AppEnv } from "../src/session.ts";
+import { signIn, withSession, type Signed } from "./session.ts";
+
+const anonymous = withSession("");
+
+// Each request as a browser would send it. POSTs go as JSON, the shape the
+// tour's routes read; the form routes read an empty body and refuse it.
+const send = (who: Signed["fetch"], method: string, path: string) =>
+  who(path, method === "GET" ? {} : { method, headers: { "content-type": "application/json" }, body: "{}" });
+
+const sentToLogin = (res: Response, method: string) =>
+  method === "GET" ? res.status === 302 && res.headers.get("location") === "/" : res.status === 401;
+
+// Through the guard: the route's own handler answered.
+const through = (res: Response) =>
+  ![401, 403, 404].includes(res.status) && !(res.status >= 300 && res.status < 400 && res.headers.get("location") === "/");
+
+describe("route access (phase 4.2)", () => {
+  it("lists every route from the app itself, each with the access decided for it", () => {
+    // Read from the app, compared with what was decided. A new route turns
+    // this red until someone writes down who may reach it; a route whose
+    // declared access changes does too.
+    const routes = Object.fromEntries(guardedRoutes(app).map((r) => [`${r.method} ${r.path}`, r.access]));
+    expect(routes).toEqual({
+      "GET /": "public",
+      "POST /login": "public",
+      "POST /logout": "public",
+      "GET /home": "user",
+      "GET /areas": "editor",
+      "POST /areas": "editor",
+      "GET /flows/:id{[0-9]+}": "flow",
+      "POST /flows/:id{[0-9]+}/tour": "flow",
+      "POST /flows/:id{[0-9]+}/tour/restart": "flow",
+      "POST /flows/:id{[0-9]+}/tour/step": "flow",
+      "POST /flows/:id{[0-9]+}/tour/finish": "flow",
+      "GET /flows": "editor",
+      "POST /flows": "editor",
+      "GET /flows/:id/import": "editor",
+      "POST /flows/:id/import/review": "editor",
+      "POST /flows/:id/import/apply": "editor",
+    });
+  });
+
+  it("walks every route against each kind of user", async () => {
+    await loadDevFlows(env.DB, [
+      { name: "Instalaciones", grid: instalaciones as Grid },
+      { name: "Apertura de OT", grid: apertura as Grid },
+    ]);
+    const area = (await env.DB.prepare("SELECT id FROM areas WHERE name = 'Desarrollo'").first<number>("id"))!;
+    const flow = (await env.DB.prepare("SELECT id FROM flows WHERE name = 'Instalaciones'").first<number>("id"))!;
+    const users = {
+      inArea: await signIn({ username: "ana", role: "standard", areaIds: [area] }),
+      otherArea: await signIn({ username: "beto", role: "standard" }),
+      leader: await signIn({ username: "lia", role: "leader" }),
+      board: await signIn({ username: "junta", role: "board" }),
+    };
+    // Who gets through each kind of access; everyone else is refused.
+    const allowed: Record<Exclude<Access, "public">, (keyof typeof users)[]> = {
+      user: ["inArea", "otherArea", "leader", "board"],
+      flow: ["inArea", "leader", "board"],
+      editor: ["board"],
+      admin: ["board"],
+    };
+    // Refused with 404 when the route is about a flow (nothing leaks about
+    // it), 403 when it is about a permission.
+    const refusal: Record<Exclude<Access, "public">, number> = { user: 0, flow: 404, editor: 403, admin: 403 };
+
+    const routes = guardedRoutes(app).filter((r) => r.access !== "public");
+    for (const { method, path, access } of routes) {
+      if (access === "public") continue;
+      const url = path.replace(/:id(\{[^}]*\})?/, String(flow));
+      const label = `${method} ${url} (${access})`;
+      expect(sentToLogin(await send(anonymous, method, url), method), `${label}: sin sesión`).toBe(true);
+      for (const [name, user] of Object.entries(users) as [keyof typeof users, Signed][]) {
+        const res = await send(user.fetch, method, url);
+        if (allowed[access].includes(name)) expect(through(res), `${label}: ${name} → ${res.status}`).toBe(true);
+        else expect(res.status, `${label}: ${name}`).toBe(refusal[access]);
+      }
+    }
+  });
+
+  it("answers a hidden flow exactly as one that does not exist", async () => {
+    await loadDevFlows(env.DB, [{ name: "Instalaciones", grid: instalaciones as Grid }]);
+    const flow = (await env.DB.prepare("SELECT id FROM flows WHERE name = 'Instalaciones'").first<number>("id"))!;
+    const outsider = await signIn({ username: "beto", role: "standard" });
+    const hidden = await outsider.fetch(`/flows/${flow}`);
+    const missing = await outsider.fetch(`/flows/${flow + 100}`);
+    expect(hidden.status).toBe(404);
+    expect(missing.status).toBe(404);
+    expect(await hidden.text()).toBe(await missing.text());
+  });
+
+  it("shows nobody an unpublished flow in the viewer, the Board included", async () => {
+    const created = await createFlow(env.DB, "Borrador");
+    if (!created.ok) throw new Error(created.error);
+    const board = await signIn();
+    expect((await board.fetch(`/flows/${created.id}`)).status).toBe(404);
+  });
+
+  it("shows the Flujos and Áreas links only to editors", async () => {
+    const board = await signIn();
+    const leader = await signIn({ username: "lia", role: "leader" });
+    const boardHtml = await (await board.fetch("/home")).text();
+    expect(boardHtml).toContain('<a href="/flows">Flujos</a>');
+    expect(boardHtml).toContain('<a href="/areas">Áreas</a>');
+    const leaderHtml = await (await leader.fetch("/home")).text();
+    expect(leaderHtml).not.toContain('href="/flows"');
+    expect(leaderHtml).not.toContain('href="/areas"');
+  });
+
+  it("refuses the admin layer without can_view_admin_layer, whatever the role", async () => {
+    const test = new Hono<AppEnv>();
+    test.use(loadSession);
+    test.use(renderer);
+    test.route("/", new Router().get("/capa", "admin", (c) => c.text("capa")).app);
+    const leader = await signIn({ username: "lia", role: "leader" });
+    const board = await signIn();
+    const get = (cookie: string) => test.request("/capa", { headers: { cookie } }, env);
+    expect((await get(leader.cookie)).status).toBe(403);
+    expect(await (await get(board.cookie)).text()).toBe("capa");
+    // The flag decides, not the role.
+    await env.DB.prepare("UPDATE users SET can_view_admin_layer = 1 WHERE id = ?").bind(leader.id).run();
+    expect(await (await get(leader.cookie)).text()).toBe("capa");
+  });
+});
+
+describe("a route cannot exist without its access", () => {
+  it("refuses a route added with Hono directly, wherever it is mounted", () => {
+    const sub = new Hono<AppEnv>();
+    sub.get("/abierta", (c) => c.text("sin guardia"));
+    const root = new Hono<AppEnv>();
+    root.use(loadSession);
+    root.route("/", new Router().get("/", "user", (c) => c.text("ok")).app);
+    root.route("/x", sub);
+    expect(() => assertGuarded(root)).toThrow("La ruta GET /x/abierta no declara su acceso");
+  });
+
+  it("refuses app.all on a path, which is a route and not middleware", () => {
+    const root = new Hono<AppEnv>();
+    root.all("/todo", (c) => c.text("sin guardia"));
+    expect(() => assertGuarded(root)).toThrow("La ruta ALL /todo no declara su acceso");
+  });
+
+  it("accepts middleware and the routes of a Router", () => {
+    const root = new Hono<AppEnv>();
+    root.use(loadSession);
+    root.use("/flows/*", loadSession);
+    root.route("/", new Router().get("/a", "user", (c) => c.text("a")).post("/a", "editor", (c) => c.text("a")).app);
+    expect(guardedRoutes(root)).toEqual([
+      { method: "GET", path: "/a", access: "user" },
+      { method: "POST", path: "/a", access: "editor" },
+    ]);
+  });
+});

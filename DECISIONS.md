@@ -14,6 +14,50 @@ Entry format:
 
 ---
 
+## 2026-11-16 — Permissions on every route (phase 4.2)
+
+- Decision:
+  - **A route cannot exist without declaring its access** (owner's
+    request: protection must not depend on registration order).
+    `src/access.tsx` has a `Router` whose `get`/`post` take the access as
+    an argument, so TypeScript refuses a route without it; `index.tsx`
+    mounts only Routers. A route added with Hono directly would get past
+    the types, so `assertGuarded(app)` runs when the Worker loads and
+    throws if any route lacks a guard: `wrangler dev`, the tests and a
+    deployment all fail to start. Middleware (`use`, path ending in `*`)
+    is not a route; `app.all` on a path is. The global `requireUser` and
+    its dependence on order are gone.
+  - **Five kinds of access**: `public` (`GET /`, `POST /login`,
+    `POST /logout`), `user`, `flow` (signed in and may see the flow in
+    `:id`, else 404 as for a missing flow), `editor` (`can_edit`, else
+    403), `admin` (`can_view_admin_layer`, else 403; no route uses it
+    until stage 3). Flags, never the role.
+  - **Administration screens (areas now, users in 4.4) are `editor`**
+    (owner's answer): `can_view_admin_layer` is for the admin layer and
+    may later go to a group that must not manage users.
+  - **Visibility** (`canSeeFlow`): a published flow; a Standard user
+    also needs one of its areas. Leaders and the Board see every
+    published flow. The viewer and the four tour routes are `flow`; the
+    provisional flows list and import screens are `editor`.
+  - **Without a session, an unknown path still goes to the login**, as in
+    4.1 (`notFound`); signed in, it is a 404.
+  - **The test reads the routes from the app** (`guardedRoutes`) and
+    compares them with the access decided for each, written in the test:
+    a new route turns it red until someone decides who may reach it. Then
+    it walks every route against no session, a Standard user in the
+    flow's area, one in another area, a Leader and the Board. A hidden
+    flow answers byte for byte what a missing one does.
+  - The header shows «Flujos» and «Áreas» to users with `can_edit`. The
+    provisional home screen no longer links to `/flows`: until 4.3 a user
+    without `can_edit` reaches a flow only by its URL.
+  - Not yet: links between flows (a step's `ref`) are not filtered; the
+    target answers 404 if hidden. "Whether a linked flow is accessible"
+    (§9) lands with the screens that show links.
+- Reason: phase 4 plan, slice 4.2; owner's requests on the route test and
+  on declaring access.
+- Spec sections affected: 4 (Roles and permissions), 9 (Server-enforced
+  rules: flow visibility; Administration screens).
+
 ## 2026-11-16 — Login and sessions (phase 4.1)
 
 - Decision:

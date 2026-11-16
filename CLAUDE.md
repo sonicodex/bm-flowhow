@@ -37,6 +37,9 @@ Working notes for Claude Code agents on this repo. Keep it short.
   Worker's assets directory; any other path reaches the Worker.
 - Schema changes are new files in `app/migrations/`. Never edit a migration
   that has been applied anywhere but your own local database.
+- Routes are added only through a `Router` (`app/src/access.tsx`), which
+  takes each route's access; the Worker refuses to start otherwise. A new
+  route also goes in the access table of `app/test/access.test.ts`.
 - Styles use only `theme.css` tokens: no literal colours, type, spacing or radii.
 - Secrets live in `.dev.vars` (ignored), never in the repo. `.dev.vars.example`
   lists the keys.

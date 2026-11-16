@@ -38,6 +38,14 @@ a:visited {
   height: var(--space-6);
 }
 
+/* Links to the screens the user's permissions open (phase 4.2). */
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  font-size: var(--text-sm);
+}
+
 /* Signed-in user and "Salir" (phase 4.1), at the right of the header. */
 .site-account {
   display: flex;

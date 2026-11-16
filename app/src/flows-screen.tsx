@@ -1,12 +1,12 @@
-import { Hono } from "hono";
 import type { RowError } from "../public/js/core.js";
+import { Router } from "./access.tsx";
 import { createFlow, getFlow } from "./flows.ts";
 import { applyGrid, parseGrid, reviewGrid, type NewTag, type Review } from "./import.ts";
 
 // Provisional flows and import screens (phase 1.5): a scaffold to exercise
-// the import contract. Phase 5 replaces them with the editor; phase 4
-// restricts them to editors. They only reuse the existing app.css classes.
-export const flowsScreen = new Hono<{ Bindings: Env }>();
+// the import contract. Phase 5 replaces them with the editor. Editors
+// only (phase 4.2). They only reuse the existing app.css classes.
+export const flowsScreen = new Router();
 
 type FlowItem = { id: number; name: string; version: string | null; draft: number };
 
@@ -56,9 +56,9 @@ function FlowsPage({ items, error, value }: { items: FlowItem[]; error?: string;
   );
 }
 
-flowsScreen.get("/", async (c) => c.render(<FlowsPage items={await listFlows(c.env.DB)} />, { title: "Flujos" }));
+flowsScreen.get("/", "editor", async (c) => c.render(<FlowsPage items={await listFlows(c.env.DB)} />, { title: "Flujos" }));
 
-flowsScreen.post("/", async (c) => {
+flowsScreen.post("/", "editor", async (c) => {
   const name = String((await c.req.parseBody()).name ?? "");
   const r = await createFlow(c.env.DB, name);
   if (r.ok === false) {
@@ -161,7 +161,7 @@ function ReviewPage({ flow, review, grid }: { flow: { id: number; name: string }
   );
 }
 
-async function flowOf(c: { env: Env; req: { param: (k: string) => string } }) {
+async function flowOf(c: { env: Env; req: { param: (k: string) => string | undefined } }) {
   const id = Number(c.req.param("id"));
   return Number.isSafeInteger(id) && id > 0 ? getFlow(c.env.DB, id) : null;
 }
@@ -174,13 +174,13 @@ function readGrid(raw: unknown) {
   }
 }
 
-flowsScreen.get("/:id/import", async (c) => {
+flowsScreen.get("/:id/import", "editor", async (c) => {
   const flow = await flowOf(c);
   if (!flow) return c.notFound();
   return c.render(<ImportPage flow={flow} done={c.req.query("done") === "1"} />, { title: `Importar ${flow.name}` });
 });
 
-flowsScreen.post("/:id/import/review", async (c) => {
+flowsScreen.post("/:id/import/review", "editor", async (c) => {
   const flow = await flowOf(c);
   if (!flow) return c.notFound();
   const parsed = readGrid((await c.req.parseBody()).grid);
@@ -190,7 +190,7 @@ flowsScreen.post("/:id/import/review", async (c) => {
   return c.render(<ReviewPage flow={flow} review={review} grid={JSON.stringify(parsed.grid)} />, { title: `Revisión ${flow.name}` });
 });
 
-flowsScreen.post("/:id/import/apply", async (c) => {
+flowsScreen.post("/:id/import/apply", "editor", async (c) => {
   const flow = await flowOf(c);
   if (!flow) return c.notFound();
   const form = await c.req.parseBody({ all: true });
