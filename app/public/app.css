@@ -676,3 +676,25 @@ textarea:focus-visible,
 .home-flow .button-primary {
   margin-top: auto;
 }
+
+/* Administration lists (phase 4.4): one row per area or user, its forms
+   and its facts side by side, wrapping on a phone. */
+.admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-6);
+  padding: 0;
+  list-style: none;
+}
+
+.admin-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+}
+
+.admin-row form {
+  margin: 0;
+}

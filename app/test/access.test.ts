@@ -39,6 +39,8 @@ describe("route access (phase 4.2)", () => {
       "GET /home": "user",
       "GET /areas": "editor",
       "POST /areas": "editor",
+      "POST /areas/:id{[0-9]+}": "editor",
+      "POST /areas/:id{[0-9]+}/delete": "editor",
       "GET /flows/:id{[0-9]+}": "flow",
       "POST /flows/:id{[0-9]+}/tour": "flow",
       "POST /flows/:id{[0-9]+}/tour/restart": "flow",
