@@ -91,8 +91,21 @@ Scale: one company, about 50 users, about 8 flows.
 - Having an area is not the same as having something to see. When a Standard
   user's areas have no flow assigned yet, the screen says so and lets the
   admin continue: flows get assigned later.
-- `can_edit` and `can_view_admin_layer` are separate permissions, so the
-  second can later be granted to another group without edit rights.
+- Three separate permissions, checked by the server one by one. The role sets
+  them when an account is created, and the user form has a checkbox for each,
+  so they can be given apart: a process owner who maintains their own area's
+  flow gets `can_edit` and nothing else.
+  - `can_edit`: may change the content of flows. It never guards the user
+    screens.
+  - `can_view_admin_layer`: may see the admin layer (stage 3).
+  - `can_manage_users`: may create accounts, set roles and permissions, and
+    reset passwords.
+- **`can_manage_users` is the highest permission there is.** Whoever holds it
+  can grant themselves every other one, or create an account that has them.
+  Treat it as "full control", not as one more checkbox.
+- At least one active account must always hold it. The server refuses to
+  remove it from the last one, or to deactivate them: a lost password is
+  recoverable from the command line, a lost permission is not.
 - Accounts are created by an admin. No open sign-up.
 - Passwords are reset by an admin. No email sending.
 - Auth: own login first. Microsoft SSO comes later; do not block it by design.
