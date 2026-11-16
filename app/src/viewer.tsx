@@ -4,7 +4,8 @@ import type { Action } from "../public/js/tour-log.js";
 import { getFlow, latestRelease, type FlowRow } from "./flows.ts";
 import { Router } from "./access.tsx";
 import { userOf } from "./session.ts";
-import { finishTour, restartTour, reviewStatus, startTour, takeStep, type ReviewState, type ReviewStatus } from "./tour.ts";
+import { StatusLine } from "./status.tsx";
+import { finishTour, restartTour, reviewStatus, startTour, takeStep, type ReviewStatus } from "./tour.ts";
 
 // The flow viewer (SPEC §7): the overview (phase 2.4) and the tour (phase 3).
 // Users always see the latest release, never a draft (§8); a tour already
@@ -15,18 +16,6 @@ export const viewer = new Router();
 // JSON inside <script>: "<" is escaped so no text in a step can close it.
 const scriptJson = (value: unknown) => JSON.stringify(value).replace(/</g, "\\u003c");
 
-// public/js/viewer.js draws the same line again when the status changes.
-const STATUS_ICONS: Record<ReviewState, string> = { pending: "pending", in_progress: "in_progress", reviewed: "done" };
-
-function StatusLine({ status }: { status: ReviewStatus }) {
-  return (
-    <p class="review-status" id="review-status" data-state={status.state}>
-      <img class="icon" src={`/icons/${STATUS_ICONS[status.state]}.svg`} alt="" width="18" height="18" />
-      <strong>{status.label}</strong>
-      {status.detail && <span class="muted">{status.detail}</span>}
-    </p>
-  );
-}
 
 function ViewerPage({ flow, compiled, status }: { flow: FlowRow; compiled: Flow; status: ReviewStatus }) {
   const steps = compiled.steps.length;
@@ -38,7 +27,7 @@ function ViewerPage({ flow, compiled, status }: { flow: FlowRow; compiled: Flow;
           {flow.name}
         </h1>
         {flow.objective && <p class="muted">{flow.objective}</p>}
-        <StatusLine status={status} />
+        <StatusLine status={status} id="review-status" />
       </div>
       <div class="viewer-cols">
         <div class="card diagram-card">

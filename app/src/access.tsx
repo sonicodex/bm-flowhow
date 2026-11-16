@@ -50,21 +50,34 @@ function forbidden(c: Context<AppEnv>) {
 }
 
 // SPEC §4: a Standard user sees the flows assigned to any of their areas;
-// Leaders and Board members see every flow. In the viewer a flow exists only
-// once published (§8). The home screen (4.3) lists flows by this same rule.
+// Leaders and Board members see every flow. Users see a flow only once it
+// is published (§8). One rule, written once, for the viewer, the tour and
+// the home screen. It binds the user's role and id, in that order.
+const VISIBLE = `EXISTS (SELECT 1 FROM releases r WHERE r.flow_id = f.id)
+  AND (? <> 'standard' OR EXISTS (
+    SELECT 1 FROM flow_areas fa JOIN user_areas ua ON ua.area_id = fa.area_id
+    WHERE fa.flow_id = f.id AND ua.user_id = ?))`;
+
 export async function canSeeFlow(db: D1Database, user: SessionUser, flowId: number): Promise<boolean> {
-  const row = await db
-    .prepare(
-      `SELECT 1 FROM flows f
-       WHERE f.id = ?
-         AND EXISTS (SELECT 1 FROM releases r WHERE r.flow_id = f.id)
-         AND (? <> 'standard' OR EXISTS (
-           SELECT 1 FROM flow_areas fa JOIN user_areas ua ON ua.area_id = fa.area_id
-           WHERE fa.flow_id = f.id AND ua.user_id = ?))`,
-    )
-    .bind(flowId, user.role, user.id)
-    .first();
+  const row = await db.prepare(`SELECT 1 FROM flows f WHERE f.id = ? AND ${VISIBLE}`).bind(flowId, user.role, user.id).first();
   return row !== null;
+}
+
+export type VisibleFlow = { id: number; name: string; objective: string; colour: number; major: number; minor: number };
+
+// The flows the user sees, by name, each with its latest release's version.
+export async function visibleFlows(db: D1Database, user: SessionUser): Promise<VisibleFlow[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT f.id, f.name, f.objective, f.colour, rel.major, rel.minor FROM flows f
+       JOIN releases rel ON rel.id = (
+         SELECT id FROM releases WHERE flow_id = f.id ORDER BY major DESC, minor DESC LIMIT 1)
+       WHERE ${VISIBLE}
+       ORDER BY f.name_key`,
+    )
+    .bind(user.role, user.id)
+    .all<VisibleFlow>();
+  return results;
 }
 
 function guard(access: Access): Guard {

@@ -199,7 +199,13 @@ const LABELS: Record<ReviewState, string> = {
 
 const longDate = new Intl.DateTimeFormat("es-CO", { timeZone: "America/Bogota", day: "numeric", month: "long", year: "numeric" });
 
-export async function reviewStatus(db: D1Database, userId: number, flowId: number, latest: Release): Promise<ReviewStatus> {
+// `latest` is the flow's latest release; only its version is read.
+export async function reviewStatus(
+  db: D1Database,
+  userId: number,
+  flowId: number,
+  latest: Pick<Release, "major" | "minor">,
+): Promise<ReviewStatus> {
   const [open, review] = await Promise.all([
     db
       .prepare(

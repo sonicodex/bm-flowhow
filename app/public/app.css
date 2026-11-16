@@ -107,6 +107,15 @@ textarea {
   cursor: pointer;
 }
 
+/* A link that looks like the primary button (the home screen's actions):
+   the visited link colour must not reach it. */
+a.button-primary,
+a.button-primary:visited {
+  display: inline-block;
+  color: var(--color-on-primary);
+  text-decoration: none;
+}
+
 .button-primary:hover {
   background: var(--color-primary-strong);
 }
@@ -629,4 +638,41 @@ textarea:focus-visible,
     order: -1;
     flex-basis: 100%;
   }
+}
+
+/* Home screen (phase 4.3): one card per flow the user sees. */
+.home-flows {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-flow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-6);
+}
+
+.home-flow p {
+  margin: 0;
+}
+
+.home-flow-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: var(--weight-display);
+  font-synthesis-weight: none;
+  font-size: var(--text-lg);
+}
+
+.home-flow .button-primary {
+  margin-top: auto;
 }

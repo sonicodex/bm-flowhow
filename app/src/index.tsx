@@ -1,11 +1,12 @@
 import { Hono } from "hono";
 import { csrf } from "hono/csrf";
-import { assertGuarded, Router, signInFirst } from "./access.tsx";
+import { assertGuarded, signInFirst } from "./access.tsx";
 import { areas } from "./areas.tsx";
 import { flowsScreen } from "./flows-screen.tsx";
+import { home } from "./home.tsx";
 import { renderer } from "./layout.tsx";
-import { HOME, login } from "./login.tsx";
-import { loadSession, userOf, type AppEnv } from "./session.ts";
+import { login } from "./login.tsx";
+import { loadSession, type AppEnv } from "./session.ts";
 import { viewer } from "./viewer.tsx";
 
 const app = new Hono<AppEnv>();
@@ -16,11 +17,6 @@ const app = new Hono<AppEnv>();
 app.use(csrf());
 app.use(loadSession);
 app.use(renderer);
-
-// Provisional until phase 4.3 builds the home screen.
-const home = new Router().get(HOME, "user", (c) =>
-  c.render(<h1 class="page-title">Hola, {userOf(c).fullName}</h1>, { title: "Inicio" }),
-);
 
 // Each route declares who may reach it (src/access.tsx); the order here
 // does not decide it.

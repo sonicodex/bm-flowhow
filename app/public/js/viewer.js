@@ -22,7 +22,7 @@ const cols = page && page.querySelector('.viewer-cols');
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const quoted = (s) => `«${esc(s)}»`;
 const DONE_ICON = '<img class="icon" src="/icons/done.svg" alt="" width="18" height="18">';
-// The same line as StatusLine in src/viewer.tsx, redrawn when the server
+// The same line as StatusLine in src/status.tsx, redrawn when the server
 // answers a start or a finish with the new status (phase 3.4).
 const STATUS_ICONS = { pending: 'pending', in_progress: 'in_progress', reviewed: 'done' };
 const showStatus = (status) => {

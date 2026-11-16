@@ -14,6 +14,32 @@ Entry format:
 
 ---
 
+## 2026-11-16 — Home screen (phase 4.3)
+
+- Decision:
+  - `/home` (`src/home.tsx`) lists the flows the user sees, by name: one
+    card each with the flow's colour dot, name, objective, the review
+    status (icon plus label plus detail, the viewer's line, now shared in
+    `src/status.tsx`) and the next action as a button-styled link to the
+    viewer («Iniciar», «Continuar» or «Repetir recorrido»). The tour
+    starts there; the home screen does not start it itself.
+  - The list comes from `visibleFlows`, which shares its SQL condition
+    with `canSeeFlow`: one visibility rule, written once, for the viewer,
+    the tour and the home screen. Never-published flows are left out for
+    everyone, the Board included (they are drafts, §8).
+  - Empty list: a Standard user reads «Tus áreas todavía no tienen flujos
+    asignados. Cuando la Junta directiva te asigne uno, aparecerá aquí.»;
+    a Leader or the Board, «Todavía no hay flujos publicados.»
+  - The Board gets the same screen: it tours like anyone (phase 4 plan,
+    answer 3).
+  - Stage 2 certificates: a marked place in the page, nothing built.
+  - `reviewStatus` takes only the latest release's version, so the home
+    screen does not compile every flow's document.
+  - Browser check: `app/.layout-check/4.3/` (Board and Standard, desktop
+    and phone; no horizontal scroll on the phone).
+- Reason: phase 4 plan, slice 4.3; SPEC §7 Home screen.
+- Spec sections affected: 7 (Home screen).
+
 ## 2026-11-16 — Permissions on every route (phase 4.2)
 
 - Decision:
