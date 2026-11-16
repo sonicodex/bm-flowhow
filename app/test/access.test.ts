@@ -22,6 +22,9 @@ const send = (who: Signed["fetch"], method: string, path: string) =>
 const sentToLogin = (res: Response, method: string) =>
   method === "GET" ? res.status === 302 && res.headers.get("location") === "/" : res.status === 401;
 
+const sentToPasswordChange = (res: Response, method: string) =>
+  method === "GET" ? res.status === 302 && res.headers.get("location") === "/password" : res.status === 403;
+
 // Through the guard: the route's own handler answered.
 const through = (res: Response) =>
   ![401, 403, 404].includes(res.status) && !(res.status >= 300 && res.status < 400 && res.headers.get("location") === "/");
@@ -36,11 +39,21 @@ describe("route access (phase 4.2)", () => {
       "GET /": "public",
       "POST /login": "public",
       "POST /logout": "public",
+      "GET /password": "account",
+      "POST /password": "account",
       "GET /home": "user",
       "GET /areas": "editor",
       "POST /areas": "editor",
       "POST /areas/:id{[0-9]+}": "editor",
       "POST /areas/:id{[0-9]+}/delete": "editor",
+      "GET /users": "users",
+      "GET /users/new": "users",
+      "POST /users": "users",
+      "GET /users/:id{[0-9]+}": "users",
+      "POST /users/:id{[0-9]+}": "users",
+      "POST /users/:id{[0-9]+}/deactivate": "users",
+      "POST /users/:id{[0-9]+}/activate": "users",
+      "POST /users/:id{[0-9]+}/password": "users",
       "GET /flows/:id{[0-9]+}": "flow",
       "POST /flows/:id{[0-9]+}/tour": "flow",
       "POST /flows/:id{[0-9]+}/tour/restart": "flow",
@@ -70,6 +83,10 @@ describe("route access (phase 4.2)", () => {
       // nothing else (SPEC §4). The case that keeps the user screens apart.
       owner: await signIn({ username: "dueno", role: "standard", areaIds: [area], permissions: { canEdit: true } }),
     };
+    // Signed in with a temporary password: every route but the change
+    // screen sends them there, whatever their permissions.
+    const pending = await signIn({ username: "temporal", role: "board" });
+    await env.DB.prepare("UPDATE users SET must_change_password = 1 WHERE id = ?").bind(pending.id).run();
     // The ids that a route's `:id` stands for, by what the route is about.
     // The user and area routes act on accounts and areas of their own, so
     // what the walk changes touches no one walking.
@@ -78,6 +95,7 @@ describe("route access (phase 4.2)", () => {
     const idFor = (path: string) => (path.startsWith("/users") ? target.id : path.startsWith("/areas") ? spareArea : flow);
     // Who gets through each kind of access; everyone else is refused.
     const allowed: Record<Exclude<Access, "public">, (keyof typeof users)[]> = {
+      account: ["inArea", "otherArea", "leader", "board", "owner"],
       user: ["inArea", "otherArea", "leader", "board", "owner"],
       flow: ["inArea", "leader", "board", "owner"],
       editor: ["board", "owner"],
@@ -86,7 +104,7 @@ describe("route access (phase 4.2)", () => {
     };
     // Refused with 404 when the route is about a flow (nothing leaks about
     // it), 403 when it is about a permission.
-    const refusal: Record<Exclude<Access, "public">, number> = { user: 0, flow: 404, editor: 403, admin: 403, users: 403 };
+    const refusal: Record<Exclude<Access, "public">, number> = { account: 0, user: 0, flow: 404, editor: 403, admin: 403, users: 403 };
 
     const routes = guardedRoutes(app).filter((r) => r.access !== "public");
     for (const { method, path, access } of routes) {
@@ -94,6 +112,9 @@ describe("route access (phase 4.2)", () => {
       const url = path.replace(/:id(\{[^}]*\})?/, String(idFor(path)));
       const label = `${method} ${url} (${access})`;
       expect(sentToLogin(await send(anonymous, method, url), method), `${label}: sin sesión`).toBe(true);
+      const res = await send(pending.fetch, method, url);
+      if (access === "account") expect(through(res), `${label}: temporal → ${res.status}`).toBe(true);
+      else expect(sentToPasswordChange(res, method), `${label}: temporal → ${res.status}`).toBe(true);
       for (const [name, user] of Object.entries(users) as [keyof typeof users, Signed][]) {
         const res = await send(user.fetch, method, url);
         if (allowed[access].includes(name)) expect(through(res), `${label}: ${name} → ${res.status}`).toBe(true);

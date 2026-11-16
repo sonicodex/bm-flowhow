@@ -11,11 +11,13 @@ declare module "hono" {
 // courtesy: the server refuses the route anyway (src/access.tsx).
 function Nav() {
   const user = useRequestContext<AppEnv>().get("user");
-  if (!user?.canEdit) return null;
+  // A user who must change their password reaches nothing else yet.
+  if (!user || user.mustChangePassword || !(user.canEdit || user.canManageUsers)) return null;
   return (
     <nav class="site-nav" aria-label="Administración">
-      <a href="/flows">Flujos</a>
-      <a href="/areas">Áreas</a>
+      {user.canEdit && <a href="/flows">Flujos</a>}
+      {user.canEdit && <a href="/areas">Áreas</a>}
+      {user.canManageUsers && <a href="/users">Usuarios</a>}
     </nav>
   );
 }

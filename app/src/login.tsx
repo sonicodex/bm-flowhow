@@ -1,7 +1,8 @@
 import { nameKey } from "./names.ts";
-import { verifyPassword } from "./password.ts";
-import { Router } from "./access.tsx";
-import { createSession, endSession } from "./session.ts";
+import { hashPassword, passwordError, verifyPassword } from "./password.ts";
+import { PASSWORD_SCREEN, Router } from "./access.tsx";
+import { createSession, endSession, userOf } from "./session.ts";
+import { changeOwnPassword } from "./users.ts";
 
 // The root URL is the login (SPEC §7: no landing page, no open sign-up).
 export const login = new Router();
@@ -71,4 +72,53 @@ login.post("/login", "public", async (c) => {
 login.post("/logout", "public", async (c) => {
   await endSession(c);
   return c.redirect("/", 303);
+});
+
+// «Cambia tu contraseña» (phase 4.4): after a reset by the Board, the user
+// signs in with the temporary password and lands here; every other screen
+// sends them back here until they choose their own (src/access.tsx).
+function ChangePasswordPage({ error }: { error?: string }) {
+  return (
+    <section class="card login-card">
+      <h1 class="page-title">Cambia tu contraseña</h1>
+      <p>Entraste con una contraseña temporal. Elige la tuya para seguir; nadie más la conocerá.</p>
+      <form method="post" action={PASSWORD_SCREEN} class="stacked-form">
+        <label for="password">Contraseña nueva</label>
+        <input id="password" name="password" type="password" required autocomplete="new-password" autofocus />
+        <label for="repeat">Repítela</label>
+        <input id="repeat" name="repeat" type="password" required autocomplete="new-password" />
+        {error && (
+          <p class="form-error" role="alert">
+            {error}
+          </p>
+        )}
+        <button type="submit" class="button-primary">
+          Guardar contraseña
+        </button>
+      </form>
+    </section>
+  );
+}
+
+login.get(PASSWORD_SCREEN, "account", (c) => {
+  if (!userOf(c).mustChangePassword) return c.redirect(HOME, 302);
+  return c.render(<ChangePasswordPage />, { title: "Cambia tu contraseña" });
+});
+
+login.post(PASSWORD_SCREEN, "account", async (c) => {
+  const user = userOf(c);
+  if (!user.mustChangePassword) return c.redirect(HOME, 303);
+  const form = await c.req.parseBody();
+  const password = String(form.password ?? "");
+  const stored = await c.env.DB.prepare("SELECT password_hash FROM users WHERE id = ?").bind(user.id).first<string>("password_hash");
+  const error =
+    passwordError(password) ??
+    (String(form.repeat ?? "") !== password ? "Las dos contraseñas no coinciden." : null) ??
+    ((await verifyPassword(password, stored ?? "")) ? "Elige una contraseña distinta de la temporal." : null);
+  if (error) {
+    c.status(422);
+    return c.render(<ChangePasswordPage error={error} />, { title: "Cambia tu contraseña" });
+  }
+  await changeOwnPassword(c.env.DB, user.id, await hashPassword(password));
+  return c.redirect(HOME, 303);
 });

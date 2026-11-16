@@ -44,6 +44,23 @@ export async function verifyPassword(password: string, stored: string): Promise<
   return sameBytes(await derive(password, unb64(salt), iterations), unb64(hash));
 }
 
+// A one-time password the Board hands over in person (phase 4.4): twelve
+// characters in groups of four, from an alphabet without look-alikes (no
+// 0/o, 1/l/i), so it can be read aloud or copied by hand.
+const TEMP_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
+export function temporaryPassword(): string {
+  const chars: string[] = [];
+  // Rejection sampling: only bytes below the largest multiple of the
+  // alphabet's length, so every character is equally likely.
+  const limit = 256 - (256 % TEMP_ALPHABET.length);
+  while (chars.length < 12) {
+    for (const byte of crypto.getRandomValues(new Uint8Array(16))) {
+      if (byte < limit && chars.length < 12) chars.push(TEMP_ALPHABET[byte % TEMP_ALPHABET.length]!);
+    }
+  }
+  return [0, 4, 8].map((i) => chars.slice(i, i + 4).join("")).join("-");
+}
+
 // SPEC sets no rule. Eight characters is the shortest that still asks for
 // something more than a word.
 export const MIN_PASSWORD = 8;

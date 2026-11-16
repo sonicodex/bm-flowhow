@@ -7,6 +7,7 @@ import { home } from "./home.tsx";
 import { renderer } from "./layout.tsx";
 import { login } from "./login.tsx";
 import { loadSession, type AppEnv } from "./session.ts";
+import { usersScreen } from "./users-screen.tsx";
 import { viewer } from "./viewer.tsx";
 
 const app = new Hono<AppEnv>();
@@ -23,6 +24,7 @@ app.use(renderer);
 app.route("/", login.app);
 app.route("/", home.app);
 app.route("/areas", areas.app);
+app.route("/users", usersScreen.app);
 app.route("/flows", viewer.app);
 app.route("/flows", flowsScreen.app);
 

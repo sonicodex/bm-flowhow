@@ -11,7 +11,7 @@ export type UserFields = {
   canManageUsers?: boolean;
 };
 
-export type NewUser = UserFields & { username: string; passwordHash: string };
+export type NewUser = UserFields & { username: string; passwordHash: string; mustChangePassword?: boolean };
 
 export type SaveResult = { ok: true; id: number } | { ok: false; error: string };
 
@@ -30,6 +30,10 @@ export const LAST_MANAGER =
 export function userAreasError(role: Role, areaIds: number[]): string | null {
   if (role === "standard" && areaIds.length === 0) {
     return "Un usuario Empleado necesita al menos un área: sin ella no ve ningún flujo.";
+  }
+  // §4: Board members belong to no area.
+  if (role === "board" && areaIds.length > 0) {
+    return "La Junta directiva no pertenece a ningún área: quítale las áreas marcadas.";
   }
   return null;
 }
@@ -69,10 +73,19 @@ export async function createUser(db: D1Database, user: NewUser): Promise<SaveRes
     const [inserted] = await db.batch([
       db
         .prepare(
-          `INSERT INTO users (username, full_name, password_hash, role, can_edit, can_view_admin_layer, can_manage_users)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO users (username, full_name, password_hash, role, can_edit, can_view_admin_layer, can_manage_users, must_change_password)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .bind(username, user.fullName.trim(), user.passwordHash, user.role, flag(user.canEdit), flag(user.canViewAdminLayer), flag(user.canManageUsers)),
+        .bind(
+          username,
+          user.fullName.trim(),
+          user.passwordHash,
+          user.role,
+          flag(user.canEdit),
+          flag(user.canViewAdminLayer),
+          flag(user.canManageUsers),
+          flag(user.mustChangePassword),
+        ),
       ...areaInserts(db, null, username, user.areaIds),
     ]);
     return { ok: true, id: inserted.meta.last_row_id };
@@ -112,4 +125,18 @@ export async function setActive(db: D1Database, id: number, active: boolean): Pr
   } catch (e) {
     return failure(e, "");
   }
+}
+
+// A password reset by the Board (phase 4.4): the temporary password must be
+// changed at the next sign-in, and every open session closes.
+export async function resetPassword(db: D1Database, id: number, passwordHash: string): Promise<void> {
+  await db.batch([
+    db.prepare("UPDATE users SET password_hash = ?, must_change_password = 1 WHERE id = ?").bind(passwordHash, id),
+    db.prepare("DELETE FROM sessions WHERE user_id = ?").bind(id),
+  ]);
+}
+
+// The user's own new password, replacing a temporary one.
+export async function changeOwnPassword(db: D1Database, id: number, passwordHash: string): Promise<void> {
+  await db.prepare("UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?").bind(passwordHash, id).run();
 }

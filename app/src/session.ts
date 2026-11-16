@@ -15,6 +15,8 @@ export type SessionUser = {
   canEdit: boolean;
   canViewAdminLayer: boolean;
   canManageUsers: boolean;
+  // Signed in with a temporary password: only the change screen opens.
+  mustChangePassword: boolean;
 };
 
 export type AppEnv = { Bindings: Env; Variables: { user: SessionUser | null } };
@@ -68,6 +70,7 @@ type Row = {
   can_edit: number;
   can_view_admin_layer: number;
   can_manage_users: number;
+  must_change_password: number;
 };
 
 // Puts the session's user, or null, in the context. An expired session, or
@@ -81,7 +84,7 @@ export const loadSession: MiddlewareHandler<AppEnv> = async (c, next) => {
     const now = new Date();
     const row = await db
       .prepare(
-        `SELECT s.expires_at, u.id, u.username, u.full_name, u.role, u.can_edit, u.can_view_admin_layer, u.can_manage_users
+        `SELECT s.expires_at, u.id, u.username, u.full_name, u.role, u.can_edit, u.can_view_admin_layer, u.can_manage_users, u.must_change_password
          FROM sessions s JOIN users u ON u.id = s.user_id
          WHERE s.id = ? AND s.expires_at > ? AND u.is_active = 1`,
       )
@@ -99,6 +102,7 @@ export const loadSession: MiddlewareHandler<AppEnv> = async (c, next) => {
         canEdit: row.can_edit === 1,
         canViewAdminLayer: row.can_view_admin_layer === 1,
         canManageUsers: row.can_manage_users === 1,
+        mustChangePassword: row.must_change_password === 1,
       });
       if (Date.parse(row.expires_at) - now.getTime() < LIFETIME - RENEW_AFTER) {
         await db.prepare("UPDATE sessions SET expires_at = ? WHERE id = ?").bind(new Date(now.getTime() + LIFETIME).toISOString(), id).run();

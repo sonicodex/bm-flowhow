@@ -7,6 +7,9 @@ import { type AppEnv, type SessionUser } from "./session.ts";
 // start a Worker in which one does.
 //
 // - public: anyone, signed in or not (the login and leaving).
+// - account: signed in, even with a temporary password: the screen that
+//           changes it. Every level below sends a user who must change
+//           their password to that screen first.
 // - user:   any signed-in user.
 // - flow:   a signed-in user who may see the flow in `:id`. Otherwise 404,
 //           as for a flow that does not exist (DECISIONS 2026-11-16).
@@ -21,7 +24,7 @@ import { type AppEnv, type SessionUser } from "./session.ts";
 // - admin:  `can_view_admin_layer`, for the admin layer (stage 3). No route
 //           uses it yet. Otherwise 403.
 // Permissions are read from the flags, never from the role (§4).
-export type Access = "public" | "user" | "flow" | "editor" | "admin" | "users";
+export type Access = "public" | "account" | "user" | "flow" | "editor" | "admin" | "users";
 
 const ACCESS = Symbol("access");
 type Guard = MiddlewareHandler<AppEnv> & { [ACCESS]: Access };
@@ -35,6 +38,16 @@ export function signInFirst(c: Context<AppEnv>) {
     return c.json({ error: SESSION_ENDED }, 401);
   }
   return c.redirect("/", c.req.method === "GET" ? 302 : 303);
+}
+
+export const PASSWORD_SCREEN = "/password";
+export const CHANGE_FIRST = "Antes de seguir tienes que cambiar tu contraseña temporal. Recarga la página.";
+
+function changePasswordFirst(c: Context<AppEnv>) {
+  if (c.req.method !== "GET" && c.req.header("content-type")?.startsWith("application/json")) {
+    return c.json({ error: CHANGE_FIRST }, 403);
+  }
+  return c.redirect(PASSWORD_SCREEN, c.req.method === "GET" ? 302 : 303);
 }
 
 function forbidden(c: Context<AppEnv>) {
@@ -68,7 +81,7 @@ export async function canSeeFlow(db: D1Database, user: SessionUser, flowId: numb
 export type VisibleFlow = { id: number; name: string; objective: string; colour: number; major: number; minor: number };
 
 // The flows the user sees, by name, each with its latest release's version.
-export async function visibleFlows(db: D1Database, user: SessionUser): Promise<VisibleFlow[]> {
+export async function visibleFlows(db: D1Database, user: Pick<SessionUser, "id" | "role">): Promise<VisibleFlow[]> {
   const { results } = await db
     .prepare(
       `SELECT f.id, f.name, f.objective, f.colour, rel.major, rel.minor FROM flows f
@@ -87,6 +100,7 @@ function guard(access: Access): Guard {
     if (access === "public") return next();
     const user = c.get("user");
     if (!user) return signInFirst(c);
+    if (access !== "account" && user.mustChangePassword) return changePasswordFirst(c);
     if (access === "editor" && !user.canEdit) return forbidden(c);
     if (access === "admin" && !user.canViewAdminLayer) return forbidden(c);
     if (access === "users" && !user.canManageUsers) return forbidden(c);

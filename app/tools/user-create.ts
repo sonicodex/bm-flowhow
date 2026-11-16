@@ -107,9 +107,10 @@ if ((await read("Repítela: ")) !== password) fail("Las dos contraseñas no coin
 const hash = await hashPassword(password);
 
 if (args.restablecer) {
-  // The new password closes every session open with the old one.
+  // The new password closes every session open with the old one. Whoever
+  // runs this typed it themselves, so it is not temporary.
   d1(
-    `UPDATE users SET password_hash = ${literal(hash)} WHERE id = ${Number(existing!.id)};
+    `UPDATE users SET password_hash = ${literal(hash)}, must_change_password = 0 WHERE id = ${Number(existing!.id)};
      DELETE FROM sessions WHERE user_id = ${Number(existing!.id)};`,
   );
   console.log(`Contraseña de «${username}» cambiada (${args.remote ? "D1 remoto" : "D1 local"}). Sus sesiones abiertas se cerraron.`);
