@@ -57,7 +57,7 @@ if (data && cols) {
   };
 
   const noteFor = (note) => {
-    if (!note || note.quiet) return '';
+    if (!note) return '';
     const title = (stepId) => quoted(state.tour.byId.get(stepId).title);
     // Branches that meet again (phase 3.5).
     if (note.direct) return `<p class="note">Esta opción va directo a ${title(note.direct)}. Antes de seguir, mira las otras.</p>`;

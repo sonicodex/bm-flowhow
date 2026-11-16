@@ -7,9 +7,9 @@
 // refs". Phase 1.2.6 made flow ids numeric, as stored (main 1, the subflow 2,
 // Facturación 3, the draft 4), in those lines and in the printed refs case.
 // Phase 3.5 (SPEC §7, branches that meet again are walked together) changed
-// what two cases expect: "Sí first" and "every branch must be taken". Their
-// original lines are kept as comments above the new ones, and the case they
-// guarded (every step visited, a branch not taken) has a flow of its own.
+// what two cases expect, because the rule changed: "Sí first" and "every
+// branch must be taken" (see DECISIONS.md). The case the second guarded
+// (every step visited, a branch not taken) has a flow of its own.
 import assert from 'node:assert';
 import { afterAll, it } from 'vitest';
 import C from '../public/js/core.js';
@@ -50,10 +50,7 @@ it("follow the flow: No first walks the loop back to the decision", () => {
  w.choose(0);w.next();w.next();assert(w.current().id==='P7'&&w.canFinish());console.log('No-first trail',w.trail.map(x=>x.id).join(' '));}
 });
 it("Sí first: back to the decision before the meeting point, then the loop, then on once", () => {
-// Sí first: dead end returns to the decision; after No the loop is walked and the tour can finish at the decision
-// {const w=new C.Tour(f);w.next();w.next();w.choose(0);w.next();w.next();let r=w.next();assert(r.returned&&w.current().id==='P3'&&w.current().note.endAt==='P7');
-//  w.choose(1);assert(w.current().id==='P4'&&w.complete()&&!w.canFinish());w.next();w.next();assert(w.current().id==='P3'&&w.canFinish());console.log('Sí-first trail',w.trail.map(x=>x.id).join(' '));}
-// Phase 3.5: «Sí» goes straight to P5, where «No» (through the loop) meets it, so it goes back to P3 first.
+// «Sí» goes straight to P5, where «No» (through the loop) meets it, so it goes back to P3 first.
 {const w=new C.Tour(f);w.next();w.next();let r=w.choose(0);assert(r.returned&&w.current().id==='P3'&&w.current().note.direct==='P5');
  w.choose(1);assert(w.current().id==='P4');w.next();w.next();assert(w.current().id==='P3'&&w.needsChoice()&&!w.canFinish());
  w.choose(0);assert(w.current().id==='P5');w.next();w.next();assert(w.current().id==='P7'&&w.canFinish());assert.strictEqual(w.trail.map(x=>x.id).join(' '),'P1 P2 P3 P3 P4 P2 P3 P5 P6 P7');}
@@ -84,9 +81,7 @@ it("subflow refs", () => {
 });
 it("every branch must be taken, even when all steps are visited", () => {
 // every branch must be taken, even when all steps are already visited
-// {const sub=C.compile(C.EXAMPLE_SUB);const w=new C.Tour(sub);w.next();w.next();w.choose(0);w.next();assert(w.current().id==='A5'&&w.visited.size===5&&!w.complete()&&!w.canFinish());
-//  const r=w.next();assert(r.returned&&w.current().id==='A3');assert(w.options()[0].taken&&!w.options()[1].taken);w.choose(1);assert(w.current().id==='A5'&&w.complete()&&w.canFinish());}
-// Phase 3.5: in the subflow both branches meet at A5, so A5 waits for «No».
+// In the subflow both branches meet at A5, so A5 waits for «No».
 {const sub=C.compile(C.EXAMPLE_SUB);const w=new C.Tour(sub);w.next();w.next();w.choose(0);const r=w.next();assert(r.returned&&w.current().id==='A3'&&w.current().note.joinAt==='A5'&&!w.visited.has('A5'));
  assert(w.options()[0].taken&&!w.options()[1].taken);w.choose(1);assert(w.current().id==='A5'&&w.complete()&&w.canFinish());}
 // Every step visited and a branch not taken: Y is reached first from its own start; D's branches never meet.
@@ -132,15 +127,16 @@ it("one branch meets, one dies: the meeting point and what follows are walked on
   assert(once(w, 'M') && once(w, 'E'));
 });
 
-it("a branch straight to the meeting point goes back to the decision, with the note said once", () => {
+it("a branch straight to the meeting point goes back to the decision, with its note every time", () => {
   // Instalaciones P17: «No» goes straight to P21, «Sí» walks P18 to P20 first.
   const w = new C.Tour(flowOf([['S', 'start', 'D'], ['D', 'decision', 'Sí:A | No:M'], ['A', 'activity', 'B'], ['B', 'activity', 'M'], ['M', 'activity', 'E'], ['E', 'end', '']]));
   w.next();
   let r = w.choose(1);
-  assert(r.returned && w.current().id === 'D' && w.current().note.direct === 'M' && !w.current().note.quiet);
+  assert(r.returned && w.current().id === 'D' && w.current().note.direct === 'M');
   assert(w.options()[1].taken && !w.options()[0].taken);
+  // Chosen again: back again, with the same note.
   w.choose(1);
-  assert(w.current().id === 'D' && w.current().note.quiet);
+  assert(w.current().id === 'D' && w.current().note.direct === 'M');
   w.choose(0); w.next(); w.next(); w.next();
   assert(w.current().id === 'E' && w.canFinish() && once(w, 'M'));
   assert.strictEqual(ids(w), 'S D D D A B M E');

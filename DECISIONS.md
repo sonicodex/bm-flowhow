@@ -14,6 +14,23 @@ Entry format:
 
 ---
 
+## 2026-11-16 — The direct-branch note is shown every time; no commented-out tests
+
+- Decision:
+  - A branch that goes straight to its meeting point shows «Esta opción va
+    directo a «X». Antes de seguir, mira las otras.» every time it is
+    chosen while another branch meets there, not only the first time. A
+    click that shows nothing is worse than a repeated note: the user cannot
+    tell whether it was ignored, broken or wrong. The note is true about
+    the process, not a reproach. (Owner's correction of their own earlier
+    instruction.)
+  - The original lines of the two `core.test.js` cases changed in 3.5 are
+    deleted rather than kept as comments: git keeps them, and the reason
+    is here and in the commit. Changing them was right because the rule
+    changed, which is not the same as changing a test because it fails.
+- Reason: owner's review of phase 3.5.
+- Spec sections affected: 7 (Viewer: tour rules).
+
 ## 2026-11-16 — Branches that meet, "Empezar de nuevo", "Ver el flujo completo" (phase 3.5)
 
 - Decision (approved by the owner before building):
@@ -35,14 +52,17 @@ Entry format:
     P17; Apertura P31, P34) does not enter it while another branch meets
     there. The branch is marked taken and the tour stays at the decision:
     «Esta opción va directo a «X». Antes de seguir, mira las otras.»
-    Choosing it again says nothing more (owner: do not repeat the note).
+    ~~Choosing it again says nothing more (owner: do not repeat the note).~~
+    **Superseded** the same day: the note is shown every time (see
+    "The direct-branch note is shown every time").
   - Notes for the other return: «Esta rama sigue en «X», igual que las
     otras. Vuelves a la decisión para ver las que faltan.»
   - Nothing else in the rules changes: dead-end returns, every branch
     taken, finishing, repeating a branch.
   - **Two cases in `core.test.js` changed what they expect**, because the
     rule they tested changed: "Sí first" and "every branch must be taken".
-    Their original lines stay as comments. The case the second guarded
+    ~~Their original lines stay as comments.~~ **Superseded**: removed,
+    git keeps them (same follow-up entry). The case the second guarded
     (every step visited, a branch not taken) now has a flow of its own,
     with two starts.
   - The owner's example was checked against the data first: in Apertura,

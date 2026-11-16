@@ -783,12 +783,11 @@ var Core = (function () {
     if (!this.atEnd()) return { moved: false };
     var d = this.current().id, e = this.exitsOf(d)[i];
     if (!e) return { moved: false };
-    var again = this.taken.has(d + '#' + i);
     this.taken.add(d + '#' + i);
     var hold = this._holdFor(e.to);
     if (hold >= 0) {
-      // A branch that goes straight to the meeting point: back to the decision, said once.
-      if (this.path[hold] === d) return this._back(hold, again ? { direct: e.to, quiet: true } : { direct: e.to });
+      // A branch that goes straight to the meeting point: back to the decision, with its note every time.
+      if (this.path[hold] === d) return this._back(hold, { direct: e.to });
       return this._back(hold, { joinAt: e.to });
     }
     this._goto(e.to, null); this.stale = 0;
