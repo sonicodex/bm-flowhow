@@ -598,6 +598,23 @@ Never trust the browser for any of these:
   (create, assign area and role, reset password), areas, tag categories.
 - There is no separate admin panel. The technical owner inspects the database
   directly with `wrangler d1 execute`.
+- **They are tables, in the shape of the Django admin.** One pattern, repeated
+  for every entity, so that learning one screen teaches all of them:
+  - A list is a real table: a heading row of named columns, one row per
+    record, dense enough to scan many at a glance. Not cards, not bullet
+    lists.
+  - The columns carry what someone needs to decide which row to open, and
+    they always include the fields that make a record make sense next to its
+    neighbours. Areas: name, flows, users. Users: name, username, role,
+    areas, active. Flows: name with its colour dot, published version,
+    whether it has a draft, areas.
+  - Each row ends in its actions; the page's own action ("Nueva área",
+    "Nuevo usuario") sits above the table, on the right.
+  - Opening a row leads to a form, laid out the same way on every screen,
+    with the save action at the bottom left and the way back at the top.
+  - An empty table says what the table is for and how to add the first row.
+- Every screen still uses only `theme.css` tokens. The resemblance is in the
+  structure, not in Django's colours.
 
 ## 10. Scope
 
