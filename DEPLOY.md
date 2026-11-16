@@ -37,8 +37,14 @@ npm run user:create -- --usuario <usuario> --nombre "<nombre completo>" --remote
 ```
 
 It asks for the password twice, hashes it on your machine and sends only the
-hash. Everyone else is created by the Board from the app. If the Board is ever
-locked out, run it again with `--restablecer` instead of `--nombre`.
+hash. The account gets all three permissions, `can_manage_users` included,
+so it can create everyone else from the app. If the Board is ever locked
+out, run it again with `--restablecer` instead of `--nombre`.
+
+The database keeps at least one active account with `can_manage_users`
+(trigger in migration 0006): from then on nobody, through the app or SQL,
+can remove the last one. A lost password is recoverable with
+`--restablecer`; a lost permission would need SQL, so the trigger forbids it.
 
 `npm run db:load` (reference flows and the empleado / lider / junta
 accounts) is local only and cannot reach the remote D1. Never load them

@@ -1,6 +1,6 @@
 import type { RowError } from "../public/js/core.js";
 import { Router } from "./access.tsx";
-import { createFlow, getFlow } from "./flows.ts";
+import { createFlow, getFlow, saveFlowDetails, type FlowDetails } from "./flows.ts";
 import { applyGrid, parseGrid, reviewGrid, type NewTag, type Review } from "./import.ts";
 
 // Provisional flows and import screens (phase 1.5): a scaffold to exercise
@@ -38,6 +38,8 @@ function FlowsPage({ items, error, value }: { items: FlowItem[]; error?: string;
                   <a href={`/flows/${f.id}`}>Ver</a>
                 </>
               ) : null}
+              {" · "}
+              <a href={`/flows/${f.id}/details`}>Datos</a>
               {" · "}
               <a href={`/flows/${f.id}/import`}>Importar</a>
             </li>
@@ -212,4 +214,84 @@ flowsScreen.post("/:id/import/apply", "editor", async (c) => {
   c.status(422);
   const review = await reviewGrid(c.env.DB, flow.id, parsed.grid);
   return c.render(<ReviewPage flow={flow} review={review} grid={JSON.stringify(parsed.grid)} />, { title: `Revisión ${flow.name}` });
+});
+
+// The flow form (SPEC §6 "Flow form"; phase 4.4): name, objective and the
+// areas whose Empleados see it. Editors only.
+type AreaOption = { id: number; name: string };
+
+function DetailsPage({ flow, values, areas, error, saved }: { flow: { id: number; name: string }; values: FlowDetails; areas: AreaOption[]; error?: string; saved?: boolean }) {
+  return (
+    <>
+      <h1 class="page-title">Datos: {flow.name}</h1>
+      {error && (
+        <p class="form-error" role="alert">
+          {error}
+        </p>
+      )}
+      {saved && <p role="status">Cambios guardados.</p>}
+      <form method="post" action={`/flows/${flow.id}/details`} class="stacked-form admin-form">
+        <label for="flow-name">Nombre</label>
+        <input id="flow-name" name="name" value={values.name} required maxlength={100} />
+        <label for="flow-objective">Objetivo</label>
+        <textarea id="flow-objective" name="objective" rows={3}>
+          {values.objective}
+        </textarea>
+        <fieldset class="choice-list">
+          <legend>Áreas</legend>
+          <p class="muted">Los Empleados de estas áreas verán el flujo publicado. Hace falta al menos una para publicarlo por primera vez.</p>
+          {areas.length ? (
+            areas.map((a) => (
+              <label>
+                <input type="checkbox" name="area" value={String(a.id)} checked={values.areaIds.includes(a.id)} /> {a.name}
+              </label>
+            ))
+          ) : (
+            <p class="muted">
+              Todavía no hay áreas. <a href="/areas">Crea una</a>.
+            </p>
+          )}
+        </fieldset>
+        <button type="submit" class="button-primary">
+          Guardar
+        </button>
+      </form>
+      <p>
+        <a href="/flows">Volver a flujos</a>
+      </p>
+    </>
+  );
+}
+
+const listAreaOptions = async (db: D1Database) => (await db.prepare("SELECT id, name FROM areas ORDER BY name_key").all<AreaOption>()).results;
+
+flowsScreen.get("/:id{[0-9]+}/details", "editor", async (c) => {
+  const db = c.env.DB;
+  const flow = await flowOf(c);
+  if (!flow) return c.notFound();
+  const { results } = await db.prepare("SELECT area_id FROM flow_areas WHERE flow_id = ?").bind(flow.id).all<{ area_id: number }>();
+  const values = { name: flow.name, objective: flow.objective, areaIds: results.map((r) => r.area_id) };
+  return c.render(<DetailsPage flow={flow} values={values} areas={await listAreaOptions(db)} saved={c.req.query("guardado") === "1"} />, {
+    title: `Datos ${flow.name}`,
+  });
+});
+
+flowsScreen.post("/:id{[0-9]+}/details", "editor", async (c) => {
+  const db = c.env.DB;
+  const flow = await flowOf(c);
+  if (!flow) return c.notFound();
+  const form = await c.req.parseBody({ all: true });
+  const one = (v: unknown) => String((Array.isArray(v) ? v[0] : v) ?? "");
+  const list = (v: unknown) => (v === undefined ? [] : Array.isArray(v) ? v : [v]);
+  const values: FlowDetails = {
+    name: one(form.name),
+    objective: one(form.objective),
+    areaIds: list(form.area).map(Number).filter((n) => Number.isSafeInteger(n) && n > 0),
+  };
+  const result = await saveFlowDetails(db, flow.id, values);
+  if (result.ok === false) {
+    c.status(422);
+    return c.render(<DetailsPage flow={flow} values={values} areas={await listAreaOptions(db)} error={result.error} />, { title: `Datos ${flow.name}` });
+  }
+  return c.redirect(`/flows/${flow.id}/details?guardado=1`, 303);
 });

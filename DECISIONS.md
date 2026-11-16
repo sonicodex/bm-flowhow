@@ -14,6 +14,60 @@ Entry format:
 
 ---
 
+## 2026-11-16 — Accounts and administration screens (phase 4.4)
+
+- Decision:
+  - **`can_manage_users`** (owner's correction to 4.2; SPEC §4 rewritten
+    by the owner): migration `0006` adds it and marks every Board member.
+    A trigger refuses to take it from, or deactivate, the last active
+    account that holds it, so the screens, the CLI and raw SQL obey the
+    same rule, and two managers removing each other at once cannot both
+    succeed. Access level `users` guards every `/users` route.
+  - **Permissions on creation come from the role** (`rolePermissions`:
+    Board all three, Standard and Leader none). The new-user form has no
+    permission checkboxes; the edit form has one per permission, and
+    changing the role there leaves them as they are (the form says so).
+    That is how a process owner gets `can_edit` and nothing else.
+  - **Board members cannot have areas** (§4 "Board members belong to no
+    area"): saving one with areas is refused with the reason. Before, the
+    server only refused a Standard user without one.
+  - **Temporary passwords** (phase 4 plan, answer 2): creating an account
+    or resetting one generates a twelve-character password in groups of
+    four, from an alphabet without look-alikes, shown once on the answer
+    page and never stored in clear. Migration `0007` adds
+    `must_change_password`. A reset also closes every session of that
+    account. The CLI's `--restablecer` clears the flag: whoever runs it
+    typed the password themselves.
+  - **«Cambia tu contraseña»** at `/password`, access level `account`
+    (signed in, even with a temporary password). Every other level sends
+    such a user there first (pages redirect; JSON answers 403 with the
+    message). It refuses a password shorter than 8, a mismatch, and the
+    temporary one itself. The header shows no links meanwhile.
+  - **Saving an Empleado whose areas have no published flow** (creating or
+    editing) goes through and says so: «Sus áreas todavía no tienen flujos
+    publicados, así que por ahora no verá ninguno…» (§4: the screen says so
+    and lets the admin continue). Same rule as the home screen
+    (`visibleFlows`).
+  - **Deactivate instead of delete**: `setActive`, which also closes the
+    account's sessions. Reactivation is a button on the same page.
+  - **Areas**: rename, and delete only an area no user and no flow uses;
+    each row shows what uses it. Still `editor`.
+  - **The flow form** at `/flows/:id/details` (`editor`): name, objective
+    and areas. Areas are optional there; the first publication requires
+    one. Taking every area from a published flow is allowed and hides it
+    from Empleados. The subflow/area exclusivity (§7) waits for subflows
+    (stage 2).
+  - The import screen stays provisional, for editors, until phase 5.
+  - Browser check: `app/.layout-check/4.4/` (areas, users, new user, the
+    temporary password, edit, the forced change, the flow form; desktop
+    and phone, no horizontal scroll). The check account it created in the
+    local D1 was deleted afterwards.
+- Reason: phase 4 plan, slice 4.4; the owner's correction on
+  `can_manage_users` and their two requests (the warning on save, a test
+  of the last-manager rule including deactivation).
+- Spec sections affected: 4 (Roles and permissions), 6 (Flow form), 9
+  (Authentication, Administration screens).
+
 ## 2026-11-16 — Home screen (phase 4.3)
 
 - Decision:
@@ -68,6 +122,7 @@ Entry format:
     screen stays `editor` (assigning flows to areas is content). Proposed:
     a third permission, `can_manage_users`, set by the role (Board only),
     with its own access level for the user routes; to settle before 4.4.
+    **Settled and built in 4.4** (entry above).
   - **Visibility** (`canSeeFlow`): a published flow; a Standard user
     also needs one of its areas. Leaders and the Board see every
     published flow. The viewer and the four tour routes are `flow`; the

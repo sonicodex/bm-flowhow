@@ -70,6 +70,33 @@ export async function createFlow(
   return { ok: true, id: inserted!.meta.last_row_id };
 }
 
+export type FlowDetails = { name: string; objective: string; areaIds: number[] };
+
+// The flow form (SPEC §6; phase 4.4): name, objective and assigned areas,
+// written in one batch. Areas are optional here; the first publication
+// requires one (§5). A flow's steps refer to other flows by id, so a rename
+// breaks no link.
+export async function saveFlowDetails(db: D1Database, id: number, details: FlowDetails): Promise<{ ok: true } | { ok: false; error: string }> {
+  const name = details.name.trim();
+  if (!name) return { ok: false, error: "Escribe el nombre del flujo." };
+  const key = nameKey(name);
+  const taken = await db.prepare("SELECT id, name FROM flows WHERE name_key = ?").bind(key).first<{ id: number; name: string }>();
+  if (taken && taken.id !== id) return { ok: false, error: `Ya existe un flujo llamado «${taken.name}». ${NAME_RULE}` };
+  try {
+    await db.batch([
+      db.prepare("UPDATE flows SET name = ?, name_key = ?, objective = ? WHERE id = ?").bind(name, key, details.objective.trim(), id),
+      db.prepare("DELETE FROM flow_areas WHERE flow_id = ?").bind(id),
+      ...[...new Set(details.areaIds)].map((areaId) => db.prepare("INSERT INTO flow_areas (flow_id, area_id) VALUES (?, ?)").bind(id, areaId)),
+    ]);
+  } catch (e) {
+    const message = String(e);
+    if (/UNIQUE/.test(message)) return { ok: false, error: `Ya existe un flujo con ese nombre. ${NAME_RULE}` };
+    if (/FOREIGN KEY/.test(message)) return { ok: false, error: "Una de las áreas elegidas ya no existe." };
+    throw e;
+  }
+  return { ok: true };
+}
+
 // Every flow, for resolving target names (ignoring case and accents) and for
 // validateRefs(): `lib(id)` gives the flow's name and its latest release.
 export async function flowCatalog(db: D1Database): Promise<{ resolve: (name: string) => number | null; lib: FlowLib }> {
