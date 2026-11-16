@@ -11,12 +11,16 @@
 // cycle. The engine decides that return, so `next` needs no index from the
 // user; it is recorded to make the log readable on its own.
 // "Anterior" only moves the view back over steps already walked. It is not
-// an action and is never logged.
+// an action and is never logged. But choosing a different branch on a
+// decision "Anterior" came back to is (phase 3.6): its row carries `back`,
+// the trail position of that decision, and replaying it goes back there
+// first. Choosing there the branch chosen before only moves the view, so it
+// is not an action either.
 import Core from './core.js';
 
 /** @typedef {import('./core.js').Flow} Flow */
-/** @typedef {{ step: string, exit: number | null }} LogRow */
-/** @typedef {{ at: string, action: 'next' | 'skip' | 'choose', exit?: number }} Action */
+/** @typedef {{ step: string, exit: number | null, back?: number | null }} LogRow */
+/** @typedef {{ at: string, action: 'next' | 'skip' | 'choose', exit?: number, back?: number }} Action */
 /** @typedef {{ ok: true, row: LogRow } | { ok: false }} Applied */
 
 /**
@@ -27,6 +31,7 @@ import Core from './core.js';
  * @returns {Applied}
  */
 export function apply(tour, action) {
+  if (action.back !== undefined) return applyBack(tour, action);
   if (!tour.atEnd()) return { ok: false };
   const at = tour.current().id;
   if (action.at !== at) return { ok: false };
@@ -52,6 +57,25 @@ export function apply(tour, action) {
 }
 
 /**
+ * A different branch on a decision left behind, at trail position `back`.
+ * @param {any} tour a Core.Tour
+ * @param {Action} action
+ * @returns {Applied}
+ */
+function applyBack(tour, action) {
+  const { back, exit: i } = action;
+  if (action.action !== 'choose' || !Number.isInteger(back) || !Number.isInteger(i)) return { ok: false };
+  const b = /** @type {number} */ (back);
+  const entry = tour.trail[b];
+  if (b < 0 || b >= tour.trail.length - 1 || entry.id !== action.at) return { ok: false };
+  if (tour.exitsOf(entry.id).length < 2 || !tour.exitsOf(entry.id)[/** @type {number} */ (i)] || entry.chose === i) return { ok: false };
+  const view = tour.pos;
+  tour.pos = b;
+  if (!tour.choose(i).moved) { tour.pos = view; return { ok: false }; }
+  return { ok: true, row: { step: entry.id, exit: /** @type {number} */ (i), back: b } };
+}
+
+/**
  * Rebuilds the tour by replaying its log. Returns null if the log does not
  * replay exactly: a row the engine refuses, or one whose exit differs.
  * @param {Flow} flow
@@ -61,6 +85,10 @@ export function apply(tour, action) {
 export function replay(flow, rows) {
   const tour = new Core.Tour(flow);
   for (const row of rows) {
+    if (row.back !== undefined && row.back !== null) {
+      if (row.exit === null || !applyBack(tour, { at: row.step, action: 'choose', exit: row.exit, back: row.back }).ok) return null;
+      continue;
+    }
     const decision = tour.atEnd() && tour.exitsOf(tour.current().id).length > 1;
     /** @type {Action} */
     const action = !decision

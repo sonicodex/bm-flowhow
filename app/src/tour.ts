@@ -43,10 +43,11 @@ async function openRun(db: D1Database, userId: number, flowId: number): Promise<
   if (!run) return null;
   const release = (await getRelease(db, flow, run.release_id))!;
   const { results } = await db
-    .prepare("SELECT step_path, exit_index FROM tour_visits WHERE run_id = ? ORDER BY id")
+    .prepare("SELECT step_path, exit_index, rewind_to FROM tour_visits WHERE run_id = ? ORDER BY id")
     .bind(run.id)
-    .all<{ step_path: string; exit_index: number | null }>();
-  return { id: run.id, startedAt: run.started_at, release, log: results.map((r) => ({ step: r.step_path, exit: r.exit_index })) };
+    .all<{ step_path: string; exit_index: number | null; rewind_to: number | null }>();
+  const log = results.map((r): LogRow => (r.rewind_to === null ? { step: r.step_path, exit: r.exit_index } : { step: r.step_path, exit: r.exit_index, back: r.rewind_to }));
+  return { id: run.id, startedAt: run.started_at, release, log };
 }
 
 export type Started = { runId: number; version: string; flow: Flow; log: LogRow[]; notice: string | null };
@@ -117,12 +118,12 @@ export async function takeStep(db: D1Database, userId: number, flowId: number, a
   if (!applied.ok) return { ok: false, error: RELOAD };
   const written = await db
     .prepare(
-      `INSERT INTO tour_visits (run_id, step_path, exit_index, visited_at)
-       SELECT ?1, ?2, ?3, ?4
+      `INSERT INTO tour_visits (run_id, step_path, exit_index, visited_at, rewind_to)
+       SELECT ?1, ?2, ?3, ?4, ?6
        WHERE (SELECT count(*) FROM tour_visits WHERE run_id = ?1) = ?5
          AND EXISTS (SELECT 1 FROM tour_runs WHERE id = ?1 AND ${OPEN})`,
     )
-    .bind(run.id, applied.row.step, applied.row.exit, now.toISOString(), run.log.length)
+    .bind(run.id, applied.row.step, applied.row.exit, now.toISOString(), run.log.length, applied.row.back ?? null)
     .run();
   if (written.meta.changes !== 1) return { ok: false, error: RELOAD };
   return { ok: true, row: applied.row };

@@ -9,7 +9,9 @@
 // Phase 3.5 (SPEC §7, branches that meet again are walked together) changed
 // what two cases expect, because the rule changed: "Sí first" and "every
 // branch must be taken" (see DECISIONS.md). The case the second guarded
-// (every step visited, a branch not taken) has a flow of its own.
+// (every step visited, a branch not taken) has a flow of its own. Phase 3.6
+// (one-step branches are walked one after another) changed the subflow case
+// again.
 import assert from 'node:assert';
 import { afterAll, it } from 'vitest';
 import C from '../public/js/core.js';
@@ -81,9 +83,10 @@ it("subflow refs", () => {
 });
 it("every branch must be taken, even when all steps are visited", () => {
 // every branch must be taken, even when all steps are already visited
-// In the subflow both branches meet at A5, so A5 waits for «No».
-{const sub=C.compile(C.EXAMPLE_SUB);const w=new C.Tour(sub);w.next();w.next();w.choose(0);const r=w.next();assert(r.returned&&w.current().id==='A3'&&w.current().note.joinAt==='A5'&&!w.visited.has('A5'));
- assert(w.options()[0].taken&&!w.options()[1].taken);w.choose(1);assert(w.current().id==='A5'&&w.complete()&&w.canFinish());}
+// In the subflow both branches meet at A5: «Sí» is one step (A4), «No» goes straight there, so after A4
+// the tour enters A5 and takes «No» on the way, saying so.
+{const sub=C.compile(C.EXAMPLE_SUB);const w=new C.Tour(sub);w.next();w.next();w.choose(0);w.next();assert(w.current().id==='A5'&&w.current().note.alsoDirect==='A3');
+ assert.deepStrictEqual(w.current().note.exits,[1]);assert(w.complete()&&w.canFinish());}
 // Every step visited and a branch not taken: Y is reached first from its own start; D's branches never meet.
 {const two=C.compile({name:'t',categories:[],steps:[{id:'S2',type:'start',title:'s2',exits:'Y'},{id:'S1',type:'start',title:'s1',exits:'D'},{id:'D',type:'decision',title:'d',exits:'a:X | b:Y'},{id:'X',type:'end',title:'x',exits:''},{id:'Y',type:'end',title:'y',exits:''}]});
  const w=new C.Tour(two);w.next();w.next();w.next();w.choose(0);const r=w.next();assert(r.returned&&w.current().id==='D'&&w.visited.size===5&&!w.complete()&&!w.canFinish());
@@ -105,25 +108,26 @@ it("meeting points: post-dominators shared by two branches; a branch that only s
 });
 
 it("one branch meets, one dies: the meeting point and what follows are walked once, in either order", () => {
-  const rows = [['S', 'start', 'D'], ['D', 'decision', 'A:X | B:Y | C:Z'], ['X', 'activity', 'M'], ['Y', 'activity', 'M'], ['Z', 'end', ''], ['M', 'activity', 'E'], ['E', 'end', '']];
+  // A and B are paths of their own (two steps each), so the tour goes back to D between them.
+  const rows = [['S', 'start', 'D'], ['D', 'decision', 'A:X | B:Y | C:Z'], ['X', 'activity', 'X2'], ['X2', 'activity', 'M'], ['Y', 'activity', 'Y2'], ['Y2', 'activity', 'M'], ['Z', 'end', ''], ['M', 'activity', 'E'], ['E', 'end', '']];
   let w = new C.Tour(flowOf(rows));
-  w.next(); w.choose(0);
+  w.next(); w.choose(0); w.next();
   let r = w.next();
   assert(r.returned && w.current().id === 'D' && w.current().note.joinAt === 'M' && !w.visited.has('M'));
-  w.choose(1); w.next(); w.next();
+  w.choose(1); w.next(); w.next(); w.next();
   r = w.next();
   assert(r.returned && w.current().id === 'D' && w.current().note.endAt === 'E');
   w.choose(2);
   assert(w.current().id === 'Z' && w.canFinish());
-  assert.strictEqual(ids(w), 'S D X D Y M E D Z');
+  assert.strictEqual(ids(w), 'S D X X2 D Y Y2 M E D Z');
   // The dead branch first: its return is explained, then the two that meet.
   w = new C.Tour(flowOf(rows));
   w.next(); w.choose(2);
   r = w.next();
   assert(r.returned && w.current().note.endAt === 'Z');
-  w.choose(0); w.next(); w.choose(1); w.next(); w.next();
+  w.choose(0); w.next(); w.next(); w.choose(1); w.next(); w.next(); w.next();
   assert(w.current().id === 'E' && w.canFinish());
-  assert.strictEqual(ids(w), 'S D Z D X D Y M E');
+  assert.strictEqual(ids(w), 'S D Z D X X2 D Y Y2 M E');
   assert(once(w, 'M') && once(w, 'E'));
 });
 
@@ -140,28 +144,128 @@ it("a branch straight to the meeting point goes back to the decision, with its n
   w.choose(0); w.next(); w.next(); w.next();
   assert(w.current().id === 'E' && w.canFinish() && once(w, 'M'));
   assert.strictEqual(ids(w), 'S D D D A B M E');
-  // Twins: the first branch goes back, the second one enters.
+  // Twins (Apertura P34): both go straight there, so there is nothing to go back for. The first one
+  // chosen enters, the other is taken on the way and the note says so.
   const t = new C.Tour(flowOf([['S', 'start', 'D'], ['D', 'decision', 'Sí:M | No:M'], ['M', 'end', '']]));
   t.next(); t.choose(0);
-  assert(t.current().id === 'D' && t.current().note.direct === 'M');
-  t.choose(1);
-  assert(t.current().id === 'M' && t.canFinish() && once(t, 'M'));
+  assert(t.current().id === 'M' && t.current().note.alsoDirect === 'D' && t.canFinish() && once(t, 'M'));
+  assert.deepStrictEqual(t.current().note.exits, [1]);
 });
 
 it("nested decisions: the inner one closes at its meeting point, then the outer one at its own", () => {
-  // Apertura P7 inside P6: P7 meets at P10, P6 at P25.
-  const w = new C.Tour(flowOf([['S', 'start', 'D1'], ['D1', 'decision', 'a:D2 | b:Y'], ['D2', 'decision', 'c:P | d:Q'], ['P', 'activity', 'R'], ['Q', 'activity', 'R'], ['R', 'activity', 'M'], ['Y', 'activity', 'M'], ['M', 'activity', 'E'], ['E', 'end', '']]));
+  // Apertura P7 inside P6: P7 meets at P10, P6 at P25. Here the inner D2 has a long and a short branch,
+  // and the outer D1's branches are both long (one is the decision D2 itself).
+  const w = new C.Tour(flowOf([['S', 'start', 'D1'], ['D1', 'decision', 'a:D2 | b:Y'], ['D2', 'decision', 'c:P | d:Q'], ['P', 'activity', 'P2'], ['P2', 'activity', 'R'], ['Q', 'activity', 'R'], ['R', 'activity', 'M'], ['Y', 'activity', 'Y2'], ['Y2', 'activity', 'M'], ['M', 'activity', 'E'], ['E', 'end', '']]));
   assert.deepStrictEqual([w.meet.get('D1'), w.meet.get('D2')], [['M', 'M'], ['R', 'R']]);
-  w.next(); w.choose(0); w.choose(0);
+  assert.deepStrictEqual([w.reach.get('D1'), w.reach.get('D2')], [['long', 'long'], ['long', 'short']]);
+  w.next(); w.choose(0); w.choose(0); w.next();
+  // Only Q (one step) is left at D2: on to it, without going back.
   let r = w.next();
-  assert(r.returned && w.current().id === 'D2' && w.current().note.joinAt === 'R');
-  w.choose(1); w.next();
+  assert(!r.returned && w.current().id === 'Q' && w.current().note.alt === 'D2' && w.current().note.n === 2 && w.current().note.total === 2);
+  w.next();
   r = w.next();
   assert(r.returned && w.current().id === 'D1' && w.current().note.joinAt === 'M');
-  w.choose(1); w.next(); w.next();
+  w.choose(1); w.next(); w.next(); w.next();
   assert(w.current().id === 'E' && w.canFinish());
-  assert.strictEqual(ids(w), 'S D1 D2 P D2 Q R D1 Y M E');
+  assert.strictEqual(ids(w), 'S D1 D2 P P2 Q R D1 Y Y2 M E');
 });
+
+// Phase 3.6: one-step branches are walked one after another (SPEC §7).
+it("one-step branches are walked one after another, the user picking the first (Apertura P26)", () => {
+  const rows = [['S', 'start', 'D'], ['D', 'decision', 'a:A | b:B | c:C'], ['A', 'activity', 'M'], ['B', 'activity', 'M'], ['C', 'activity', 'M'], ['M', 'activity', 'E'], ['E', 'end', '']];
+  const w = new C.Tour(flowOf(rows));
+  assert.deepStrictEqual(w.reach.get('D'), ['short', 'short', 'short']);
+  w.next();
+  assert(w.needsChoice());
+  w.choose(1);
+  w.next();
+  assert.deepStrictEqual([w.current().id, w.current().note], ['A', { alt: 'D', exit: 0, n: 2, total: 3 }]);
+  w.next();
+  assert.deepStrictEqual([w.current().id, w.current().note], ['C', { alt: 'D', exit: 2, n: 3, total: 3 }]);
+  w.next(); w.next();
+  assert(w.current().id === 'E' && w.canFinish());
+  assert.strictEqual(ids(w), 'S D B A C M E');
+});
+
+it("a one-step branch and a path of its own: the order picked decides whether the tour goes back", () => {
+  const rows = [['S', 'start', 'D'], ['D', 'decision', 'corta:A | larga:L1'], ['A', 'activity', 'M'], ['L1', 'activity', 'L2'], ['L2', 'activity', 'M'], ['M', 'end', '']];
+  // The short one first: the long one is left, a road of its own, so back to D.
+  let w = new C.Tour(flowOf(rows));
+  w.next(); w.choose(0);
+  let r = w.next();
+  assert(r.returned && w.current().id === 'D' && w.current().note.joinAt === 'M');
+  w.choose(1); w.next(); w.next();
+  assert.strictEqual(ids(w), 'S D A D L1 L2 M');
+  // The long one first: only the short one is left, walked right after.
+  w = new C.Tour(flowOf(rows));
+  w.next(); w.choose(1); w.next(); w.next();
+  assert.deepStrictEqual([w.current().id, w.current().note], ['A', { alt: 'D', exit: 0, n: 2, total: 2 }]);
+  w.next();
+  assert(w.current().id === 'M' && w.canFinish());
+  assert.strictEqual(ids(w), 'S D L1 L2 A M');
+});
+
+it("a one-step branch is short only if its step is not a decision and leads to the meeting point", () => {
+  // X is one step but a decision; W is one step that goes elsewhere first (W → V → M).
+  const w = new C.Tour(flowOf([['S', 'start', 'D'], ['D', 'decision', 'a:X | b:W | c:A'], ['X', 'decision', 'p:M | q:M'], ['W', 'activity', 'V'], ['V', 'activity', 'M'], ['A', 'activity', 'M'], ['M', 'end', '']]));
+  assert.deepStrictEqual(w.reach.get('D'), ['long', 'long', 'short']);
+});
+
+it("Instalaciones P17: «No» straight there first goes back; «Sí» first walks on and takes «No» on entering", () => {
+  const rows = [['S', 'start', 'D'], ['D', 'decision', 'Sí:A | No:M'], ['A', 'activity', 'B'], ['B', 'activity', 'C'], ['C', 'activity', 'M'], ['M', 'activity', 'E'], ['E', 'end', '']];
+  let w = new C.Tour(flowOf(rows));
+  w.next(); w.choose(1);
+  assert(w.current().id === 'D' && w.current().note.direct === 'M');
+  w = new C.Tour(flowOf(rows));
+  w.next(); w.choose(0); w.next(); w.next(); w.next();
+  assert.deepStrictEqual([w.current().id, w.current().note], ['M', { alsoDirect: 'D', exits: [1] }]);
+  assert(w.taken.has('D#1'));
+  w.next();
+  assert(w.current().id === 'E' && w.canFinish());
+  // Instalaciones P11: «Sí» straight there, «No» one step. Picking «Sí» walks «No» right away.
+  w = new C.Tour(flowOf([['S', 'start', 'D'], ['D', 'decision', 'Sí:M | No:A'], ['A', 'activity', 'M'], ['M', 'end', '']]));
+  w.next(); w.choose(0);
+  assert.deepStrictEqual([w.current().id, w.current().note], ['A', { alt: 'D', exit: 1, n: 2, total: 2 }]);
+  w.next();
+  assert(w.current().id === 'M' && w.canFinish() && once(w, 'M'));
+});
+
+// Phase 3.6: "Anterior" can undo a choice (SPEC §7).
+it("going back to a decision and picking another branch goes on from there; what was walked still counts", () => {
+  const rows = [['S', 'start', 'D'], ['D', 'decision', 'a:A1 | b:B1'], ['A1', 'activity', 'A2'], ['A2', 'activity', 'M'], ['B1', 'activity', 'B2'], ['B2', 'activity', 'M'], ['M', 'end', '']];
+  const w = new C.Tour(flowOf(rows));
+  w.next(); w.choose(0); w.next();
+  assert.strictEqual(w.current().id, 'A2');
+  w.prev(); w.prev();
+  assert(w.current().id === 'D' && w.canChoose() && !w.needsChoice());
+  // The same branch only moves the view.
+  w.choose(0);
+  assert(w.current().id === 'A1' && w.trail.length === 4);
+  w.prev();
+  w.choose(1);
+  assert.strictEqual(ids(w), 'S D B1');
+  assert(w.visited.has('A1') && w.visited.has('A2') && w.taken.has('D#0') && w.visited.size === 5);
+  w.next(); w.next();
+  // Both taken: M is entered, nothing is left.
+  assert(w.current().id === 'M' && w.canFinish());
+  // A step that is not a decision cannot be chosen from.
+  w.prev();
+  assert(!w.canChoose() && !w.choose(0).moved);
+});
+
+it("going back past a jump to another start: the jump goes on to what is still unseen", () => {
+  const w = new C.Tour(flowOf([['S1', 'start', 'D'], ['D', 'decision', 'a:X | b:Y'], ['X', 'end', ''], ['Y', 'end', ''], ['S2', 'start', 'Z'], ['Z', 'end', '']]));
+  w.next(); w.choose(0); w.next(); w.choose(1); w.next();
+  assert.deepStrictEqual([w.current().id, w.current().note.jump], ['S2', true]);
+  // Back to D's first visit and pick «b»: Y, then a jump. S2 was seen, so it goes to Z.
+  while (w.pos > 1) w.prev();
+  w.choose(1);
+  assert.strictEqual(ids(w), 'S1 D Y');
+  w.next();
+  assert.deepStrictEqual([w.current().id, w.current().note.jump], ['Z', true]);
+  assert(w.canFinish());
+});
+
 
 it("branches that never meet keep the dead-end return (Instalaciones P5)", () => {
   const w = new C.Tour(flowOf([['S', 'start', 'D'], ['D', 'decision', 'Sí:Y | No:X'], ['X', 'end', ''], ['Y', 'activity', 'E'], ['E', 'end', '']]));
@@ -172,6 +276,39 @@ it("branches that never meet keep the dead-end return (Instalaciones P5)", () =>
   w.choose(0); w.next();
   assert(w.current().id === 'E' && w.canFinish());
   assert.strictEqual(ids(w), 'S D X D Y E');
+});
+
+// Phase 3.6: the random graphs again, now walked by someone who keeps going back with "Anterior" and
+// picking another branch at random. Rewinding restores the saved state (path, pending starts, cycle
+// counter), the same state the orphaned inner decision of phase 3.5 lived in.
+function walkWithRewinds(flow, rnd) {
+  const t = new C.Tour(flow);
+  let seen = 0, rewinds = 0;
+  for (let guard = 0; guard < 20000; guard++) {
+    assert(t.visited.size >= seen, 'progress went backwards');
+    seen = t.visited.size;
+    if (t.atEnd() && t.canFinish()) break;
+    if (rewinds < 40 && t.pos > 0 && rnd() < 0.15) {
+      for (let k = 1 + Math.floor(rnd() * 4); k > 0 && t.prev(); k--);
+      if (t.canChoose() && rnd() < 0.7) { rewinds++; t.choose(Math.floor(rnd() * t.exitsOf(t.current().id).length)); }
+      continue;
+    }
+    if (!t.atEnd()) { t.next(); continue; }
+    if (t.canSkip()) { t.skip(); continue; }
+    let r = t.next();
+    if (r.needChoice) { const all = t.options(); const o = all.filter((x) => !x.taken); const from = o.length ? o : all; r = t.choose(from[Math.floor(rnd() * from.length)].index); }
+    if (r.done) break;
+  }
+  return t;
+}
+it("random graphs with rewinds: tours still complete, progress never goes backwards", () => {
+  let seed = 11; const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  for (let k = 0; k < 2000; k++) {
+    const n = 2 + Math.floor(rnd() * 16); const steps = [];
+    for (let i = 0; i < n; i++) { const ex = []; const m = Math.floor(rnd() * 4); for (let j = 0; j < m; j++) ex.push('L' + j + ':S' + Math.floor(rnd() * n)); steps.push({ id: 'S' + i, type: i === 0 ? 'start' : (rnd() < .1 ? 'start' : 'activity'), title: 'Paso ' + i, exits: ex.join('|'), tags: {} }); }
+    const t = walkWithRewinds(C.compile({ name: 'r', categories: [], steps }), rnd);
+    assert(t.complete() && t.canFinish(), 'incomplete ' + k);
+  }
 });
 
 afterAll(() => {

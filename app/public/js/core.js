@@ -639,7 +639,16 @@ var Core = (function () {
        also go through (their nearest common post-dominator). The tour never enters a meeting point while
        a branch that meets there is still to take: it goes back to the decision instead, and enters the
        meeting point once, after the last of them. A branch that only shares the end with the others has
-       no meeting point and ends at its dead end, as above. */
+       no meeting point and ends at its dead end, as above.
+     - Going back to the decision in between is for choices that matter (SPEC §7). When every branch still
+       to take that meets there is one step long (its step's only exit is the meeting point) or goes
+       straight to it, they are walked one after another without going back ("2 de 3"), and those that go
+       straight there are taken on entering it. A branch still to take that is a path of its own sends the
+       tour back to the decision. So the same decision behaves differently depending on the order the user
+       picks: what decides is what is left to walk.
+     - "Anterior" can undo a choice: on a decision already left behind, choosing a different branch drops
+       the trail after it and goes on from there. Steps seen and branches taken stay counted. Each trail
+       entry keeps the state the tour had there (path, pending starts, cycle counter) to go back to. */
   function Tour(flow) {
     var self = this;
     this.byId = new Map();
@@ -653,8 +662,47 @@ var Core = (function () {
     this.stale = 0;     // consecutive moves onto already visited steps without a choice (guards endless cycles)
     this.starts = first.slice(1);
     this.meet = this._meetingPoints();
+    // decision id -> per exit index: 'direct' (straight to its meeting point), 'short' (one step), 'long' or null.
+    this.reach = new Map();
+    this.meet.forEach(function (m, d) {
+      self.reach.set(d, self.exitsOf(d).map(function (e, k) {
+        if (!m[k]) return null;
+        if (e.to === m[k]) return 'direct';
+        var on = self.exitsOf(e.to);
+        return on.length === 1 && on[0].to === m[k] ? 'short' : 'long';
+      }));
+    });
     this._goto(first[0], null);
+    this._save();
   }
+  /* The state the tour has at the last trail entry, for "Anterior" to come back to. */
+  Tour.prototype._save = function () {
+    this.trail[this.trail.length - 1].saved = { path: this.path.slice(), starts: this.starts.slice(), stale: this.stale };
+  };
+  /* Branches of decision d, still to take, that meet at `to`. */
+  Tour.prototype._pendingAt = function (d, to) {
+    var self = this, m = this.meet.get(d) || [];
+    return m.map(function (x, k) { return x === to && !self.taken.has(d + '#' + k) ? k : -1; }).filter(function (k) { return k >= 0; });
+  };
+  /* Instead of entering `to` (a meeting point of the decision at path index i): back to the decision, or,
+     when every branch still to take there is one step or none, on to the next of them. */
+  Tour.prototype._hold = function (i, to, note) {
+    var d = this.path[i], pending = this._pendingAt(d, to), reach = this.reach.get(d) || [];
+    if (!pending.length || pending.some(function (k) { return reach[k] === 'long'; })) return this._back(i, note);
+    var total = (this.meet.get(d) || []).filter(function (x) { return x === to; }).length;
+    var step = pending.filter(function (k) { return reach[k] === 'short'; })[0];
+    this.path.length = i + 1;
+    if (step !== undefined) {
+      this.taken.add(d + '#' + step);
+      var n = total - this._pendingAt(d, to).length;
+      this._goto(this.exitsOf(d)[step].to, { alt: d, exit: step, n: n, total: total }); this.stale = 0;
+      return { moved: true };
+    }
+    var self = this;
+    pending.forEach(function (k) { self.taken.add(d + '#' + k); });
+    this._goto(to, { alsoDirect: d, exits: pending }); this.stale = 0;
+    return { moved: true };
+  };
   /* decision id -> per exit index, the step where that branch meets another branch, or null. */
   Tour.prototype._meetingPoints = function () {
     var self = this, EXIT = '\u0000exit';
@@ -754,6 +802,9 @@ var Core = (function () {
     var next = null;
     while (this.starts.length && next === null) { var s = this.starts.shift(); if (!this.visited.has(s)) next = s; }
     if (next === null) { var rest = this.ids.filter(function (x) { return !self.visited.has(x); }); if (rest.length) next = rest[0]; }
+    // A decision seen on a branch that "Anterior" then undid is no longer on the path, but its branches
+    // still have to be taken: the last thing to go back to.
+    if (next === null) { var open = this.ids.filter(function (x) { return self.exitsOf(x).length > 1 && self._hasOpen(x); }); if (open.length) next = open[0]; }
     if (next === null) return { done: true };
     this.path = []; reason.jump = true;
     this._goto(next, reason);
@@ -778,29 +829,42 @@ var Core = (function () {
     var id = this.current().id;
     return this.atEnd() && !this.complete() && this.exitsOf(id).length > 1 && !this._hasOpen(id);
   };
-  Tour.prototype.skip = function () { return this._return({ skipped: true }); };
+  Tour.prototype.skip = function () { var r = this._return({ skipped: true }); if (r.moved) this._save(); return r; };
+  /* True when the step in view is a decision whose branches can be chosen: the last one, or one left
+     behind that "Anterior" came back to. */
+  Tour.prototype.canChoose = function () { return this.exitsOf(this.current().id).length > 1; };
   Tour.prototype.choose = function (i) {
-    if (!this.atEnd()) return { moved: false };
-    var d = this.current().id, e = this.exitsOf(d)[i];
+    var entry = this.current(), d = entry.id, e = this.exitsOf(d)[i];
     if (!e) return { moved: false };
-    this.taken.add(d + '#' + i);
-    var hold = this._holdFor(e.to);
-    if (hold >= 0) {
-      // A branch that goes straight to the meeting point: back to the decision, with its note every time.
-      if (this.path[hold] === d) return this._back(hold, { direct: e.to });
-      return this._back(hold, { joinAt: e.to });
+    if (!this.atEnd()) {
+      if (this.exitsOf(d).length < 2) return { moved: false };
+      // The same branch as before only moves the view forward.
+      if (entry.chose === i) { this.pos++; return { moved: true }; }
+      this.trail.length = this.pos + 1;
+      this.path = entry.saved.path.slice(); this.starts = entry.saved.starts.slice(); this.stale = entry.saved.stale;
     }
-    this._goto(e.to, null); this.stale = 0;
-    return { moved: true };
+    entry.chose = i;
+    this.taken.add(d + '#' + i);
+    var r, hold = this._holdFor(e.to);
+    // A branch that goes straight to the meeting point: back to the decision, with its note every time.
+    if (hold >= 0) r = this._hold(hold, e.to, this.path[hold] === d ? { direct: e.to } : { joinAt: e.to });
+    else { this._goto(e.to, null); this.stale = 0; r = { moved: true }; }
+    this._save();
+    return r;
   };
   Tour.prototype.next = function () {
     if (!this.atEnd()) { this.pos++; return { moved: true }; }
+    var r = this._next();
+    if (r.moved) this._save();
+    return r;
+  };
+  Tour.prototype._next = function () {
     var cur = this.current().id; var ex = this.exitsOf(cur);
     if (!ex.length) return this._return({ endAt: cur });
     if (ex.length > 1) return { needChoice: true };
     if (this._stuck()) return this._return({ loopTo: ex[0].to, from: cur });
     var hold = this._holdFor(ex[0].to);
-    if (hold >= 0) return this._back(hold, { joinAt: ex[0].to });
+    if (hold >= 0) return this._hold(hold, ex[0].to, { joinAt: ex[0].to });
     this._goto(ex[0].to, null);
     return { moved: true };
   };

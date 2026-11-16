@@ -88,21 +88,43 @@ async function logOf(user: number): Promise<LogRow[]> {
 const count = (table: string) => db().prepare(`SELECT count(*) AS n FROM ${table}`).first<number>("n");
 
 describe("the tour on the server (SPEC §7)", () => {
-  it("twin branches: the first goes back to the decision, P3 waits for the second and is walked once", async () => {
+  it("twin branches: both go straight to P3, so it is entered once and the other is taken on the way", async () => {
     const s = await setup("Ramas gemelas");
     await startTour(db(), s.user, s.flowId, at(0));
     const t = await walk(s, 0, { stop: (tour) => tour.taken.has("P2#0") });
     const tour = replay(s.flow, await logOf(s.user));
-    expect(tour.current()).toMatchObject({ id: "P2", note: { direct: "P3", returned: true } });
-    expect(tour.taken.has("P2#1")).toBe(false);
-    expect(tour.visited.has("P3")).toBe(false);
-    expect(await finishTour(db(), s.user, s.flowId, at(10_000))).toEqual({ ok: false, error: expect.any(String) });
-    expect(await count("review_records")).toBe(0);
+    expect(tour.current()).toMatchObject({ id: "P3", note: { alsoDirect: "P2", exits: [1] } });
+    expect(tour.taken.has("P2#1")).toBe(true);
     const end = await walk(s, t);
-    const done = replay(s.flow, await logOf(s.user));
-    expect(done.trail.filter((x: { id: string }) => x.id === "P3")).toHaveLength(1);
-    expect(await logOf(s.user)).toContainEqual({ step: "P2", exit: 0 });
+    const log = await logOf(s.user);
+    expect(replay(s.flow, log).trail.filter((x: { id: string }) => x.id === "P3")).toHaveLength(1);
+    expect(log).toContainEqual({ step: "P2", exit: 0 });
+    expect(log).not.toContainEqual({ step: "P2", exit: 1 });
     expect(await finishTour(db(), s.user, s.flowId, at(end + 30))).toEqual({ ok: true, durationSeconds: end + 30, newer: null });
+  });
+
+  it("goes back with «Anterior» to a decision and picks another branch: logged with its position, replayed", async () => {
+    const s = await setup("Ramas gemelas");
+    await startTour(db(), s.user, s.flowId, at(0));
+    // P1 → P2 (Sí) → P3 → P4 (A) → P5, a dead end.
+    await walk(s, 0, { stop: (tour) => tour.current().id === "P5" });
+    let tour = replay(s.flow, await logOf(s.user));
+    const back = tour.trail.findIndex((x: { id: string }) => x.id === "P4");
+    // Not a decision, a branch already chosen there, a position past the end: refused, nothing written.
+    const rows = await count("tour_visits");
+    expect((await takeStep(db(), s.user, s.flowId, { at: "P3", action: "choose", exit: 0, back: back - 1 }, at(20))).ok).toBe(false);
+    expect((await takeStep(db(), s.user, s.flowId, { at: "P4", action: "choose", exit: 0, back }, at(20))).ok).toBe(false);
+    expect((await takeStep(db(), s.user, s.flowId, { at: "P5", action: "choose", exit: 0, back: tour.trail.length - 1 }, at(20))).ok).toBe(false);
+    expect(await count("tour_visits")).toBe(rows);
+    const r = await takeStep(db(), s.user, s.flowId, { at: "P4", action: "choose", exit: 1, back }, at(21));
+    expect(r).toEqual({ ok: true, row: { step: "P4", exit: 1, back } });
+    expect(await db().prepare("SELECT rewind_to FROM tour_visits ORDER BY id DESC LIMIT 1").first("rewind_to")).toBe(back);
+    // A reload rebuilds the same tour: on at P6, P5 still seen, both branches taken.
+    const resumed = (await startTour(db(), s.user, s.flowId, at(22)))!;
+    tour = replay(resumed.flow, resumed.log);
+    expect(tour.trail.map((x: { id: string }) => x.id)).toEqual(["P1", "P2", "P3", "P4", "P6"]);
+    expect(tour.visited.has("P5") && tour.taken.has("P4#0") && tour.taken.has("P4#1")).toBe(true);
+    expect(tour.canFinish()).toBe(true);
   });
 
   it("in Apertura de OT, walks every branch to its meeting point and the shared path once", async () => {
@@ -123,6 +145,10 @@ describe("the tour on the server (SPEC §7)", () => {
     const decisions = new Set(["P26", "P31", "P34"]);
     for (const id of ["P25", "P27", "P28", "P29", "P30", "P33", "P35", "P36"]) expect([id, trail.filter((x) => x === id).length]).toEqual([id, 1]);
     expect(trail.slice(trail.indexOf("P25")).filter((x) => !decisions.has(x) && x !== "P32" && trail.filter((y) => y === x).length > 1)).toEqual([]);
+    // One-step branches in a row (phase 3.6): P7's two, P26's three.
+    expect(trail.join(" ")).toContain("P7 P8 P9 P10");
+    expect(trail.join(" ")).toContain("P26 P27 P28 P29 P30");
+    expect(trail.filter((x) => x === "P7" || x === "P26")).toEqual(["P7", "P26"]);
     // P6's branches meet at P25, P7's at P10, P34's at P35.
     expect(tour.meet.get("P6")).toEqual(["P25", "P25"]);
     expect(tour.meet.get("P7")).toEqual(["P10", "P10"]);
@@ -135,8 +161,9 @@ describe("the tour on the server (SPEC §7)", () => {
     await startTour(db(), s.user, s.flowId, at(0));
     await walk(s, 0);
     const log = await logOf(s.user);
+    // P34's «No» goes straight to P35 like «Sí»: taken on the way, never chosen.
     expect(log).toContainEqual({ step: "P34", exit: 0 });
-    expect(log).toContainEqual({ step: "P34", exit: 1 });
+    expect(log).not.toContainEqual({ step: "P34", exit: 1 });
     // A step with one exit records exit 0; a return from a dead end records none.
     expect(log[0]).toEqual({ step: "P1", exit: 0 });
     const ends = (s.flow.steps as { id: string; type: string }[]).filter((x) => x.type === "end").map((x) => x.id);
@@ -374,6 +401,8 @@ describe("tour routes", () => {
     expect(stale.status).toBe(409);
     expect(await stale.json()).toHaveProperty("error");
     expect((await post(`/flows/${s.flowId}/tour/step`, { at: "P2", action: "fly" })).status).toBe(400);
+    expect((await post(`/flows/${s.flowId}/tour/step`, { at: "P1", action: "next", back: 0 })).status).toBe(400);
+    expect((await post(`/flows/${s.flowId}/tour/step`, { at: "P1", action: "choose", exit: 0, back: "0" })).status).toBe(400);
     expect((await post(`/flows/${s.flowId}/tour/finish`)).status).toBe(409);
     const runs = await db().prepare("SELECT u.username FROM tour_runs r JOIN users u ON u.id = r.user_id").all();
     expect(runs.results).toEqual([{ username: "usuario de prueba" }]);

@@ -246,8 +246,17 @@ Tour rules:
   including the ones already taken, which are marked "Ya recorrida".
 - **Branches that meet again are walked together, there and then.** When the
   paths out of a decision rejoin at a common step, the tour walks each
-  remaining branch up to that meeting point, returning to the decision between
-  them, and only then continues once along the shared path. Say it the way a
+  remaining branch up to that meeting point and only then continues once along
+  the shared path.
+- **Going back to the decision in between is for choices that matter.** If
+  every branch still pending reaches the meeting point in a single step, the
+  tour walks them one after another without returning — there is nothing to
+  decide, only alternatives to be shown — and says which is which ("2 de 3").
+  It returns to the decision when a pending branch is a path of its own,
+  because entering a different road should be a deliberate act. The user still
+  picks the first branch themselves: the labels carry meaning.
+  This makes the same decision behave differently depending on the order the
+  user picks, and that is correct: what decides is what is left to walk. Say it the way a
   person would explain it out loud: "here there are three ways the material
   arrives — this one, this one and this one — and after that they all go the
   same way." Walking the whole tail of the flow once per branch teaches
@@ -272,6 +281,12 @@ Tour rules:
   still pending, offer "Ir a lo que falta por visitar". A cycle with no
   decision in it must not trap the user: after one full lap with nothing new,
   treat it as a dead end.
+- **"Anterior" can undo a choice.** It steps the view back through what has
+  been walked, and when it lands on a decision that decision's branches are
+  live again: picking a different one continues the tour from there. What was
+  walked still counts — those steps were seen and those branches were taken —
+  so progress never goes backwards. Picking the wrong branch is a slip, not a
+  sentence to walk the whole path again.
 - Progress bar: visited steps over total.
 - The active step (current step in the tour, selected step in free review)
   shows its tags as badges on the diagram itself, next to the node, in

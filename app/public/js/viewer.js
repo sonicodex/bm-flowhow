@@ -8,7 +8,8 @@
 // and applies it only once the server has accepted and stored it.
 // "Anterior" only moves the view back over steps already walked, so it never
 // reaches the server, and neither does "Siguiente" while going forward again
-// over them.
+// over them. Choosing a different branch on a decision left behind does
+// (phase 3.6).
 import Core from './core.js';
 import { layoutFlow } from './diagram-layout.js';
 import { renderDiagram } from './diagram.js';
@@ -59,7 +60,14 @@ if (data && cols) {
   const noteFor = (note) => {
     if (!note) return '';
     const title = (stepId) => quoted(state.tour.byId.get(stepId).title);
-    // Branches that meet again (phase 3.5).
+    // Branches that meet again (phase 3.5); one-step ones walked in a row (3.6).
+    const option = (d, k) => { const e = state.tour.exitsOf(d)[k]; return quoted(e.label || state.tour.byId.get(e.to).title); };
+    if (note.alt) return `<p class="note">Otra opción de ${title(note.alt)}: ${option(note.alt, note.exit)} (${note.n} de ${note.total}).</p>`;
+    if (note.alsoDirect) {
+      const names = note.exits.map((k) => option(note.alsoDirect, k));
+      const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}` : names[0];
+      return `<p class="note">${names.length > 1 ? `Las opciones ${list} llevan` : `La opción ${list} lleva`} directo a este paso.</p>`;
+    }
     if (note.direct) return `<p class="note">Esta opción va directo a ${title(note.direct)}. Antes de seguir, mira las otras.</p>`;
     if (note.joinAt) return `<p class="note">Esta rama sigue en ${title(note.joinAt)}, igual que las otras. Vuelves a la decisión para ver las que faltan.</p>`;
     const why = note.endAt ? `Esa rama terminó en ${title(note.endAt)}. ` : note.loopTo ? 'Ese camino se repite sin llegar a un cierre. ' : '';
@@ -81,13 +89,15 @@ if (data && cols) {
     const options = tour.options();
     if (!options.length) return '';
     const text = (o) => `${o.label ? `<strong>${esc(o.label)}</strong> · ` : ''}${esc(o.title)}`;
-    if (tour.needsChoice()) {
+    // At the last step, or on a decision "Anterior" came back to (phase 3.6).
+    if (tour.canChoose()) {
       const buttons = options.map((o) =>
         `<button type="button" class="branch${o.taken ? ' taken' : ''}" data-choose="${o.index}">${text(o)}${o.taken ? `<span class="taken-tag">${DONE_ICON}Ya recorrida</span>` : ''}</button>`,
       ).join('');
       const skip = tour.canSkip() ? '<button type="button" class="branch" data-skip>Ir a lo que falta por visitar</button>' : '';
       const again = options.some((o) => o.taken) ? '<p class="muted small">Puedes repetir una rama ya recorrida.</p>' : '';
-      return `<div class="exits"><p class="label">Elige una rama para continuar</p>${buttons}${skip}${again}</div>`;
+      const head = tour.atEnd() ? 'Elige una rama para continuar' : 'Puedes elegir otra rama: el recorrido seguirá desde aquí';
+      return `<div class="exits"><p class="label">${head}</p>${buttons}${skip}${again}</div>`;
     }
     const rows = options.map((o) => `<p class="exit-row">${text(o)}${o.visited && tour.atEnd() ? ' (ya visitado)' : ''}</p>`).join('');
     return `<div class="exits"><p class="label">${options.length === 1 ? 'Sigue con' : 'Salidas'}</p>${rows}</div>`;
@@ -245,7 +255,16 @@ if (data && cols) {
         state.message = '';
         renderTour('[data-next]');
       } else act({ at, action: 'next' }, '[data-next]');
-    } else if (b.hasAttribute('data-choose')) act({ at, action: 'choose', exit: Number(b.getAttribute('data-choose')) });
+    } else if (b.hasAttribute('data-choose')) {
+      const exit = Number(b.getAttribute('data-choose'));
+      if (tour.atEnd()) act({ at, action: 'choose', exit });
+      else if (tour.current().chose === exit) {
+        // The branch chosen here before: only the view moves.
+        tour.choose(exit);
+        state.message = '';
+        renderTour();
+      } else act({ at, action: 'choose', exit, back: tour.pos });
+    }
     else if (b.hasAttribute('data-skip')) act({ at, action: 'skip' });
     else if (b.hasAttribute('data-finish')) finish();
   });

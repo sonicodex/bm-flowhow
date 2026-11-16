@@ -14,6 +14,61 @@ Entry format:
 
 ---
 
+## 2026-11-16 — One-step branches in a row; "Anterior" can undo a choice (phase 3.6)
+
+- Decision (proposed and approved before building; SPEC §7 updated by the
+  owner):
+  - **Short branches.** For each branch with a meeting point: `direct`
+    (its target is the meeting point), `short` (its step is not a decision
+    and its only exit is the meeting point) or `long`. Kept in
+    `tour.reach`. When the tour is about to go back to a decision before
+    its meeting point, it first looks at the branches still to take that
+    meet there. If none is long, it does not go back: it moves on to the
+    next short one in sheet order, with «Otra opción de «D»: «label» (2 de
+    3).», and once only direct ones are left it takes them and enters the
+    meeting point with «La opción «No» lleva directo a este paso.». The
+    user still picks the first branch.
+  - **The order picked matters, and that is intended:** a short branch
+    first and a long one left goes back to the decision; the long one
+    first and only a short one left walks it right after. What decides is
+    what is left to walk.
+  - In the reference flows: Apertura P7 and P26 walk their branches in a
+    row; P34 enters P35 once and takes «No» on the way; Instalaciones P11
+    likewise. The direct-branch note (bounce) stays only where a long
+    branch is still pending: Instalaciones P9 and P17, Apertura P31.
+  - **"Anterior" can undo a choice.** On a decision left behind, its
+    branches are live again ("Puedes elegir otra rama: el recorrido
+    seguirá desde aquí"). The branch chosen there before only moves the
+    view. Another one drops the trail after that decision and goes on from
+    the state saved there: each trail entry keeps the path, the pending
+    starts and the cycle counter. Steps seen and branches taken stay
+    counted, so progress never goes backwards.
+  - **Migration 0004**: `tour_visits.rewind_to`, the trail position such a
+    choice went back to (NULL on every other row). `tour-log.js` replays
+    it by going back there first, and refuses a position past the end, a
+    step that is not a decision, or the branch chosen there before.
+  - **A fix the random rewinds found:** a decision seen on a branch that
+    "Anterior" then undid is no longer on the path, so nothing led back to
+    its other branches and the tour could not be finished. The dead-end
+    return now has a last resort, after unvisited starts and steps: a
+    decision with a branch still to take, reached by a jump ("Ahora sigues
+    con una parte del flujo que faltaba.").
+  - **Tests:** a random-graph test with random rewinds (2,000 flows in the
+    suite; 20,000 checked once by hand), asserting every tour still
+    completes and progress never goes backwards; and `tour-log.test.js`,
+    random flows with random rewinds applied through the log, replayed to
+    the same state. Four phase 3.5 cases changed what they expect because
+    their one-step branches are now walked in a row; three got two-step
+    branches so they still test going back, the subflow case was rewritten.
+  - A run logged under the 3.5 rules that does not replay is closed and a
+    clean one opened (3.5's mechanism). The owner's open repeat of Apertura
+    on the local database (run 2) was closed that way by the browser check;
+    it was restored as it was, and will be closed the same way when the
+    owner opens it.
+  - Browser check: `app/.layout-check/3.6/`.
+- Reason: owner, after testing phase 3.5 live.
+- Spec sections affected: 7 (Viewer: tour rules).
+
 ## 2026-11-16 — "Empezar de nuevo" whenever a run is open
 
 - Decision: "Empezar de nuevo" shows whenever the user has an open run on

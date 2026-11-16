@@ -95,8 +95,13 @@ async function statusOf(db: D1Database, userId: number, id: number) {
 
 function readAction(body: unknown): Action | null {
   if (typeof body !== "object" || body === null) return null;
-  const { at, action, exit } = body as Record<string, unknown>;
+  const { at, action, exit, back } = body as Record<string, unknown>;
   if (typeof at !== "string") return null;
+  if (back !== undefined) {
+    // A different branch on a decision "Anterior" came back to (phase 3.6).
+    if (action === "choose" && Number.isInteger(exit) && Number.isInteger(back)) return { at, action, exit: exit as number, back: back as number };
+    return null;
+  }
   if (action === "next" || action === "skip") return { at, action };
   if (action === "choose" && Number.isInteger(exit)) return { at, action, exit: exit as number };
   return null;
