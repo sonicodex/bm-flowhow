@@ -35,6 +35,13 @@ Entry format:
   - **Administration screens (areas now, users in 4.4) are `editor`**
     (owner's answer): `can_view_admin_layer` is for the admin layer and
     may later go to a group that must not manage users.
+    **Suspended for the user screens (2026-11-16, owner):** `can_edit`
+    means "may change the content of flows". Managing accounts under it
+    is a privilege escalation: an outside process owner given `can_edit`
+    could reset the Board's password and promote themselves. The areas
+    screen stays `editor` (assigning flows to areas is content). Proposed:
+    a third permission, `can_manage_users`, set by the role (Board only),
+    with its own access level for the user routes; to settle before 4.4.
   - **Visibility** (`canSeeFlow`): a published flow; a Standard user
     also needs one of its areas. Leaders and the Board see every
     published flow. The viewer and the four tour routes are `flow`; the

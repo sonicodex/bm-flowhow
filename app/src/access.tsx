@@ -10,8 +10,12 @@ import { type AppEnv, type SessionUser } from "./session.ts";
 // - user:   any signed-in user.
 // - flow:   a signed-in user who may see the flow in `:id`. Otherwise 404,
 //           as for a flow that does not exist (DECISIONS 2026-11-16).
-// - editor: `can_edit`. The editor screens and, by the owner's choice, the
-//           administration screens (areas, users). Otherwise 403.
+// - editor: `can_edit`, which means "may change the content of flows": the
+//           flows and import screens, and the areas screen, since assigning
+//           flows to areas is content and opens no way up. Never the user
+//           screens (4.4): whoever manages accounts can reset the Board's
+//           password or promote themselves (DECISIONS, phase 4.2).
+//           Otherwise 403.
 // - admin:  `can_view_admin_layer`, for the admin layer (stage 3). No route
 //           uses it yet. Otherwise 403.
 // Permissions are read from the flags, never from the role (§4).
