@@ -27,6 +27,9 @@ describe("administration screens (phase 4.4)", () => {
       expect(html.indexOf(action), path).toBeGreaterThan(html.indexOf('<div class="admin-head">'));
       expect(html.indexOf(action), path).toBeLessThan(html.indexOf("<table"));
       expect(html, path).not.toMatch(/<ul class="(admin-list|plain-list)"/);
+      // The frame that shades its right edge while there is more to scroll to.
+      expect(html, path).toContain('<div class="table-frame"><div class="table-scroll" data-table-scroll="true"><table class="admin-table">');
+      expect(html, path).toContain('<script type="module" src="/js/table-scroll.js"></script>');
     }
     expect(tableRows(await (await board.fetch("/users")).text())).toEqual([["Nombre de junta", "junta", "Junta directiva", "", "Sí", "Editar"]]);
   });

@@ -32,22 +32,25 @@ export function AdminList(props: {
       </div>
       <Messages error={props.error} />
       {props.rows.length ? (
-        <div class="table-scroll">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                {props.columns.map((c) => (
-                  <th scope="col" class={c.numeric ? "num" : undefined}>
-                    {c.label}
+        <div class="table-frame">
+          <div class="table-scroll" data-table-scroll>
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  {props.columns.map((c) => (
+                    <th scope="col" class={c.numeric ? "num" : undefined}>
+                      {c.label}
+                    </th>
+                  ))}
+                  <th scope="col" class="admin-actions">
+                    Acciones
                   </th>
-                ))}
-                <th scope="col" class="admin-actions">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody>{props.rows}</tbody>
-          </table>
+                </tr>
+              </thead>
+              <tbody>{props.rows}</tbody>
+            </table>
+          </div>
+          <script type="module" src="/js/table-scroll.js"></script>
         </div>
       ) : (
         <div class="card admin-empty">

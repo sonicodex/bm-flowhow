@@ -36,7 +36,12 @@ Entry format:
     "Cambios guardados.", as before.
   - A refused delete shows its reason above the list.
   - On a phone the table scrolls sideways inside its frame; the page never
-    does.
+    does. While columns are left to the right, the frame's right edge casts
+    a shadow (a gradient from `--color-edge`), gone at the end; no text, no
+    arrow (owner's request on approving this redo). A small module,
+    `/js/table-scroll.js`, sets it; without it the table still scrolls,
+    unshaded. Only the right edge: nothing marks columns scrolled past on
+    the left.
   - The import and review screens (provisional until phase 5) take the
     way back at the top too.
 - Reason: owner's request, before testing phase 4; SPEC §9 rewritten by the

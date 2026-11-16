@@ -694,12 +694,37 @@ textarea:focus-visible,
   margin: 0;
 }
 
-.table-scroll {
-  overflow-x: auto;
+.table-frame {
+  position: relative;
   margin-bottom: var(--space-6);
   background: var(--color-surface);
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius);
+}
+
+.table-scroll {
+  overflow-x: auto;
+  border-radius: var(--radius);
+}
+
+/* While columns are left to the right, the frame's right edge casts a
+   shadow over them (set by /js/table-scroll.js); it goes once the table is
+   scrolled to its end. No text, no arrow: the edge just stops looking flat. */
+.table-frame::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--space-4);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: linear-gradient(to left, var(--color-edge), transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.table-frame.has-more::after {
+  opacity: 1;
 }
 
 .admin-table {
