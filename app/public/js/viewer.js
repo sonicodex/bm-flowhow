@@ -62,7 +62,7 @@ if (data && cols) {
     const title = (stepId) => quoted(state.tour.byId.get(stepId).title);
     // Branches that meet again (phase 3.5); one-step ones walked in a row (3.6).
     const option = (d, k) => { const e = state.tour.exitsOf(d)[k]; return quoted(e.label || state.tour.byId.get(e.to).title); };
-    if (note.alt) return `<p class="note">Otra opción de ${title(note.alt)}: ${option(note.alt, note.exit)} (${note.n} de ${note.total}).</p>`;
+    if (note.alt) return `<p class="note">Otra manera: ${option(note.alt, note.exit)} (${note.n} de ${note.total}).</p>`;
     if (note.alsoDirect) {
       const names = note.exits.map((k) => option(note.alsoDirect, k));
       const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}` : names[0];
@@ -77,7 +77,8 @@ if (data && cols) {
 
   const details = (step, categories) => {
     let out = `<p class="eyebrow">${esc((Core.TYPE_LABELS[step.type] || '').toUpperCase())}</p><h2 class="step-title">${esc(step.title)}</h2>`;
-    out += step.description ? `<p class="step-desc">${esc(step.description)}</p>` : '<p class="muted">Este paso no tiene descripción.</p>';
+    // No description, nothing shown: most real steps have none.
+    if (step.description) out += `<p class="step-desc">${esc(step.description)}</p>`;
     const rows = categories.filter((c) => step.tags[c] && step.tags[c].length);
     if (rows.length) {
       out += `<dl class="step-tags">${rows.map((c) => `<div><dt>${esc(c)}</dt><dd>${step.tags[c].map((v) => `<span class="chip">${esc(v)}</span>`).join('')}</dd></div>`).join('')}</dl>`;

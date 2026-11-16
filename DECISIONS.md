@@ -14,6 +14,20 @@ Entry format:
 
 ---
 
+## 2026-11-16 — Shorter one-step note; no line for a missing description
+
+- Decision:
+  - The one-step branch note is «Otra manera: «El proveedor entrega» (2 de
+    3).». The earlier one repeated the whole question right after the user
+    read it. The other notes do not repeat the question and stay as they
+    are: «Esta opción va directo a «X». Antes de seguir, mira las otras.»
+    and «La opción «No» lleva directo a este paso.».
+  - A step without a description shows nothing in its place. "Este paso no
+    tiene descripción" announced an absence, and in the real flows most
+    steps have none.
+- Reason: owner, before testing phase 3.6.
+- Spec sections affected: 7 (Viewer: step panel).
+
 ## 2026-11-16 — One-step branches in a row; "Anterior" can undo a choice (phase 3.6)
 
 - Decision (proposed and approved before building; SPEC §7 updated by the
@@ -24,8 +38,8 @@ Entry format:
     `tour.reach`. When the tour is about to go back to a decision before
     its meeting point, it first looks at the branches still to take that
     meet there. If none is long, it does not go back: it moves on to the
-    next short one in sheet order, with «Otra opción de «D»: «label» (2 de
-    3).», and once only direct ones are left it takes them and enters the
+    next short one in sheet order, with ~~«Otra opción de «D»: «label» (2 de
+    3).»~~ «Otra manera: «label» (2 de 3).» (see the next entry), and once only direct ones are left it takes them and enters the
     meeting point with «La opción «No» lleva directo a este paso.». The
     user still picks the first branch.
   - **The order picked matters, and that is intended:** a short branch
