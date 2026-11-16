@@ -2,6 +2,7 @@ import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createFlow } from "../src/flows.ts";
 import { signIn, type Signed } from "./session.ts";
+import { tableHead, tableRows } from "./table.ts";
 
 let board: Signed;
 beforeEach(async () => {
@@ -14,20 +15,34 @@ const names = async () => (await env.DB.prepare("SELECT name FROM areas ORDER BY
 const idOf = async (name: string) => (await env.DB.prepare("SELECT id FROM areas WHERE name = ?").bind(name).first<number>("id"))!;
 
 describe("/areas (phase 4.4)", () => {
-  it("shows the empty state", async () => {
+  it("says, with no areas, what they are for and how to add the first", async () => {
     const res = await board.fetch("/areas");
     expect(res.status).toBe(200);
-    expect(await res.text()).toContain("Todavía no hay áreas.");
+    const html = await res.text();
+    expect(html).not.toContain("<table");
+    expect(html).toContain("Las áreas agrupan a los Empleados y deciden qué flujos ve cada uno.");
+    expect(html).toContain("Crea la primera con «Nueva área».");
+    expect(html).toContain('<a class="button-primary" href="/areas/new">Nueva área</a>');
   });
 
-  it("creates an area and lists it with what uses it", async () => {
+  it("creates an area from its form and lists it in the table", async () => {
+    const form = await (await board.fetch("/areas/new")).text();
+    expect(form).toContain('<a href="/areas">← Volver a áreas</a>');
+    expect(form).toContain('<form method="post" action="/areas"');
     const res = await post("  Operaciones  ");
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toBe("/areas");
     expect(await names()).toEqual(["Operaciones"]);
     const html = await (await board.fetch("/areas")).text();
-    expect(html).toContain('value="Operaciones"');
-    expect(html).toContain("0 usuarios · 0 flujos");
+    expect(tableHead(html)).toEqual(["Nombre", "Flujos", "Usuarios", "Acciones"]);
+    expect(tableRows(html)).toEqual([["Operaciones", "0", "0", "Editar Borrar"]]);
+    // The name opens its form.
+    const id = await idOf("Operaciones");
+    expect(html).toContain(`<a href="/areas/${id}">Operaciones</a>`);
+    const edit = await (await board.fetch(`/areas/${id}`)).text();
+    expect(edit).toContain('<input id="area-name" name="name" value="Operaciones"');
+    expect(edit).toContain("Nadie la usa todavía");
+    expect((await board.fetch(`/areas/${id + 100}`)).status).toBe(404);
   });
 
   it("refuses a duplicate name ignoring case and accents, and says why", async () => {
@@ -77,8 +92,13 @@ describe("/areas (phase 4.4)", () => {
     const html = await (await board.fetch("/areas")).text();
     expect(html).toContain('aria-label="Borrar el área Libre"');
     expect(html).not.toContain('aria-label="Borrar el área Con gente"');
-    expect(html).toContain("1 usuario · 0 flujos");
-    expect(html).toContain("0 usuarios · 1 flujo");
+    // Sorted by name; only the unused one can be deleted.
+    expect(tableRows(html)).toEqual([
+      ["Con flujo", "1", "0", "Editar"],
+      ["Con gente", "0", "1", "Editar"],
+      ["Libre", "0", "0", "Editar Borrar"],
+    ]);
+    expect(await (await board.fetch(`/areas/${await idOf("Con gente")}`)).text()).toContain("La usan 1 usuario · 0 flujos.");
 
     let res = await form(`/areas/${await idOf("Con gente")}/delete`);
     expect(res.status).toBe(422);

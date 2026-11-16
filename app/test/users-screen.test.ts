@@ -9,6 +9,7 @@ import { verifyPassword } from "../src/password.ts";
 import { COOKIE } from "../src/session.ts";
 import { LAST_MANAGER } from "../src/users.ts";
 import { ORIGIN, signIn, withSession, type Signed } from "./session.ts";
+import { tableRows } from "./table.ts";
 
 let board: Signed;
 beforeEach(async () => {
@@ -208,7 +209,9 @@ describe("user screens (phase 4.4)", () => {
     expect(await row("ana")).toMatchObject({ is_active: 0 });
     // Her open session is over, and the list says so.
     expect((await ana.fetch("/home")).headers.get("location")).toBe("/");
-    expect(await (await board.fetch("/users")).text()).toContain("<strong>Desactivada</strong>");
+    const list = await (await board.fetch("/users")).text();
+    expect(tableRows(list).find((r) => r[1] === "ana")).toEqual(["Nombre de ana", "ana", "Líder", "", "No", "Editar"]);
+    expect(list).toContain('<tr class="inactive">');
     res = await post(board, `/users/${ana.id}/activate`);
     expect(res.status).toBe(303);
     expect(await row("ana")).toMatchObject({ is_active: 1 });

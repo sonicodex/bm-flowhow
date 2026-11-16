@@ -677,15 +677,127 @@ textarea:focus-visible,
   margin-top: auto;
 }
 
-/* Administration lists (phase 4.4): one row per area or user, its forms
-   and its facts side by side, wrapping on a phone. */
-.admin-list {
+/* Administration screens (SPEC §9; phase 4.4): the shape of the Django
+   admin. The page's action at the right of the title; a dense table, its
+   heading row on the subtle tone and each row's actions at its end. On a
+   phone the table scrolls inside its frame, never the page. */
+.admin-head {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--space-3);
-  margin: 0 0 var(--space-6);
-  padding: 0;
-  list-style: none;
+  margin-bottom: var(--space-4);
+}
+
+.admin-head .page-title {
+  margin: 0;
+}
+
+.table-scroll {
+  overflow-x: auto;
+  margin-bottom: var(--space-6);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.admin-table th,
+.admin-table td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.admin-table thead th {
+  font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  background: var(--color-subtle);
+}
+
+.admin-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table tbody tr:hover {
+  background: var(--color-primary-tint);
+}
+
+.admin-table .num {
+  text-align: right;
+}
+
+.admin-table tr.inactive td {
+  color: var(--color-text-muted);
+}
+
+.admin-table .admin-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.admin-actions > * + * {
+  margin-left: var(--space-3);
+}
+
+.admin-actions form {
+  display: inline;
+  margin: 0;
+}
+
+.admin-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.admin-empty {
+  padding: var(--space-6);
+}
+
+.admin-empty p {
+  margin: 0;
+}
+
+.admin-empty p + p {
+  margin-top: var(--space-2);
+}
+
+/* The way back, at the top of every form. */
+.admin-back {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.admin-subtitle {
+  margin: 0 0 var(--space-4);
+}
+
+/* Save at the bottom left. */
+.admin-submit {
+  margin-top: var(--space-4);
+}
+
+/* Actions on a record that are not saving it, below its form. */
+.admin-more {
+  max-width: 640px;
+  margin-top: var(--space-8);
+  padding-top: var(--space-4);
+  border-top: var(--border-width) solid var(--color-border);
+}
+
+.admin-more h2 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
 }
 
 .admin-row {

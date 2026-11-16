@@ -1,5 +1,6 @@
 import type { RowError } from "../public/js/core.js";
 import { Router } from "./access.tsx";
+import { AdminForm, AdminList, RowActions, yesNo } from "./admin.tsx";
 import { createFlow, getFlow, saveFlowDetails, type FlowDetails } from "./flows.ts";
 import { applyGrid, parseGrid, reviewGrid, type NewTag, type Review } from "./import.ts";
 
@@ -8,64 +9,84 @@ import { applyGrid, parseGrid, reviewGrid, type NewTag, type Review } from "./im
 // only (phase 4.2). They only reuse the existing app.css classes.
 export const flowsScreen = new Router();
 
-type FlowItem = { id: number; name: string; version: string | null; draft: number };
+type FlowItem = { id: number; name: string; colour: number; version: string | null; draft: number; areas: string | null };
 
 async function listFlows(db: D1Database): Promise<FlowItem[]> {
   const { results } = await db
     .prepare(
-      `SELECT f.id, f.name,
+      `SELECT f.id, f.name, f.colour,
          (SELECT major || '.' || minor FROM releases r WHERE r.flow_id = f.id ORDER BY major DESC, minor DESC LIMIT 1) AS version,
-         EXISTS (SELECT 1 FROM drafts d WHERE d.flow_id = f.id) AS draft
-       FROM flows f ORDER BY f.name`,
+         EXISTS (SELECT 1 FROM drafts d WHERE d.flow_id = f.id) AS draft,
+         (SELECT group_concat(name, ', ') FROM
+           (SELECT a.name FROM flow_areas fa JOIN areas a ON a.id = fa.area_id WHERE fa.flow_id = f.id ORDER BY a.name_key)) AS areas
+       FROM flows f ORDER BY f.name_key`,
     )
     .all<FlowItem>();
   return results;
 }
 
-function FlowsPage({ items, error, value }: { items: FlowItem[]; error?: string; value?: string }) {
+function FlowsPage({ items }: { items: FlowItem[] }) {
   return (
-    <>
-      <h1 class="page-title">Flujos</h1>
-      {items.length ? (
-        <ul class="plain-list">
-          {items.map((f) => (
-            <li>
-              {f.name} — {f.version ? `publicado en ${f.version}` : "sin publicar"}
-              {f.draft ? ", con borrador" : ""}
-              {f.version ? (
-                <>
-                  {" · "}
-                  <a href={`/flows/${f.id}`}>Ver</a>
-                </>
-              ) : null}
-              {" · "}
-              <a href={`/flows/${f.id}/details`}>Datos</a>
-              {" · "}
-              <a href={`/flows/${f.id}/import`}>Importar</a>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p class="muted">Todavía no hay flujos.</p>
-      )}
-      <form method="post" action="/flows" class="inline-form">
-        <label for="flow-name">Nuevo flujo</label>
-        <input id="flow-name" name="name" value={value ?? ""} required maxlength={100} />
-        <button type="submit" class="button-primary">Crear</button>
-      </form>
-      {error && <p class="form-error" role="alert">{error}</p>}
-    </>
+    <AdminList
+      title="Flujos"
+      action={{ href: "/flows/new", label: "Nuevo flujo" }}
+      columns={[{ label: "Nombre" }, { label: "Versión publicada" }, { label: "Borrador" }, { label: "Áreas" }]}
+      empty={{
+        purpose: "Aquí están los procesos de la empresa, cada uno con sus pasos, sus versiones y las áreas que lo ven.",
+        howToAdd: "Todavía no hay ninguno. Crea el primero con «Nuevo flujo».",
+      }}
+      rows={items.map((f) => (
+        <tr>
+          <td>
+            <a class={`admin-name flow-${f.colour}`} href={`/flows/${f.id}/details`}>
+              <span class="flow-dot" aria-hidden="true"></span>
+              {f.name}
+            </a>
+          </td>
+          <td>{f.version ?? "Sin publicar"}</td>
+          <td>{yesNo(f.draft === 1)}</td>
+          <td>{f.areas ?? "Ninguna"}</td>
+          <RowActions>
+            {f.version && (
+              <a href={`/flows/${f.id}`} aria-label={`Ver ${f.name}`}>
+                Ver
+              </a>
+            )}
+            <a href={`/flows/${f.id}/details`} aria-label={`Editar ${f.name}`}>
+              Editar
+            </a>
+            <a href={`/flows/${f.id}/import`} aria-label={`Importar a ${f.name}`}>
+              Importar
+            </a>
+          </RowActions>
+        </tr>
+      ))}
+    />
+  );
+}
+
+const BACK = { href: "/flows", label: "Volver a flujos" };
+
+function NewFlowPage({ value, error }: { value: string; error?: string }) {
+  return (
+    <AdminForm back={BACK} title="Nuevo flujo" error={error} action="/flows" submit="Crear flujo">
+      <label for="flow-name">Nombre</label>
+      <input id="flow-name" name="name" value={value} required maxlength={100} />
+      <p class="muted">Nace sin publicar. Después le das objetivo y áreas en «Editar», y sus pasos en «Importar».</p>
+    </AdminForm>
   );
 }
 
 flowsScreen.get("/", "editor", async (c) => c.render(<FlowsPage items={await listFlows(c.env.DB)} />, { title: "Flujos" }));
+
+flowsScreen.get("/new", "editor", (c) => c.render(<NewFlowPage value="" />, { title: "Nuevo flujo" }));
 
 flowsScreen.post("/", "editor", async (c) => {
   const name = String((await c.req.parseBody()).name ?? "");
   const r = await createFlow(c.env.DB, name);
   if (r.ok === false) {
     c.status(422);
-    return c.render(<FlowsPage items={await listFlows(c.env.DB)} error={r.error} value={name.trim()} />, { title: "Flujos" });
+    return c.render(<NewFlowPage value={name.trim()} error={r.error} />, { title: "Nuevo flujo" });
   }
   return c.redirect("/flows", 303);
 });
@@ -73,6 +94,9 @@ flowsScreen.post("/", "editor", async (c) => {
 function ImportPage({ flow, done }: { flow: { id: number; name: string }; done?: boolean }) {
   return (
     <>
+      <p class="admin-back">
+        <a href={BACK.href}>← {BACK.label}</a>
+      </p>
       <h1 class="page-title">Importar: {flow.name}</h1>
       {done && <p role="status">Importado al borrador. No se publicó.</p>}
       <p class="muted">La importación reemplaza todo el borrador y siempre pasa por una revisión antes de guardarse.</p>
@@ -94,9 +118,6 @@ function ImportPage({ flow, done }: { flow: { id: number; name: string }; done?:
         </noscript>
         <button type="submit" class="button-primary">Revisar</button>
       </form>
-      <p>
-        <a href="/flows">Volver a flujos</a>
-      </p>
       <script type="module" src="/js/import-form.js"></script>
     </>
   );
@@ -119,6 +140,9 @@ const tagValue = (t: NewTag) => JSON.stringify([t.category, t.name]);
 function ReviewPage({ flow, review, grid }: { flow: { id: number; name: string }; review: Review; grid: string }) {
   return (
     <>
+      <p class="admin-back">
+        <a href={`/flows/${flow.id}/import`}>← Volver a importar</a>
+      </p>
       <h1 class="page-title">Revisión: {flow.name}</h1>
       <p>
         {review.flow.steps.length} pasos{review.flow.categories.length ? `; categorías: ${review.flow.categories.join(", ")}` : ""}.
@@ -156,9 +180,6 @@ function ReviewPage({ flow, review, grid }: { flow: { id: number; name: string }
           </p>
         </form>
       )}
-      <p>
-        <a href={`/flows/${flow.id}/import`}>Volver a importar</a>
-      </p>
     </>
   );
 }
@@ -242,49 +263,37 @@ function DetailsPage({
   warning?: string | null;
 }) {
   return (
-    <>
-      <h1 class="page-title">Datos: {flow.name}</h1>
-      {error && (
-        <p class="form-error" role="alert">
-          {error}
-        </p>
-      )}
-      {saved && <p role="status">Cambios guardados.</p>}
-      {warning && (
-        <p class="form-warning" role="status">
-          {warning}
-        </p>
-      )}
-      <form method="post" action={`/flows/${flow.id}/details`} class="stacked-form admin-form">
-        <label for="flow-name">Nombre</label>
-        <input id="flow-name" name="name" value={values.name} required maxlength={100} />
-        <label for="flow-objective">Objetivo</label>
-        <textarea id="flow-objective" name="objective" rows={3}>
-          {values.objective}
-        </textarea>
-        <fieldset class="choice-list">
-          <legend>Áreas</legend>
-          <p class="muted">Los Empleados de estas áreas verán el flujo publicado. Hace falta al menos una para publicarlo por primera vez.</p>
-          {areas.length ? (
-            areas.map((a) => (
-              <label>
-                <input type="checkbox" name="area" value={String(a.id)} checked={values.areaIds.includes(a.id)} /> {a.name}
-              </label>
-            ))
-          ) : (
-            <p class="muted">
-              Todavía no hay áreas. <a href="/areas">Crea una</a>.
-            </p>
-          )}
-        </fieldset>
-        <button type="submit" class="button-primary">
-          Guardar
-        </button>
-      </form>
-      <p>
-        <a href="/flows">Volver a flujos</a>
-      </p>
-    </>
+    <AdminForm
+      back={BACK}
+      title={flow.name}
+      error={error}
+      notice={saved ? "Cambios guardados." : undefined}
+      warning={warning}
+      action={`/flows/${flow.id}/details`}
+      submit="Guardar"
+    >
+      <label for="flow-name">Nombre</label>
+      <input id="flow-name" name="name" value={values.name} required maxlength={100} />
+      <label for="flow-objective">Objetivo</label>
+      <textarea id="flow-objective" name="objective" rows={3}>
+        {values.objective}
+      </textarea>
+      <fieldset class="choice-list">
+        <legend>Áreas</legend>
+        <p class="muted">Los Empleados de estas áreas verán el flujo publicado. Hace falta al menos una para publicarlo por primera vez.</p>
+        {areas.length ? (
+          areas.map((a) => (
+            <label>
+              <input type="checkbox" name="area" value={String(a.id)} checked={values.areaIds.includes(a.id)} /> {a.name}
+            </label>
+          ))
+        ) : (
+          <p class="muted">
+            Todavía no hay áreas. <a href="/areas/new">Crea una</a>.
+          </p>
+        )}
+      </fieldset>
+    </AdminForm>
   );
 }
 
@@ -300,7 +309,7 @@ flowsScreen.get("/:id{[0-9]+}/details", "editor", async (c) => {
   const published = saved && !!(await db.prepare("SELECT 1 FROM releases WHERE flow_id = ?").bind(flow.id).first());
   const warning = published && values.areaIds.length === 0 ? NO_AREAS_WARNING : null;
   return c.render(<DetailsPage flow={flow} values={values} areas={await listAreaOptions(db)} saved={saved} warning={warning} />, {
-    title: `Datos ${flow.name}`,
+    title: flow.name,
   });
 });
 
@@ -319,7 +328,7 @@ flowsScreen.post("/:id{[0-9]+}/details", "editor", async (c) => {
   const result = await saveFlowDetails(db, flow.id, values);
   if (result.ok === false) {
     c.status(422);
-    return c.render(<DetailsPage flow={flow} values={values} areas={await listAreaOptions(db)} error={result.error} />, { title: `Datos ${flow.name}` });
+    return c.render(<DetailsPage flow={flow} values={values} areas={await listAreaOptions(db)} error={result.error} />, { title: flow.name });
   }
   return c.redirect(`/flows/${flow.id}/details?guardado=1`, 303);
 });

@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 import { Router, visibleFlows } from "./access.tsx";
+import { AdminForm, AdminList, Messages, RowActions, yesNo } from "./admin.tsx";
 import { nameKey } from "./names.ts";
 import { hashPassword, temporaryPassword } from "./password.ts";
 import type { AppEnv } from "./session.ts";
@@ -77,29 +78,31 @@ async function noFlowsWarning(db: D1Database, account: { id: number; role: Role 
 function UsersPage({ accounts, areas }: { accounts: Account[]; areas: Area[] }) {
   const areaName = new Map(areas.map((a) => [a.id, a.name]));
   return (
-    <>
-      <h1 class="page-title">Usuarios</h1>
-      <p>
-        <a class="button-primary" href="/users/new">
-          Nuevo usuario
-        </a>
-      </p>
-      <ul class="admin-list">
-        {accounts.map((a) => {
-          const permissions = PERMISSIONS.filter((p) => a[p.key]).map((p) => p.label);
-          return (
-            <li class="admin-row">
-              <a href={`/users/${a.id}`}>{a.fullName}</a>
-              <span class="muted">{a.username}</span>
-              <span>{ROLES[a.role]}</span>
-              {a.areaIds.length > 0 && <span class="muted">{a.areaIds.map((id) => areaName.get(id)).join(", ")}</span>}
-              {permissions.length > 0 && <span class="muted">{permissions.join(" · ")}</span>}
-              {!a.isActive && <strong>Desactivada</strong>}
-            </li>
-          );
-        })}
-      </ul>
-    </>
+    <AdminList
+      title="Usuarios"
+      action={{ href: "/users/new", label: "Nuevo usuario" }}
+      columns={[{ label: "Nombre" }, { label: "Usuario" }, { label: "Rol" }, { label: "Áreas" }, { label: "Activo" }]}
+      empty={{
+        purpose: "Aquí están las cuentas de quienes entran a FlowHow: su rol, sus áreas y sus permisos.",
+        howToAdd: "Todavía no hay ninguna. Crea la primera con «Nuevo usuario».",
+      }}
+      rows={accounts.map((a) => (
+        <tr class={a.isActive ? undefined : "inactive"}>
+          <td>
+            <a href={`/users/${a.id}`}>{a.fullName}</a>
+          </td>
+          <td>{a.username}</td>
+          <td>{ROLES[a.role]}</td>
+          <td>{a.areaIds.map((id) => areaName.get(id)).join(", ")}</td>
+          <td>{yesNo(a.isActive)}</td>
+          <RowActions>
+            <a href={`/users/${a.id}`} aria-label={`Editar a ${a.fullName}`}>
+              Editar
+            </a>
+          </RowActions>
+        </tr>
+      ))}
+    />
   );
 }
 
@@ -110,24 +113,6 @@ usersScreen.get("/", "users", async (c) => {
 });
 
 // ---- The form ----
-
-function Messages({ error, notice, warning }: { error?: string; notice?: string; warning?: string | null }) {
-  return (
-    <>
-      {error && (
-        <p class="form-error" role="alert">
-          {error}
-        </p>
-      )}
-      {notice && <p role="status">{notice}</p>}
-      {warning && (
-        <p class="form-warning" role="status">
-          {warning}
-        </p>
-      )}
-    </>
-  );
-}
 
 function UserFields({ values, areas, isNew }: { values: Values; areas: Area[]; isNew: boolean }) {
   return (
@@ -179,57 +164,49 @@ function UserFields({ values, areas, isNew }: { values: Values; areas: Area[]; i
   );
 }
 
+const BACK = { href: "/users", label: "Volver a usuarios" };
+
 function NewUserPage({ values, areas, error }: { values: Values; areas: Area[]; error?: string }) {
   return (
-    <>
-      <h1 class="page-title">Nuevo usuario</h1>
-      <Messages error={error} />
-      <form method="post" action="/users" class="stacked-form admin-form">
-        <UserFields values={values} areas={areas} isNew />
-        <button type="submit" class="button-primary">
-          Crear usuario
-        </button>
-      </form>
-      <p>
-        <a href="/users">Volver a usuarios</a>
-      </p>
-    </>
+    <AdminForm back={BACK} title="Nuevo usuario" error={error} action="/users" submit="Crear usuario">
+      <UserFields values={values} areas={areas} isNew />
+    </AdminForm>
   );
 }
 
 function EditUserPage(props: { account: Account; values: Values; areas: Area[]; error?: string; notice?: string; warning?: string | null }) {
   const { account, values, areas } = props;
   return (
-    <>
-      <h1 class="page-title">{account.fullName}</h1>
-      <p class="muted">
-        Usuario {account.username}
-        {account.isActive ? "" : " · Cuenta desactivada"}
-      </p>
-      <Messages error={props.error} notice={props.notice} warning={props.warning} />
-      <form method="post" action={`/users/${account.id}`} class="stacked-form admin-form">
-        <UserFields values={values} areas={areas} isNew={false} />
-        <button type="submit" class="button-primary">
-          Guardar
-        </button>
-      </form>
-      <div class="admin-row">
-        <form method="post" action={`/users/${account.id}/password`}>
-          <button type="submit" class="button-secondary">
-            Restablecer contraseña
-          </button>
-        </form>
-        <form method="post" action={`/users/${account.id}/${account.isActive ? "deactivate" : "activate"}`}>
-          <button type="submit" class="button-secondary">
-            {account.isActive ? "Desactivar cuenta" : "Reactivar cuenta"}
-          </button>
-        </form>
-      </div>
-      <p class="muted">Restablecer cierra sus sesiones y le da una contraseña temporal. Desactivar le impide entrar; su historial se conserva.</p>
-      <p>
-        <a href="/users">Volver a usuarios</a>
-      </p>
-    </>
+    <AdminForm
+      back={BACK}
+      title={account.fullName}
+      subtitle={`Usuario ${account.username}${account.isActive ? "" : " · Cuenta desactivada"}`}
+      error={props.error}
+      notice={props.notice}
+      warning={props.warning}
+      action={`/users/${account.id}`}
+      submit="Guardar"
+      after={
+        <section class="admin-more">
+          <h2>La cuenta</h2>
+          <div class="admin-row">
+            <form method="post" action={`/users/${account.id}/password`}>
+              <button type="submit" class="button-secondary">
+                Restablecer contraseña
+              </button>
+            </form>
+            <form method="post" action={`/users/${account.id}/${account.isActive ? "deactivate" : "activate"}`}>
+              <button type="submit" class="button-secondary">
+                {account.isActive ? "Desactivar cuenta" : "Reactivar cuenta"}
+              </button>
+            </form>
+          </div>
+          <p class="muted">Restablecer cierra sus sesiones y le da una contraseña temporal. Desactivar le impide entrar; su historial se conserva.</p>
+        </section>
+      }
+    >
+      <UserFields values={values} areas={areas} isNew={false} />
+    </AdminForm>
   );
 }
 
@@ -238,6 +215,9 @@ function EditUserPage(props: { account: Account; values: Values; areas: Area[]; 
 function HandOverPage({ account, password, created, warning }: { account: Account; password: string; created: boolean; warning?: string | null }) {
   return (
     <>
+      <p class="admin-back">
+        <a href={BACK.href}>← {BACK.label}</a>
+      </p>
       <h1 class="page-title">{created ? "Usuario creado" : "Contraseña restablecida"}</h1>
       <p>
         {created ? "La cuenta" : "La contraseña de"} <strong>{account.fullName}</strong> ({account.username}){" "}
@@ -252,7 +232,7 @@ function HandOverPage({ account, password, created, warning }: { account: Accoun
       </div>
       <p>Dásela en persona. Al entrar tendrá que cambiarla por una suya. Esta es la única vez que se muestra.</p>
       <p>
-        <a href={`/users/${account.id}`}>Ver la cuenta</a> · <a href="/users">Volver a usuarios</a>
+        <a href={`/users/${account.id}`}>Ver la cuenta</a>
       </p>
     </>
   );

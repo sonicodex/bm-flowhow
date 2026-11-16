@@ -14,6 +14,35 @@ Entry format:
 
 ---
 
+## 2026-11-16 — Administration screens as tables (phase 4.4, redone)
+
+- Decision: areas, users and flows follow the one pattern of SPEC §9
+  "Administration screens", built once in `app/src/admin.tsx`
+  (`AdminList`, `AdminForm`) and used by all three:
+  - The list is a `<table>` with the columns SPEC names, plus a last
+    "Acciones" column. Counts are numbers, right-aligned; yes/no columns
+    say "Sí"/"No"; a flow with no area says "Ninguna"; an unpublished one
+    "Sin publicar". A deactivated user's row is greyed and its "Activo"
+    says "No".
+  - Row actions: areas "Editar" and, only when unused, "Borrar"; users
+    "Editar" (resetting and deactivating stay on the form, below it, under
+    "La cuenta": they are not one click away from the list); flows "Ver"
+    once published, "Editar" (the flow form) and "Importar". The name
+    opens the same form as "Editar".
+  - Creating has its own form now: `GET /areas/new` and `GET /flows/new`
+    (the inline create and rename forms are gone; `GET /areas/:id` is the
+    rename form). Saving an area or creating a flow goes back to the list,
+    as before; saving a user or a flow's details stays on its form with
+    "Cambios guardados.", as before.
+  - A refused delete shows its reason above the list.
+  - On a phone the table scrolls sideways inside its frame; the page never
+    does.
+  - The import and review screens (provisional until phase 5) take the
+    way back at the top too.
+- Reason: owner's request, before testing phase 4; SPEC §9 rewritten by the
+  owner.
+- Spec sections affected: none (implements §9 Administration screens).
+
 ## 2026-11-16 — Accounts and administration screens (phase 4.4)
 
 - Decision:

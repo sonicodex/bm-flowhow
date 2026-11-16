@@ -1,10 +1,11 @@
 import type { Context } from "hono";
+import { AdminForm, AdminList, RowActions } from "./admin.tsx";
 import { Router } from "./access.tsx";
 import { NAME_RULE, nameKey } from "./names.ts";
 import type { AppEnv } from "./session.ts";
 
-// The areas screen (SPEC §9 Administration screens; phase 4.4): create,
-// rename, and delete an area nobody uses. Behind `can_edit`: assigning flows
+// The areas screen (SPEC §9 Administration screens; phase 4.4): the list,
+// the form to create or rename one, and deleting an area nobody uses. Behind `can_edit`: assigning flows
 // to areas is content and opens no way up (DECISIONS, phase 4.2).
 export const areas = new Router();
 
@@ -24,59 +25,67 @@ async function listAreas(db: D1Database): Promise<Area[]> {
 
 const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const usage = (a: Area) => `${count(a.users, "usuario", "usuarios")} · ${count(a.flows, "flujo", "flujos")}`;
+const inUse = (a: Area) => a.users + a.flows > 0;
 
-// What the page shows again after a refused form: the message, and what was
-// typed, in the form it was typed in.
-type Refused = { error: string; areaId: number | null; value: string };
-
-function AreasPage({ items, refused }: { items: Area[]; refused?: Refused }) {
-  const typed = (id: number | null, fallback: string) => (refused && refused.areaId === id ? refused.value : fallback);
+function AreasPage({ items, error }: { items: Area[]; error?: string }) {
   return (
-    <>
-      <h1 class="page-title">Áreas</h1>
-      {refused && (
-        <p class="form-error" role="alert">
-          {refused.error}
-        </p>
-      )}
-      {items.length ? (
-        <ul class="admin-list">
-          {items.map((a) => (
-            <li class="admin-row">
-              <form method="post" action={`/areas/${a.id}`} class="inline-form">
-                <input name="name" value={typed(a.id, a.name)} required maxlength={100} aria-label={`Nombre del área ${a.name}`} />
-                <button type="submit" class="button-secondary">
-                  Renombrar
+    <AdminList
+      title="Áreas"
+      action={{ href: "/areas/new", label: "Nueva área" }}
+      columns={[{ label: "Nombre" }, { label: "Flujos", numeric: true }, { label: "Usuarios", numeric: true }]}
+      error={error}
+      empty={{
+        purpose: "Las áreas agrupan a los Empleados y deciden qué flujos ve cada uno.",
+        howToAdd: "Todavía no hay ninguna. Crea la primera con «Nueva área».",
+      }}
+      rows={items.map((a) => (
+        <tr>
+          <td>
+            <a href={`/areas/${a.id}`}>{a.name}</a>
+          </td>
+          <td class="num">{a.flows}</td>
+          <td class="num">{a.users}</td>
+          <RowActions>
+            <a href={`/areas/${a.id}`} aria-label={`Editar el área ${a.name}`}>
+              Editar
+            </a>
+            {!inUse(a) && (
+              <form method="post" action={`/areas/${a.id}/delete`}>
+                <button type="submit" class="button-link" aria-label={`Borrar el área ${a.name}`}>
+                  Borrar
                 </button>
               </form>
-              <span class="muted">{usage(a)}</span>
-              {a.users + a.flows === 0 && (
-                <form method="post" action={`/areas/${a.id}/delete`}>
-                  <button type="submit" class="button-link" aria-label={`Borrar el área ${a.name}`}>
-                    Borrar
-                  </button>
-                </form>
-              )}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p class="muted">Todavía no hay áreas.</p>
-      )}
-      <form method="post" action="/areas" class="inline-form">
-        <label for="area-name">Nueva área</label>
-        <input id="area-name" name="name" value={typed(null, "")} required maxlength={100} />
-        <button type="submit" class="button-primary">
-          Crear
-        </button>
-      </form>
-    </>
+            )}
+          </RowActions>
+        </tr>
+      ))}
+    />
   );
 }
 
-async function refuse(c: Context<AppEnv>, refused: Refused) {
+// One form for a new area (no `area`) and for renaming one.
+function AreaForm({ area, value, error }: { area?: Area; value: string; error?: string }) {
+  return (
+    <AdminForm
+      back={{ href: "/areas", label: "Volver a áreas" }}
+      title={area ? area.name : "Nueva área"}
+      subtitle={area && (inUse(area) ? `La usan ${usage(area)}.` : "Nadie la usa todavía: se puede borrar desde la lista.")}
+      error={error}
+      action={area ? `/areas/${area.id}` : "/areas"}
+      submit={area ? "Guardar" : "Crear área"}
+    >
+      <label for="area-name">Nombre</label>
+      <input id="area-name" name="name" value={value} required maxlength={100} />
+    </AdminForm>
+  );
+}
+
+const areaOf = async (db: D1Database, id: number) => (await listAreas(db)).find((a) => a.id === id);
+const formTitle = (area?: Area) => (area ? area.name : "Nueva área");
+
+async function refuse(c: Context<AppEnv>, area: Area | undefined, value: string, error: string) {
   c.status(422);
-  return c.render(<AreasPage items={await listAreas(c.env.DB)} refused={refused} />, { title: "Áreas" });
+  return c.render(<AreaForm area={area} value={value} error={error} />, { title: formTitle(area) });
 }
 
 // Creates the area (id null) or renames it. Null when it worked, else why not.
@@ -99,36 +108,47 @@ async function saveName(db: D1Database, id: number | null, raw: unknown): Promis
 
 areas.get("/", "editor", async (c) => c.render(<AreasPage items={await listAreas(c.env.DB)} />, { title: "Áreas" }));
 
+areas.get("/new", "editor", (c) => c.render(<AreaForm value="" />, { title: "Nueva área" }));
+
 areas.post("/", "editor", async (c) => {
   const name = (await c.req.parseBody()).name;
   const error = await saveName(c.env.DB, null, name);
-  if (error) return refuse(c, { error, areaId: null, value: String(name ?? "").trim() });
+  if (error) return refuse(c, undefined, String(name ?? "").trim(), error);
   return c.redirect("/areas", 303);
 });
 
+areas.get("/:id{[0-9]+}", "editor", async (c) => {
+  const area = await areaOf(c.env.DB, Number(c.req.param("id")));
+  if (!area) return c.notFound();
+  return c.render(<AreaForm area={area} value={area.name} />, { title: area.name });
+});
+
 areas.post("/:id{[0-9]+}", "editor", async (c) => {
-  const id = Number(c.req.param("id"));
-  if (!(await c.env.DB.prepare("SELECT 1 FROM areas WHERE id = ?").bind(id).first())) return c.notFound();
+  const area = await areaOf(c.env.DB, Number(c.req.param("id")));
+  if (!area) return c.notFound();
   const name = (await c.req.parseBody()).name;
-  const error = await saveName(c.env.DB, id, name);
-  if (error) return refuse(c, { error, areaId: id, value: String(name ?? "").trim() });
+  const error = await saveName(c.env.DB, area.id, name);
+  if (error) return refuse(c, area, String(name ?? "").trim(), error);
   return c.redirect("/areas", 303);
 });
 
 // Only an area no user and no flow belongs to. The schema refuses the rest
-// too (ON DELETE RESTRICT); the check here is for the message.
+// too (ON DELETE RESTRICT); the check here is for the message, shown on the
+// list the button was pressed on.
 areas.post("/:id{[0-9]+}/delete", "editor", async (c) => {
-  const id = Number(c.req.param("id"));
-  const area = (await listAreas(c.env.DB)).find((a) => a.id === id);
+  const db = c.env.DB;
+  const area = await areaOf(db, Number(c.req.param("id")));
   if (!area) return c.redirect("/areas", 303);
-  if (area.users + area.flows > 0) {
-    return refuse(c, { error: `No se puede borrar «${area.name}»: tiene ${usage(area)}. Quítaselos primero.`, areaId: null, value: "" });
-  }
+  const refuseOnList = async (error: string) => {
+    c.status(422);
+    return c.render(<AreasPage items={await listAreas(db)} error={error} />, { title: "Áreas" });
+  };
+  if (inUse(area)) return refuseOnList(`No se puede borrar «${area.name}»: tiene ${usage(area)}. Quítaselos primero.`);
   try {
-    await c.env.DB.prepare("DELETE FROM areas WHERE id = ?").bind(id).run();
+    await db.prepare("DELETE FROM areas WHERE id = ?").bind(area.id).run();
   } catch (e) {
     // Someone was assigned to it in the meantime.
-    if (/FOREIGN KEY/.test(String(e))) return refuse(c, { error: `No se puede borrar «${area.name}»: ya está en uso.`, areaId: null, value: "" });
+    if (/FOREIGN KEY/.test(String(e))) return refuseOnList(`No se puede borrar «${area.name}»: ya está en uso.`);
     throw e;
   }
   return c.redirect("/areas", 303);

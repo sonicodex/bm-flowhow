@@ -93,7 +93,7 @@ describe("GET /flows/:id (overview)", () => {
     await load();
     await createFlow(env.DB, "Sin publicar");
     const html = await (await get("/flows")).text();
-    expect(html).toContain(`<a href="/flows/${await idOf("Instalaciones")}">Ver</a>`);
-    expect(html).not.toContain(`<a href="/flows/${await idOf("Sin publicar")}">Ver</a>`);
+    expect(html).toContain(`<a href="/flows/${await idOf("Instalaciones")}" aria-label="Ver Instalaciones">Ver</a>`);
+    expect(html).not.toContain(`href="/flows/${await idOf("Sin publicar")}" aria-label="Ver`);
   });
 });

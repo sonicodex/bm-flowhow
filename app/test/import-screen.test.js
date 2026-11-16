@@ -2,6 +2,7 @@
 // and the routes that review and apply it.
 import { env } from 'cloudflare:test';
 import { signIn } from './session.ts';
+import { tableRows } from './table.ts';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { gridFromText, gridFromXlsx } from '../public/js/import-form.js';
 import instalaciones from '../../reference/Flujo_Instalaciones.grid.json';
@@ -47,7 +48,8 @@ describe('/flows', () => {
   it('creates a flow and lists it unpublished, with its draft', async () => {
     expect((await fetch('/flows', form([['name', 'Instalaciones']]))).status).toBe(303);
     const html = await (await fetch('/flows')).text();
-    expect(html).toContain('Instalaciones — sin publicar, con borrador');
+    // Name, published version, draft, areas, actions.
+    expect(tableRows(html)).toEqual([['Instalaciones', 'Sin publicar', 'Sí', 'Ninguna', 'Editar Importar']]);
     expect((await fetch('/flows', form([['name', 'instalaciónes']]))).status).toBe(422);
   });
 });
