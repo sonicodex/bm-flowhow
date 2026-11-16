@@ -9,7 +9,8 @@
     "types": "wrangler types",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.core.json && tsc --noEmit -p test",
     "db:migrate": "wrangler d1 migrations apply DB --local",
-    "db:load": "node tools/load-dev-flows.ts"
+    "db:load": "node tools/load-dev-flows.ts",
+    "user:create": "node tools/user-create.ts"
   },
   "dependencies": {
     "hono": "4.13.18"

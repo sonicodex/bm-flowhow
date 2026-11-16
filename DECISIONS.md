@@ -14,6 +14,140 @@ Entry format:
 
 ---
 
+## 2026-11-16 — Login and sessions (phase 4.1)
+
+- Decision:
+  - **Passwords** (`src/password.ts`): PBKDF2-SHA256 with Web Crypto at
+    100,000 iterations (the most Workers accepts), 16-byte salt, stored as
+    `pbkdf2-sha256$<iterations>$<salt>$<hash>`, compared in constant time.
+    The iteration count travels with each hash, so it can change later.
+    Anything that is not such a hash, the empty one included, matches no
+    password: accounts without one (a later Microsoft SSO) rely on that.
+    Minimum length 8 characters (SPEC sets none; used by the CLI and the
+    dev accounts now, by the screens in 4.4).
+  - **Sessions** (`src/session.ts`): 32 random bytes in the cookie
+    `flowhow_session` (`HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`,
+    7 days); the `sessions` table keeps its SHA-256. The expiry slides to
+    7 days from the last use, moved at most once a day so pages do not
+    write to D1 each time. An expired session, or one of a deactivated
+    user, counts as none and is deleted. A login also deletes that user's
+    expired sessions. `createSession(userId)` is the single way in; it does
+    not know how the user proved who they are.
+  - **CSRF**: Hono's `csrf()` (no new dependency) refuses forms posted
+    from another origin, on top of `SameSite=Lax`. The tour's JSON requests
+    are not forms; a browser cannot send them across sites without CORS,
+    which the app never grants.
+  - **Routes**: `GET /` is the login without a session and redirects to
+    `/home` with one. `POST /login`, `POST /logout` (a POST, so a link
+    elsewhere cannot sign anyone out). Every other route needs a session:
+    pages redirect to `/`; the tour's JSON routes answer 401 with «Tu
+    sesión terminó. Vuelve a entrar y sigue donde ibas.», which
+    `viewer.js` already shows. `/home` is provisional until 4.3.
+  - **Failed login**: one message for a wrong password, an unknown user and
+    an inactive one («Usuario o contraseña incorrectos.»), 401, the
+    username kept in the field, one second of delay, and the same PBKDF2
+    work when there is no account, so timing does not tell them apart.
+    No lockout (phase 4 plan, answer 6).
+  - The header shows the user's name and «Salir». Links by permission
+    come in 4.2.
+  - **The placeholder user is gone**: `src/current-user.ts` deleted, the
+    viewer and the tour use the session user. Migration `0005` deletes
+    the placeholder row by username and empty hash, and its runs, visits
+    and reviews with it (answer 1). Applied to the owner's local D1: runs
+    1–3 and the Apertura review are gone, as approved.
+  - **`npm run user:create`** (`tools/user-create.ts`): creates a **Board**
+    user only (role `board`, both permissions, no area), or resets any
+    user's password with `--restablecer`, which also closes their
+    sessions. Narrower than the proposal's `--rol`: the CLI exists for the
+    first Board member and for a Board locked out; everyone else is created
+    from the screens in 4.4, where the area rule lives. It runs
+    `wrangler d1 execute` (local, or `--remote`) with no shell, and only
+    the hash leaves the machine. The password is asked twice without echo.
+  - **Dev accounts** (answer 5): `npm run db:load` creates `empleado`
+    (Standard, area «Desarrollo»), `lider` (Leader, «Desarrollo») and
+    `junta` (Board, no area) with `DEV_PASSWORD` from `app/.dev.vars`,
+    once; without it, it says so and creates none. `getPlatformProxy` runs
+    with `remoteBindings: false`, so the script cannot reach a remote
+    binding. `app/.dev.vars.example` lists the key.
+  - **`must_change_password` and its screen move to 4.4**, with the reset
+    button that sets it. The CLI's reset does not set it: whoever runs it
+    types the new password themselves.
+  - **`DEPLOY.md`** (owner's request): everything that exists only when
+    deploying. Linked from `CLAUDE.md`.
+  - **Open risk, in DEPLOY.md**: PBKDF2 at 100,000 iterations takes about
+    12 ms on a development Mac; the Workers Free plan allows 10 ms of CPU
+    per request. To be measured on `POST /login` at the next deployment.
+    The options are Workers Paid or fewer iterations; the owner decides.
+  - Browser check: `app/.layout-check/4.1/` (login, wrong password, phone,
+    home, header on the phone; cookie flags read from Chrome).
+- Reason: phase 4 plan, slice 4.1.
+- Spec sections affected: 4 (Roles and permissions), 7 (Home screen), 9
+  (Authentication).
+
+## 2026-11-16 — A flow you may not see answers 404, not 403
+
+- Decision: when a signed-in user asks for a flow outside their visibility
+  (the viewer, the tour routes, and later the link targets), the server
+  answers **404, exactly as for a flow that does not exist**. Not 403.
+- Reason: a 403 says "this exists, and it is not for you". Flow ids are
+  consecutive numbers, so a Standard user could walk them and learn how
+  many flows there are and which ids belong to other areas. With 404 both
+  cases look the same, and nothing about other areas leaks. **This is
+  intended. Do not "fix" it to 403.** Routes guarded by a permission rather
+  than by a flow (Board screens, editor screens) are different: those are
+  the same for everyone and reveal nothing, so they answer 403.
+- Spec sections affected: 9 (Server-enforced rules: flow visibility).
+
+## 2026-11-16 — Phase 4 plan: accounts
+
+- Decision (proposed and approved by the owner before building):
+  - **4.1 Sessions and login.** Web Crypto passwords, sessions in D1, login
+    at `/`, the placeholder user removed, `npm run user:create` for the
+    first Board user.
+  - **4.2 Permissions on everything built.** `requireEditor`
+    (`can_edit`) and `requireAdmin` (`can_view_admin_layer`), checked on
+    the flags and never on the role, so the admin layer can later go to
+    another group (§4). The role sets the flags: Board both, Standard and
+    Leader none. One visibility function (Standard: published flows of
+    their areas; Leader and Board: all) serves the viewer, the tour and the
+    home screen. A test walks every route against no session, a Standard
+    user in the flow's area, one in another area, a Leader and the Board.
+  - **4.3 Home screen.** The user's flows with status, icon and next
+    action; a line when a Standard user's areas have no flows yet; room
+    for stage 2 certificates, not built.
+  - **4.4 Board screens.** Areas (create, rename, delete only if unused);
+    users (list, create, edit, deactivate instead of delete, reset
+    password); the flow form (name, objective, areas), so the Board can
+    make a flow visible to someone. The import screen stays provisional,
+    for editors, until phase 5.
+  - The owner's answers:
+    1. **The placeholder user's data is deleted**, not moved to a real
+       account. It was made by an invented user under rules that have
+       since changed; inheriting it would mark as reviewed a flow nobody
+       walked, which is the one thing this app certifies.
+    2. **Password reset: a one-time temporary password with a forced
+       change** (`must_change_password` and a «Cambia tu contraseña»
+       screen). It keeps the Board from knowing its people's passwords,
+       and adding it later costs much more.
+    3. **The Board tours like anyone, and the progress report leaves it
+       out.** It should walk a flow before publishing it, the only way to
+       notice a badly worded step. "Not certified" (§4) is about the
+       assessment, not about reading.
+    4. **The flow form goes in 4.4.** Without it the Board cannot make
+       anyone see anything.
+    5. **Three local dev accounts in `db:load`**, strictly local, unable to
+       run against the remote D1.
+    6. **Brute force: a fixed delay and the generic message, plus a
+       Cloudflare rate limiting rule on `POST /login` at deployment.**
+       Counting attempts in D1 ends up locking out legitimate people, the
+       Board included.
+  - Out of scope: tag category screens (phase 5), Microsoft SSO (later; a
+    session does not know how the user got in, so SSO will be another way
+    into `createSession`, with a table for the external identity).
+- Reason: SPEC §11 phase 4; owner's approval.
+- Spec sections affected: 4, 7 (Home screen), 9 (Authentication,
+  Server-enforced rules, Administration screens).
+
 ## 2026-11-16 — Shorter one-step note; no line for a missing description
 
 - Decision:

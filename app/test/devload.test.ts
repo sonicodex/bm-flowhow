@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import type { Grid } from "../public/js/core.js";
 import instalaciones from "../../reference/Flujo_Instalaciones.grid.json";
 import apertura from "../../reference/Flujo_Apertura_OT.grid.json";
-import { loadDevFlows, type DevFlow } from "../src/devload.ts";
+import { loadDevAccounts, loadDevFlows, type DevFlow } from "../src/devload.ts";
+import { verifyPassword } from "../src/password.ts";
 
 const db = () => env.DB;
 const FLOWS: DevFlow[] = [
@@ -59,5 +60,42 @@ describe("loadDevFlows", () => {
     broken.rows[1]!.id = "";
     await expect(loadDevFlows(db(), [{ name: "Instalaciones", grid: broken }])).rejects.toThrow("Instalaciones: la importación se bloqueó.\nFila 3: falta el ID.");
     expect(await count("releases")).toBe(0);
+  });
+});
+
+describe("loadDevAccounts (phase 4.1)", () => {
+  it("creates one account per role with DEV_PASSWORD, once", async () => {
+    await loadDevFlows(db(), FLOWS);
+    expect(await loadDevAccounts(db(), "clave de desarrollo")).toEqual([
+      "Cuenta «empleado»: creada.",
+      "Cuenta «lider»: creada.",
+      "Cuenta «junta»: creada.",
+    ]);
+    const { results } = await db()
+      .prepare(
+        `SELECT u.username, u.role, u.can_edit, u.can_view_admin_layer, group_concat(a.name) AS areas, u.password_hash
+         FROM users u LEFT JOIN user_areas ua ON ua.user_id = u.id LEFT JOIN areas a ON a.id = ua.area_id
+         GROUP BY u.id ORDER BY u.id`,
+      )
+      .all<Record<string, unknown>>();
+    expect(results.map(({ password_hash, ...r }) => r)).toEqual([
+      { username: "empleado", role: "standard", can_edit: 0, can_view_admin_layer: 0, areas: "Desarrollo" },
+      { username: "lider", role: "leader", can_edit: 0, can_view_admin_layer: 0, areas: "Desarrollo" },
+      { username: "junta", role: "board", can_edit: 1, can_view_admin_layer: 1, areas: null },
+    ]);
+    for (const r of results) expect(await verifyPassword("clave de desarrollo", r.password_hash as string)).toBe(true);
+    expect(await loadDevAccounts(db(), "otra clave larga")).toEqual([
+      "Cuenta «empleado»: ya existe.",
+      "Cuenta «lider»: ya existe.",
+      "Cuenta «junta»: ya existe.",
+    ]);
+    expect(await count("users")).toBe(3);
+  });
+
+  it("creates none without a usable DEV_PASSWORD, and says how to fix it", async () => {
+    await loadDevFlows(db(), FLOWS);
+    expect(await loadDevAccounts(db(), undefined)).toEqual(["Cuentas de prueba: no se crearon. Pon DEV_PASSWORD en app/.dev.vars y vuelve a cargar."]);
+    expect(await loadDevAccounts(db(), "corta")).toEqual(["Cuentas de prueba: no se crearon. DEV_PASSWORD: La contraseña necesita al menos 8 caracteres."]);
+    expect(await count("users")).toBe(0);
   });
 });

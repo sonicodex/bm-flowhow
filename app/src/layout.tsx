@@ -1,9 +1,25 @@
-import { jsxRenderer } from "hono/jsx-renderer";
+import { jsxRenderer, useRequestContext } from "hono/jsx-renderer";
+import type { AppEnv } from "./session.ts";
 
 declare module "hono" {
   interface ContextRenderer {
     (content: string | Promise<string>, props: { title: string }): Response | Promise<Response>;
   }
+}
+
+// The signed-in user's name and "Salir". Leaving is a POST, so a link on
+// another site cannot sign anyone out.
+function Account() {
+  const user = useRequestContext<AppEnv>().get("user");
+  if (!user) return null;
+  return (
+    <form method="post" action="/logout" class="site-account">
+      <span>{user.fullName}</span>
+      <button type="submit" class="button-link">
+        Salir
+      </button>
+    </form>
+  );
 }
 
 // Base page. theme.css brings Google Sans (Google Fonts) and iBrand (fonts/).
@@ -21,6 +37,7 @@ export const renderer = jsxRenderer(({ children, title }) => (
         <a href="/" class="site-logo">
           <img src="/flowhow_logotype.svg" alt="FlowHow" />
         </a>
+        <Account />
       </header>
       <main class="site-main">{children}</main>
     </body>

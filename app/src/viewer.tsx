@@ -2,15 +2,15 @@ import { Hono } from "hono";
 import { raw } from "hono/html";
 import type { Flow } from "../public/js/core.js";
 import type { Action } from "../public/js/tour-log.js";
-import { currentUser } from "./current-user.ts";
 import { getFlow, latestRelease, type FlowRow } from "./flows.ts";
+import { userOf, type AppEnv } from "./session.ts";
 import { finishTour, restartTour, reviewStatus, startTour, takeStep, type ReviewState, type ReviewStatus } from "./tour.ts";
 
 // The flow viewer (SPEC §7): the overview (phase 2.4) and the tour (phase 3).
 // Users always see the latest release, never a draft (§8); a tour already
 // started finishes on its own release. Access by area and role comes in
-// phase 4.
-export const viewer = new Hono<{ Bindings: Env }>();
+// phase 4.2.
+export const viewer = new Hono<AppEnv>();
 
 // JSON inside <script>: "<" is escaped so no text in a step can close it.
 const scriptJson = (value: unknown) => JSON.stringify(value).replace(/</g, "\\u003c");
@@ -78,7 +78,7 @@ viewer.get("/:id{[0-9]+}", async (c) => {
   if (!flow) return c.notFound();
   const release = await latestRelease(c.env.DB, flow);
   if (!release) return c.notFound();
-  const user = await currentUser(c);
+  const user = userOf(c);
   const status = await reviewStatus(c.env.DB, user.id, flow.id, release);
   return c.render(<ViewerPage flow={flow} compiled={release.flow} status={status} />, { title: flow.name });
 });
@@ -108,14 +108,14 @@ function readAction(body: unknown): Action | null {
 }
 
 viewer.post("/:id{[0-9]+}/tour", async (c) => {
-  const user = await currentUser(c);
+  const user = userOf(c);
   const run = await startTour(c.env.DB, user.id, flowId(c), new Date());
   if (!run) return c.notFound();
   return c.json({ ...run, status: await statusOf(c.env.DB, user.id, flowId(c)) });
 });
 
 viewer.post("/:id{[0-9]+}/tour/restart", async (c) => {
-  const user = await currentUser(c);
+  const user = userOf(c);
   const run = await restartTour(c.env.DB, user.id, flowId(c), new Date());
   if (!run) return c.notFound();
   return c.json({ ...run, status: await statusOf(c.env.DB, user.id, flowId(c)) });
@@ -124,14 +124,14 @@ viewer.post("/:id{[0-9]+}/tour/restart", async (c) => {
 viewer.post("/:id{[0-9]+}/tour/step", async (c) => {
   const action = readAction(await c.req.json().catch(() => null));
   if (!action) return c.json({ error: "Acción no válida." }, 400);
-  const user = await currentUser(c);
+  const user = userOf(c);
   const result = await takeStep(c.env.DB, user.id, flowId(c), action, new Date());
   if (result.ok === false) return c.json({ error: result.error }, 409);
   return c.json({ row: result.row });
 });
 
 viewer.post("/:id{[0-9]+}/tour/finish", async (c) => {
-  const user = await currentUser(c);
+  const user = userOf(c);
   const result = await finishTour(c.env.DB, user.id, flowId(c), new Date());
   if (result.ok === false) return c.json({ error: result.error }, 409);
   const status = await statusOf(c.env.DB, user.id, flowId(c));

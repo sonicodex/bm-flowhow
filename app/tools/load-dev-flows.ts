@@ -2,19 +2,23 @@
 // same import and publish code the Worker runs (src/devload.ts). Run from
 // app/ after `npm run db:migrate`:  npm run db:load
 // Loading again changes nothing unless a reference grid changed.
+// It also creates one account per role (empleado, lider, junta) with the
+// password DEV_PASSWORD from app/.dev.vars. Local only: remoteBindings is
+// off, so no binding of wrangler.jsonc can reach Cloudflare from here.
 import { readFileSync } from "node:fs";
 import { getPlatformProxy } from "wrangler";
 import type { Grid } from "../public/js/core.js";
-import { loadDevFlows } from "../src/devload.ts";
+import { loadDevAccounts, loadDevFlows } from "../src/devload.ts";
 
 const grid = (file: string): Grid => JSON.parse(readFileSync(new URL(`../../reference/${file}`, import.meta.url), "utf8"));
 
-const proxy = await getPlatformProxy<Env>({ configPath: "wrangler.jsonc" });
+const proxy = await getPlatformProxy<Env>({ configPath: "wrangler.jsonc", remoteBindings: false });
 try {
   const report = await loadDevFlows(proxy.env.DB, [
     { name: "Instalaciones", grid: grid("Flujo_Instalaciones.grid.json") },
     { name: "Apertura de OT", grid: grid("Flujo_Apertura_OT.grid.json") },
   ]);
+  report.push(...(await loadDevAccounts(proxy.env.DB, (proxy.env as unknown as Record<string, string | undefined>).DEV_PASSWORD)));
   console.log(report.join("\n"));
 } catch (e) {
   console.error(e instanceof Error ? e.message : e);

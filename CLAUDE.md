@@ -11,6 +11,9 @@ Working notes for Claude Code agents on this repo. Keep it short.
   is rewritten silently.
 - `PLAN.md` — build plan, one `plan_iteration_{n}` per revision. Newest first;
   the iteration marked as current is the approved one.
+- `DEPLOY.md` — everything that exists only when deploying (remote D1,
+  secrets, first Board user, the login rate limiting rule, what to
+  measure). Anything new of that kind goes there in the same commit.
 - `reference/` — prototype, sample xlsx, and the xlsx converted to grid JSON
   (development data). Do not edit.
 - `app/public/js/core.js` — the shared rules module (parsing, validation,
@@ -35,7 +38,8 @@ Working notes for Claude Code agents on this repo. Keep it short.
 - Schema changes are new files in `app/migrations/`. Never edit a migration
   that has been applied anywhere but your own local database.
 - Styles use only `theme.css` tokens: no literal colours, type, spacing or radii.
-- Secrets live in `.dev.vars` (ignored), never in the repo.
+- Secrets live in `.dev.vars` (ignored), never in the repo. `.dev.vars.example`
+  lists the keys.
 - Everything runs locally on the Workers runtime with a local D1.
   Tests run inside the Workers runtime too, never against another database.
 - Do not deploy to Cloudflare on your own. The owner triggers deployments.
@@ -54,6 +58,11 @@ Working notes for Claude Code agents on this repo. Keep it short.
 - Load the two reference flows into the local database and publish them:
   `npm run db:load` (after `db:migrate`). Loading again changes nothing
   unless a `reference/*.grid.json` changed; then it publishes a minor version.
+  It also creates the local accounts `empleado`, `lider` and `junta` with
+  `DEV_PASSWORD` from `.dev.vars`. Local only.
+- Create a Board user, or reset a password, outside the Worker:
+  `npm run user:create -- --usuario <u> --nombre "<nombre>"` (or
+  `--restablecer`). Asks for the password; `--remote` is for the owner only.
 - Query the local database: `npx wrangler d1 execute DB --local --command "<sql>"`.
 - Dev server: `npm run dev` — serves at `http://localhost:8787`. Apply the
   migrations first.

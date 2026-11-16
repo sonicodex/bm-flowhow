@@ -2,7 +2,9 @@ import type { Grid } from "../public/js/core.js";
 import { createFlow } from "./flows.ts";
 import { applyGrid, documentFor, reviewGrid } from "./import.ts";
 import { nameKey } from "./names.ts";
+import { hashPassword, passwordError } from "./password.ts";
 import { publishFlow } from "./publish.ts";
+import { createUser, type NewUser } from "./users.ts";
 
 // Development only: loads the reference flows through the real import and
 // publish contract (SPEC §11 phase 1), accepting every new category and tag.
@@ -59,6 +61,37 @@ export async function loadDevFlows(db: D1Database, flows: DevFlow[]): Promise<st
     const published = await publishFlow(db, id, "minor");
     if (!published.ok) throw new Error(`${f.name}: no se pudo publicar.\n${published.errors.map((e) => e.message).join("\n")}`);
     report.push(`${f.name}: publicado en ${published.version}.`);
+  }
+  return report;
+}
+
+// Development only: one account per role, to try each of them locally. They
+// share the password DEV_PASSWORD from .dev.vars, which is never deployed.
+// tools/load-dev-flows.ts is the only caller and only opens the local D1.
+// An account that already exists is left as it is.
+const DEV_ACCOUNTS: Omit<NewUser, "passwordHash" | "areaIds">[] = [
+  { username: "empleado", fullName: "Empleado de prueba", role: "standard" },
+  { username: "lider", fullName: "Líder de prueba", role: "leader" },
+  { username: "junta", fullName: "Junta de prueba", role: "board", canEdit: true, canViewAdminLayer: true },
+];
+
+export async function loadDevAccounts(db: D1Database, password: string | undefined): Promise<string[]> {
+  if (!password) return ["Cuentas de prueba: no se crearon. Pon DEV_PASSWORD en app/.dev.vars y vuelve a cargar."];
+  const tooShort = passwordError(password);
+  if (tooShort) return [`Cuentas de prueba: no se crearon. DEV_PASSWORD: ${tooShort}`];
+  const area = (await db.prepare("SELECT id FROM areas WHERE name_key = ?").bind(nameKey(DEV_AREA)).first<number>("id"))!;
+  const report: string[] = [];
+  for (const account of DEV_ACCOUNTS) {
+    const exists = await db.prepare("SELECT 1 FROM users WHERE username = ?").bind(account.username).first();
+    if (exists) {
+      report.push(`Cuenta «${account.username}»: ya existe.`);
+      continue;
+    }
+    // The Board belongs to no area (SPEC §4); the others to "Desarrollo".
+    const areaIds = account.role === "board" ? [] : [area];
+    const created = await createUser(db, { ...account, areaIds, passwordHash: await hashPassword(password) });
+    if (!created.ok) throw new Error(created.error);
+    report.push(`Cuenta «${account.username}»: creada.`);
   }
   return report;
 }

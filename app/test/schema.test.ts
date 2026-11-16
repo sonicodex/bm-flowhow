@@ -137,4 +137,26 @@ describe("schema", () => {
     expect(await env.DB.prepare("SELECT count(*) AS n FROM tour_runs").first("n")).toBe(0);
     expect(await env.DB.prepare("SELECT count(*) AS n FROM tour_visits").first("n")).toBe(0);
   });
+
+  it("deletes the placeholder user with its runs, visits and reviews (migration 0005)", async () => {
+    const flow = await seedFlow();
+    const release = (await run("INSERT INTO releases (flow_id, major, minor, document) VALUES (?, 1, 0, '{}')", flow)).meta.last_row_id;
+    const placeholder = (await run("INSERT INTO users (username, full_name, password_hash) VALUES ('usuario de prueba', 'Usuario de prueba', '')")).meta.last_row_id;
+    const keeper = await seedUser("ana");
+    // An account without a password under another name stays.
+    const sso = (await run("INSERT INTO users (username, full_name, password_hash) VALUES ('sso', 'Sin clave', '')")).meta.last_row_id;
+    for (const user of [placeholder, keeper]) {
+      const tourRun = (await run("INSERT INTO tour_runs (user_id, release_id, finished_at) VALUES (?, ?, '2026-11-14T00:00:00Z')", user, release)).meta.last_row_id;
+      await run("INSERT INTO tour_visits (run_id, step_path, exit_index) VALUES (?, 'P1', 0)", tourRun);
+      await run("INSERT INTO review_records (user_id, release_id, duration_seconds) VALUES (?, ?, 600)", user, release);
+    }
+    const migration = env.TEST_MIGRATIONS.find((m) => m.name.startsWith("0005_"))!;
+    for (const sql of migration.queries) await env.DB.prepare(sql).run();
+    const users = await env.DB.prepare("SELECT id FROM users ORDER BY id").all<{ id: number }>();
+    expect(users.results.map((u) => u.id)).toEqual([keeper, sso]);
+    for (const table of ["tour_runs", "tour_visits", "review_records"]) {
+      expect(await env.DB.prepare(`SELECT count(*) AS n FROM ${table}`).first("n"), table).toBe(1);
+    }
+    expect(await env.DB.prepare("SELECT user_id FROM review_records").first("user_id")).toBe(keeper);
+  });
 });

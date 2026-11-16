@@ -1,0 +1,4 @@
+# Copy to .dev.vars (ignored). Local only: never uploaded (see DEPLOY.md).
+# Password of the local development accounts empleado, lider and junta,
+# created by `npm run db:load`. At least 8 characters.
+DEV_PASSWORD=

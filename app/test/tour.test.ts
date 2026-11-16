@@ -1,6 +1,5 @@
 import { env } from "cloudflare:test";
-import { exports } from "cloudflare:workers";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { Grid } from "../public/js/core.js";
 import { replay, type Action, type LogRow } from "../public/js/tour-log.js";
 import instalaciones from "../../reference/Flujo_Instalaciones.grid.json";
@@ -9,6 +8,7 @@ import { loadDevFlows } from "../src/devload.ts";
 import { getFlow, latestRelease } from "../src/flows.ts";
 import { applyGrid } from "../src/import.ts";
 import { publishFlow, type Bump } from "../src/publish.ts";
+import { signIn, type Signed } from "./session.ts";
 import { finishTour, restartTour, reviewStatus, startTour, takeStep, TOO_FAST } from "../src/tour.ts";
 
 const db = () => env.DB;
@@ -382,14 +382,18 @@ describe("review status (phase 3.4)", () => {
 });
 
 describe("tour routes", () => {
+  let me: Signed;
+  beforeEach(async () => {
+    me = await signIn({ username: "beto", role: "leader" });
+  });
   const post = (path: string, body?: unknown) =>
-    exports.default.fetch(`http://example.com${path}`, {
+    me.fetch(path, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
 
-  it("start, step and finish speak JSON, as the placeholder user", async () => {
+  it("start, step and finish speak JSON, as the session's user", async () => {
     const s = await setup();
     const started = await post(`/flows/${s.flowId}/tour`);
     expect(started.status).toBe(200);
@@ -405,13 +409,13 @@ describe("tour routes", () => {
     expect((await post(`/flows/${s.flowId}/tour/step`, { at: "P1", action: "choose", exit: 0, back: "0" })).status).toBe(400);
     expect((await post(`/flows/${s.flowId}/tour/finish`)).status).toBe(409);
     const runs = await db().prepare("SELECT u.username FROM tour_runs r JOIN users u ON u.id = r.user_id").all();
-    expect(runs.results).toEqual([{ username: "usuario de prueba" }]);
+    expect(runs.results).toEqual([{ username: "beto" }]);
     expect((await post("/flows/999/tour")).status).toBe(404);
   });
 
   it("answers start and finish with the new status, and the page shows it", async () => {
     const s = await setup("Ramas gemelas");
-    const page = async () => (await exports.default.fetch(`http://example.com/flows/${s.flowId}`)).text();
+    const page = async () => (await me.fetch(`/flows/${s.flowId}`)).text();
     expect(await page()).toContain('data-state="pending"');
     expect(await page()).toContain(">Iniciar recorrido</button>");
     // "Empezar de nuevo" is in the page, hidden until a run is open.

@@ -15,7 +15,9 @@ a:visited {
 
 .site-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  gap: var(--space-3);
   padding: var(--space-4) var(--space-6);
   background: var(--color-surface);
   border-bottom: var(--border-width) solid var(--color-border);
@@ -34,6 +36,16 @@ a:visited {
 .site-logo img {
   display: block;
   height: var(--space-6);
+}
+
+/* Signed-in user and "Salir" (phase 4.1), at the right of the header. */
+.site-account {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
 }
 
 .site-main {
@@ -145,6 +157,47 @@ textarea:focus-visible,
 
 .form-error {
   color: var(--color-status-pending);
+}
+
+/* ---- Login (phase 4.1) ---- */
+.login-card {
+  max-width: 360px;
+  margin: 0 auto;
+  padding: var(--space-6);
+}
+
+.stacked-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.stacked-form input {
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius);
+  outline: var(--border-width) solid transparent;
+}
+
+.stacked-form input:focus-visible {
+  box-shadow: var(--shadow-focus);
+}
+
+.stacked-form input + label {
+  margin-top: var(--space-2);
+}
+
+.stacked-form .form-error {
+  margin: 0;
+}
+
+.stacked-form button {
+  align-self: flex-start;
+  margin-top: var(--space-2);
 }
 
 /* ---- Diagram (phase 2.3) ----

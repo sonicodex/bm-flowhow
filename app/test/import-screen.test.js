@@ -1,15 +1,19 @@
 // The provisional import screen (phase 1.5): what the browser module reads,
 // and the routes that review and apply it.
 import { env } from 'cloudflare:test';
-import { exports } from 'cloudflare:workers';
-import { describe, expect, it } from 'vitest';
+import { signIn } from './session.ts';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { gridFromText, gridFromXlsx } from '../public/js/import-form.js';
 import instalaciones from '../../reference/Flujo_Instalaciones.grid.json';
 import apertura from '../../reference/Flujo_Apertura_OT.grid.json';
 
 const file = (name) => Uint8Array.from(atob(env.XLSX_FIXTURES[name]), (c) => c.charCodeAt(0));
-const fetch = (path, body) =>
-  exports.default.fetch('http://example.com' + path, body ? { method: 'POST', body, redirect: 'manual' } : undefined);
+/** @type {import('./session.ts').Signed} */
+let board;
+beforeEach(async () => {
+  board = await signIn();
+});
+const fetch = (path, body) => board.fetch(path, body ? { method: 'POST', body } : undefined);
 const form = (fields) => {
   const f = new URLSearchParams();
   for (const [k, v] of fields) f.append(k, v);

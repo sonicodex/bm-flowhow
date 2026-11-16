@@ -1,14 +1,18 @@
 import { env } from "cloudflare:test";
-import { exports } from "cloudflare:workers";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { Grid } from "../public/js/core.js";
 import instalaciones from "../../reference/Flujo_Instalaciones.grid.json";
 import apertura from "../../reference/Flujo_Apertura_OT.grid.json";
 import { loadDevFlows } from "../src/devload.ts";
 import { createFlow } from "../src/flows.ts";
 import { applyGrid } from "../src/import.ts";
+import { signIn, type Signed } from "./session.ts";
 
-const get = (path: string) => exports.default.fetch(`http://example.com${path}`);
+let board: Signed;
+beforeEach(async () => {
+  board = await signIn();
+});
+const get = (path: string) => board.fetch(path);
 const load = () =>
   loadDevFlows(env.DB, [
     { name: "Instalaciones", grid: instalaciones as Grid },

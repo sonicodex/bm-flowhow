@@ -1,17 +1,17 @@
 import { env } from "cloudflare:test";
-import { exports } from "cloudflare:workers";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { signIn, type Signed } from "./session.ts";
 
-const post = (name: string) =>
-  exports.default.fetch("http://example.com/areas", {
-    method: "POST",
-    body: new URLSearchParams({ name }),
-    redirect: "manual",
-  });
+let board: Signed;
+beforeEach(async () => {
+  board = await signIn();
+});
+
+const post = (name: string) => board.fetch("/areas", { method: "POST", body: new URLSearchParams({ name }) });
 
 describe("/areas", () => {
   it("shows the empty state", async () => {
-    const res = await exports.default.fetch("http://example.com/areas");
+    const res = await board.fetch("/areas");
     expect(res.status).toBe(200);
     expect(await res.text()).toContain("Todavía no hay áreas.");
   });
@@ -22,7 +22,7 @@ describe("/areas", () => {
     expect(res.headers.get("location")).toBe("/areas");
     const row = await env.DB.prepare("SELECT name FROM areas").first<{ name: string }>();
     expect(row?.name).toBe("Operaciones");
-    expect(await (await exports.default.fetch("http://example.com/areas")).text()).toContain("<li>Operaciones</li>");
+    expect(await (await board.fetch("/areas")).text()).toContain("<li>Operaciones</li>");
   });
 
   it("refuses a duplicate name ignoring case and accents, and says why", async () => {
