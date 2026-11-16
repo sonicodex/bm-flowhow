@@ -709,20 +709,34 @@ textarea:focus-visible,
 
 /* While columns are left to the right, the frame's right edge casts a
    shadow over them (set by /js/table-scroll.js); it goes once the table is
-   scrolled to its end. No text, no arrow: the edge just stops looking flat. */
+   scrolled to its end. The left edge does the same for columns scrolled
+   past, and goes back to flat at the start. No text, no arrow: the edge
+   just stops looking flat. */
+.table-frame::before,
 .table-frame::after {
   content: "";
   position: absolute;
   top: 0;
-  right: 0;
   bottom: 0;
   width: var(--space-4);
-  border-radius: 0 var(--radius) var(--radius) 0;
-  background: linear-gradient(to left, var(--color-edge), transparent);
   opacity: 0;
   pointer-events: none;
 }
 
+.table-frame::before {
+  left: 0;
+  z-index: 1;
+  border-radius: var(--radius) 0 0 var(--radius);
+  background: linear-gradient(to right, var(--color-edge), transparent);
+}
+
+.table-frame::after {
+  right: 0;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: linear-gradient(to left, var(--color-edge), transparent);
+}
+
+.table-frame.has-before::before,
 .table-frame.has-more::after {
   opacity: 1;
 }

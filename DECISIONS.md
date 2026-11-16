@@ -41,7 +41,9 @@ Entry format:
     arrow (owner's request on approving this redo). A small module,
     `/js/table-scroll.js`, sets it; without it the table still scrolls,
     unshaded. Only the right edge: nothing marks columns scrolled past on
-    the left.
+    the left. Superseded the same day at the owner's request: the left
+    edge now shades too while columns are scrolled past, and goes flat
+    again back at the start.
   - The import and review screens (provisional until phase 5) take the
     way back at the top too.
 - Reason: owner's request, before testing phase 4; SPEC §9 rewritten by the
