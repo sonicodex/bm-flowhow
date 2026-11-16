@@ -73,15 +73,15 @@ describe("loadDevAccounts (phase 4.1)", () => {
     ]);
     const { results } = await db()
       .prepare(
-        `SELECT u.username, u.role, u.can_edit, u.can_view_admin_layer, group_concat(a.name) AS areas, u.password_hash
+        `SELECT u.username, u.role, u.can_edit, u.can_view_admin_layer, u.can_manage_users, group_concat(a.name) AS areas, u.password_hash
          FROM users u LEFT JOIN user_areas ua ON ua.user_id = u.id LEFT JOIN areas a ON a.id = ua.area_id
          GROUP BY u.id ORDER BY u.id`,
       )
       .all<Record<string, unknown>>();
     expect(results.map(({ password_hash, ...r }) => r)).toEqual([
-      { username: "empleado", role: "standard", can_edit: 0, can_view_admin_layer: 0, areas: "Desarrollo" },
-      { username: "lider", role: "leader", can_edit: 0, can_view_admin_layer: 0, areas: "Desarrollo" },
-      { username: "junta", role: "board", can_edit: 1, can_view_admin_layer: 1, areas: null },
+      { username: "empleado", role: "standard", can_edit: 0, can_view_admin_layer: 0, can_manage_users: 0, areas: "Desarrollo" },
+      { username: "lider", role: "leader", can_edit: 0, can_view_admin_layer: 0, can_manage_users: 0, areas: "Desarrollo" },
+      { username: "junta", role: "board", can_edit: 1, can_view_admin_layer: 1, can_manage_users: 1, areas: null },
     ]);
     for (const r of results) expect(await verifyPassword("clave de desarrollo", r.password_hash as string)).toBe(true);
     expect(await loadDevAccounts(db(), "otra clave larga")).toEqual([

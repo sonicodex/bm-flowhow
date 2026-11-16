@@ -114,10 +114,10 @@ if (args.restablecer) {
   );
   console.log(`Contraseña de «${username}» cambiada (${args.remote ? "D1 remoto" : "D1 local"}). Sus sesiones abiertas se cerraron.`);
 } else {
-  // A Board member: both permissions, no area (SPEC §4).
+  // A Board member: every permission, no area (SPEC §4).
   d1(
-    `INSERT INTO users (username, full_name, password_hash, role, can_edit, can_view_admin_layer)
-     VALUES (${literal(username)}, ${literal(fullName)}, ${literal(hash)}, 'board', 1, 1)`,
+    `INSERT INTO users (username, full_name, password_hash, role, can_edit, can_view_admin_layer, can_manage_users)
+     VALUES (${literal(username)}, ${literal(fullName)}, ${literal(hash)}, 'board', 1, 1, 1)`,
   );
   console.log(`Usuario «${username}» creado en la Junta directiva (${args.remote ? "D1 remoto" : "D1 local"}).`);
 }

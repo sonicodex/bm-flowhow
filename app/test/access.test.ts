@@ -64,22 +64,32 @@ describe("route access (phase 4.2)", () => {
       otherArea: await signIn({ username: "beto", role: "standard" }),
       leader: await signIn({ username: "lia", role: "leader" }),
       board: await signIn({ username: "junta", role: "board" }),
+      // A process owner who maintains their area's flow: can_edit and
+      // nothing else (SPEC §4). The case that keeps the user screens apart.
+      owner: await signIn({ username: "dueno", role: "standard", areaIds: [area], permissions: { canEdit: true } }),
     };
+    // The ids that a route's `:id` stands for, by what the route is about.
+    // The user and area routes act on accounts and areas of their own, so
+    // what the walk changes touches no one walking.
+    const target = await signIn({ username: "objetivo", role: "leader" });
+    const spareArea = (await env.DB.prepare("INSERT INTO areas (name, name_key) VALUES ('Sobrante', 'sobrante') RETURNING id").first<number>("id"))!;
+    const idFor = (path: string) => (path.startsWith("/users") ? target.id : path.startsWith("/areas") ? spareArea : flow);
     // Who gets through each kind of access; everyone else is refused.
     const allowed: Record<Exclude<Access, "public">, (keyof typeof users)[]> = {
-      user: ["inArea", "otherArea", "leader", "board"],
-      flow: ["inArea", "leader", "board"],
-      editor: ["board"],
+      user: ["inArea", "otherArea", "leader", "board", "owner"],
+      flow: ["inArea", "leader", "board", "owner"],
+      editor: ["board", "owner"],
       admin: ["board"],
+      users: ["board"],
     };
     // Refused with 404 when the route is about a flow (nothing leaks about
     // it), 403 when it is about a permission.
-    const refusal: Record<Exclude<Access, "public">, number> = { user: 0, flow: 404, editor: 403, admin: 403 };
+    const refusal: Record<Exclude<Access, "public">, number> = { user: 0, flow: 404, editor: 403, admin: 403, users: 403 };
 
     const routes = guardedRoutes(app).filter((r) => r.access !== "public");
     for (const { method, path, access } of routes) {
       if (access === "public") continue;
-      const url = path.replace(/:id(\{[^}]*\})?/, String(flow));
+      const url = path.replace(/:id(\{[^}]*\})?/, String(idFor(path)));
       const label = `${method} ${url} (${access})`;
       expect(sentToLogin(await send(anonymous, method, url), method), `${label}: sin sesión`).toBe(true);
       for (const [name, user] of Object.entries(users) as [keyof typeof users, Signed][]) {

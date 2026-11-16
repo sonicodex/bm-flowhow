@@ -16,10 +16,12 @@ import { type AppEnv, type SessionUser } from "./session.ts";
 //           screens (4.4): whoever manages accounts can reset the Board's
 //           password or promote themselves (DECISIONS, phase 4.2).
 //           Otherwise 403.
+// - users:  `can_manage_users`: the user screens. Full control (§4), since
+//           whoever holds it can grant themselves anything. Otherwise 403.
 // - admin:  `can_view_admin_layer`, for the admin layer (stage 3). No route
 //           uses it yet. Otherwise 403.
 // Permissions are read from the flags, never from the role (§4).
-export type Access = "public" | "user" | "flow" | "editor" | "admin";
+export type Access = "public" | "user" | "flow" | "editor" | "admin" | "users";
 
 const ACCESS = Symbol("access");
 type Guard = MiddlewareHandler<AppEnv> & { [ACCESS]: Access };
@@ -87,6 +89,7 @@ function guard(access: Access): Guard {
     if (!user) return signInFirst(c);
     if (access === "editor" && !user.canEdit) return forbidden(c);
     if (access === "admin" && !user.canViewAdminLayer) return forbidden(c);
+    if (access === "users" && !user.canManageUsers) return forbidden(c);
     if (access === "flow") {
       const id = Number(c.req.param("id"));
       if (!Number.isSafeInteger(id) || id <= 0 || !(await canSeeFlow(c.env.DB, user, id))) return c.notFound();

@@ -14,6 +14,7 @@ export type SessionUser = {
   role: Role;
   canEdit: boolean;
   canViewAdminLayer: boolean;
+  canManageUsers: boolean;
 };
 
 export type AppEnv = { Bindings: Env; Variables: { user: SessionUser | null } };
@@ -66,6 +67,7 @@ type Row = {
   role: Role;
   can_edit: number;
   can_view_admin_layer: number;
+  can_manage_users: number;
 };
 
 // Puts the session's user, or null, in the context. An expired session, or
@@ -79,7 +81,7 @@ export const loadSession: MiddlewareHandler<AppEnv> = async (c, next) => {
     const now = new Date();
     const row = await db
       .prepare(
-        `SELECT s.expires_at, u.id, u.username, u.full_name, u.role, u.can_edit, u.can_view_admin_layer
+        `SELECT s.expires_at, u.id, u.username, u.full_name, u.role, u.can_edit, u.can_view_admin_layer, u.can_manage_users
          FROM sessions s JOIN users u ON u.id = s.user_id
          WHERE s.id = ? AND s.expires_at > ? AND u.is_active = 1`,
       )
@@ -96,6 +98,7 @@ export const loadSession: MiddlewareHandler<AppEnv> = async (c, next) => {
         role: row.role,
         canEdit: row.can_edit === 1,
         canViewAdminLayer: row.can_view_admin_layer === 1,
+        canManageUsers: row.can_manage_users === 1,
       });
       if (Date.parse(row.expires_at) - now.getTime() < LIFETIME - RENEW_AFTER) {
         await db.prepare("UPDATE sessions SET expires_at = ? WHERE id = ?").bind(new Date(now.getTime() + LIFETIME).toISOString(), id).run();

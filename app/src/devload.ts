@@ -4,7 +4,7 @@ import { applyGrid, documentFor, reviewGrid } from "./import.ts";
 import { nameKey } from "./names.ts";
 import { hashPassword, passwordError } from "./password.ts";
 import { publishFlow } from "./publish.ts";
-import { createUser, type NewUser } from "./users.ts";
+import { createUser, rolePermissions, type NewUser } from "./users.ts";
 
 // Development only: loads the reference flows through the real import and
 // publish contract (SPEC §11 phase 1), accepting every new category and tag.
@@ -72,7 +72,7 @@ export async function loadDevFlows(db: D1Database, flows: DevFlow[]): Promise<st
 const DEV_ACCOUNTS: Omit<NewUser, "passwordHash" | "areaIds">[] = [
   { username: "empleado", fullName: "Empleado de prueba", role: "standard" },
   { username: "lider", fullName: "Líder de prueba", role: "leader" },
-  { username: "junta", fullName: "Junta de prueba", role: "board", canEdit: true, canViewAdminLayer: true },
+  { username: "junta", fullName: "Junta de prueba", role: "board", ...rolePermissions("board") },
 ];
 
 export async function loadDevAccounts(db: D1Database, password: string | undefined): Promise<string[]> {
