@@ -14,7 +14,6 @@ const RELOAD = "El recorrido cambió en otra pestaña o ventana. Recarga la pág
 const NO_RUN = "No tienes un recorrido abierto en este flujo. Recarga la página.";
 const NEW_RULES = "Las reglas del recorrido cambiaron. Recarga la página para seguir.";
 const RESTARTED_BY_RULES = "Las reglas del recorrido cambiaron y el recorrido que tenías abierto no se pudo retomar. Empiezas uno nuevo.";
-const REVIEWED = "Ya revisaste este flujo: tu revisión se conserva y no hace falta empezar de nuevo.";
 
 // A run is open until it is finished or abandoned (migration 0003).
 const OPEN = "finished_at IS NULL AND abandoned_at IS NULL";
@@ -85,14 +84,12 @@ const abandon = (db: D1Database, runId: number, now: Date) =>
   db.prepare(`UPDATE tour_runs SET abandoned_at = ? WHERE id = ? AND ${OPEN}`).bind(now.toISOString(), runId).run();
 
 // "Empezar de nuevo" (phase 3.5): abandons the open run and opens a clean
-// one on the latest release. Only while the status is "Recorrido en curso":
-// once the current major version is reviewed there is a review to keep, and
-// repeating a tour never costs it (§7).
-export async function restartTour(db: D1Database, userId: number, flowId: number, now: Date): Promise<Started | Refused | null> {
+// one on the latest release. Offered whenever a run is open, a repeat of a
+// reviewed flow included: it never touches a saved review (§7).
+export async function restartTour(db: D1Database, userId: number, flowId: number, now: Date): Promise<Started | null> {
   const flow = await getFlow(db, flowId);
   const latest = flow && (await latestRelease(db, flow));
   if (!latest) return null;
-  if ((await reviewStatus(db, userId, flowId, latest)).state === "reviewed") return { ok: false, error: REVIEWED };
   // One batch: the open run (on whatever release) is abandoned and a clean
   // one opened on the latest release.
   await db.batch([
@@ -189,7 +186,9 @@ async function newerVersion(db: D1Database, flowId: number, toured: Release): Pr
 // keeps it, a major one resets it (§8). Status never relies on colour
 // alone (§7): the viewer pairs `label` with an icon.
 export type ReviewState = "pending" | "in_progress" | "reviewed";
-export type ReviewStatus = { state: ReviewState; label: string; detail: string | null; action: string };
+// `open`: a run is open, so the overview offers "Empezar de nuevo" beside
+// "Continuar recorrido", whatever the state (a repeat stays "Revisado").
+export type ReviewStatus = { state: ReviewState; label: string; detail: string | null; action: string; open: boolean };
 
 const LABELS: Record<ReviewState, string> = {
   pending: "Pendiente de revisión",
@@ -222,12 +221,12 @@ export async function reviewStatus(db: D1Database, userId: number, flowId: numbe
   const action = open ? "Continuar recorrido" : review?.major === latest.major ? "Repetir recorrido" : "Iniciar recorrido";
   if (review && review.major === latest.major) {
     const on = version(review) === current ? "" : `, en la versión ${version(review)}`;
-    return { state: "reviewed", label: LABELS.reviewed, detail: `El ${longDate.format(new Date(review.completed_at))}${on}.`, action };
+    return { state: "reviewed", label: LABELS.reviewed, detail: `El ${longDate.format(new Date(review.completed_at))}${on}.`, action, open: !!open };
   }
   if (open) {
     const detail = version(open) === current ? null : `Lo empezaste en la versión ${version(open)} y lo terminas en esa versión.`;
-    return { state: "in_progress", label: LABELS.in_progress, detail, action };
+    return { state: "in_progress", label: LABELS.in_progress, detail, action, open: true };
   }
   const detail = review ? `Revisaste la versión ${version(review)}. La ${current} trae cambios importantes.` : null;
-  return { state: "pending", label: LABELS.pending, detail, action };
+  return { state: "pending", label: LABELS.pending, detail, action, open: false };
 }

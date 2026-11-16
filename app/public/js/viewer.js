@@ -34,7 +34,7 @@ const showStatus = (status) => {
 if (data && cols) {
   const { id, name, colour, flow, status: initial } = JSON.parse(data.textContent);
   // The review status, as the server last gave it: it labels the overview's
-  // buttons, and "Empezar de nuevo" shows only while it is "en curso".
+  // buttons, and "Empezar de nuevo" shows whenever a run is open.
   let status = initial;
   const overview = cols.innerHTML;
   const drawOverview = () => {
@@ -149,7 +149,7 @@ if (data && cols) {
     const button = cols.querySelector('[data-start]');
     if (button) button.textContent = status.action;
     const restart = cols.querySelector('[data-restart]');
-    if (restart) restart.hidden = status.state !== 'in_progress';
+    if (restart) restart.hidden = !status.open;
     const side = cols.querySelector('.viewer-side');
     if (side && lines.length) side.insertAdjacentHTML('afterbegin', `<p class="note">${DONE_ICON}<span>${lines.map(esc).join(' ')}</span></p>`);
   };

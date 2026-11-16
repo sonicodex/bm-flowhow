@@ -249,10 +249,25 @@ describe("the tour on the server (SPEC §7)", () => {
     const end = await walk(s, 100);
     expect(await finishTour(db(), s.user, s.flowId, at(end + 1))).toEqual({ ok: false, error: TOO_FAST });
     expect((await finishTour(db(), s.user, s.flowId, at(100 + 30))).ok).toBe(true);
-    // Once reviewed, starting over is refused: the review is kept.
-    await startTour(db(), s.user, s.flowId, at(200));
-    expect(await restartTour(db(), s.user, s.flowId, at(300))).toEqual({ ok: false, error: expect.stringContaining("Ya revisaste") });
-    expect(await count("tour_runs")).toBe(3);
+  });
+
+  it("offers and allows starting over while repeating a reviewed flow, and keeps the review", async () => {
+    const s = await setup("Ramas gemelas");
+    const statusOf = async () => reviewStatus(db(), s.user, s.flowId, (await latestRelease(db(), (await getFlow(db(), s.flowId))!))!);
+    await startTour(db(), s.user, s.flowId, at(0));
+    const end = await walk(s, 0);
+    expect((await finishTour(db(), s.user, s.flowId, at(end + 60))).ok).toBe(true);
+    expect(await statusOf()).toMatchObject({ state: "reviewed", open: false });
+    const review = await db().prepare("SELECT * FROM review_records").first();
+    // "Repetir recorrido": still "Revisado", and now a run is open.
+    const repeat = (await startTour(db(), s.user, s.flowId, at(500)))!;
+    await walk(s, 500, { stop: (tour) => tour.trail.length > 2 });
+    expect(await statusOf()).toMatchObject({ state: "reviewed", open: true, action: "Continuar recorrido" });
+    const again = (await restartTour(db(), s.user, s.flowId, at(600)))!;
+    expect(again.runId).not.toBe(repeat.runId);
+    expect(again.log).toEqual([]);
+    expect(await db().prepare("SELECT * FROM review_records").all()).toMatchObject({ results: [review] });
+    expect(await statusOf()).toMatchObject({ state: "reviewed", open: true });
   });
 
   it("closes a run that no longer replays under the current rules and opens a clean one, saying so", async () => {
@@ -296,13 +311,13 @@ describe("review status (phase 3.4)", () => {
 
   it("goes from pending to in progress to reviewed, with the date in Bogotá", async () => {
     const s = await setup("Ramas gemelas");
-    expect(await statusOf(s)).toEqual({ state: "pending", label: "Pendiente de revisión", detail: null, action: "Iniciar recorrido" });
+    expect(await statusOf(s)).toEqual({ state: "pending", label: "Pendiente de revisión", detail: null, action: "Iniciar recorrido", open: false });
     await startTour(db(), s.user, s.flowId, at(0));
-    expect(await statusOf(s)).toEqual({ state: "in_progress", label: "Recorrido en curso", detail: null, action: "Continuar recorrido" });
+    expect(await statusOf(s)).toEqual({ state: "in_progress", label: "Recorrido en curso", detail: null, action: "Continuar recorrido", open: true });
     await walk(s, 0);
     // 03:00 UTC on the 14th is still the 13th in Bogotá.
     expect((await finishTour(db(), s.user, s.flowId, new Date("2026-11-14T03:00:00Z"))).ok).toBe(true);
-    expect(await statusOf(s)).toEqual({ state: "reviewed", label: "Revisado", detail: "El 13 de noviembre de 2026.", action: "Repetir recorrido" });
+    expect(await statusOf(s)).toEqual({ state: "reviewed", label: "Revisado", detail: "El 13 de noviembre de 2026.", action: "Repetir recorrido", open: false });
     // Repeating: still reviewed, and the button resumes the new run.
     await startTour(db(), s.user, s.flowId, new Date("2026-11-20T15:00:00Z"));
     expect(await statusOf(s)).toMatchObject({ state: "reviewed", detail: "El 13 de noviembre de 2026.", action: "Continuar recorrido" });
@@ -319,6 +334,7 @@ describe("review status (phase 3.4)", () => {
       label: "Pendiente de revisión",
       detail: "Revisaste la versión 1.0. La 2.0 trae cambios importantes.",
       action: "Iniciar recorrido",
+      open: false,
     });
     await tour({ ...s, flow: (await latestRelease(db(), (await getFlow(db(), s.flowId))!))!.flow }, 1000);
     expect(await statusOf(s)).toMatchObject({ state: "reviewed", detail: "El 13 de noviembre de 2026." });
@@ -333,6 +349,7 @@ describe("review status (phase 3.4)", () => {
       label: "Recorrido en curso",
       detail: "Lo empezaste en la versión 1.0 y lo terminas en esa versión.",
       action: "Continuar recorrido",
+      open: true,
     });
   });
 });

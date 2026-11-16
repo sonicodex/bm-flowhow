@@ -14,6 +14,18 @@ Entry format:
 
 ---
 
+## 2026-11-16 — "Empezar de nuevo" whenever a run is open
+
+- Decision: "Empezar de nuevo" shows whenever the user has an open run on
+  the flow, whatever the status, and the server no longer refuses it once
+  the flow is reviewed. The status carries `open` for this. Before, two
+  rules blocked each other: the button needed "Recorrido en curso", and a
+  repeat of a reviewed flow stays "Revisado", so it never appeared.
+  Starting over abandons only the open run; the saved review is never
+  touched.
+- Reason: owner, after testing phase 3.5 live.
+- Spec sections affected: 7 (Viewer: tour rules).
+
 ## 2026-11-16 — The direct-branch note is shown every time; no commented-out tests
 
 - Decision:
@@ -77,7 +89,8 @@ Entry format:
     "Continuar recorrido" in the overview, only while the status is
     "Recorrido en curso". In one batch it abandons the open run and opens
     a clean one on the latest release; the minimum time counts from then.
-    Refused once the current major version is reviewed. **It asks first**
+    Refused once the current major version is reviewed. **Superseded**
+    (see "Empezar de nuevo whenever a run is open"). **It asks first**
     (owner's decision): the corner shows «¿Empezar de nuevo? Pierdes los
     pasos que llevas en este recorrido.» with "Cancelar" and "Sí, empezar
     de nuevo".

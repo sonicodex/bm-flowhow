@@ -50,7 +50,7 @@ function ViewerPage({ flow, compiled, status }: { flow: FlowRow; compiled: Flow;
           <div class="diagram-actions">
             {/* public/js/viewer.js turns the page into the tour, and asks
                 before "Empezar de nuevo" (phase 3.5). */}
-            <button type="button" class="button-secondary" data-restart hidden={status.state !== "in_progress"}>
+            <button type="button" class="button-secondary" data-restart hidden={!status.open}>
               Empezar de nuevo
             </button>
             <button type="button" class="button-primary" data-start>
@@ -113,7 +113,6 @@ viewer.post("/:id{[0-9]+}/tour/restart", async (c) => {
   const user = await currentUser(c);
   const run = await restartTour(c.env.DB, user.id, flowId(c), new Date());
   if (!run) return c.notFound();
-  if ("ok" in run) return c.json({ error: run.error }, 409);
   return c.json({ ...run, status: await statusOf(c.env.DB, user.id, flowId(c)) });
 });
 
