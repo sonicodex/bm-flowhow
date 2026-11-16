@@ -110,6 +110,23 @@ textarea {
   background: var(--color-subtle);
 }
 
+/* A button that reads as a link: "Ver el flujo completo" (phase 3.5). */
+.button-link {
+  padding: 0;
+  font: inherit;
+  color: var(--color-primary);
+  text-decoration: underline;
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  outline: var(--border-width) solid transparent;
+  cursor: pointer;
+}
+
+.button-link:hover {
+  color: var(--color-primary-strong);
+}
+
 .button-primary:disabled,
 .button-secondary:disabled {
   cursor: default;
@@ -121,7 +138,8 @@ textarea {
 .inline-form input:focus-visible,
 textarea:focus-visible,
 .button-secondary:focus-visible,
-.button-primary:focus-visible {
+.button-primary:focus-visible,
+.button-link:focus-visible {
   box-shadow: var(--shadow-focus);
 }
 

@@ -6,6 +6,10 @@
 // pass it: validate(f, refs), the paste round trip and the lib of "subflow
 // refs". Phase 1.2.6 made flow ids numeric, as stored (main 1, the subflow 2,
 // Facturación 3, the draft 4), in those lines and in the printed refs case.
+// Phase 3.5 (SPEC §7, branches that meet again are walked together) changed
+// what two cases expect: "Sí first" and "every branch must be taken". Their
+// original lines are kept as comments above the new ones, and the case they
+// guarded (every step visited, a branch not taken) has a flow of its own.
 import assert from 'node:assert';
 import { afterAll, it } from 'vitest';
 import C from '../public/js/core.js';
@@ -45,10 +49,14 @@ it("follow the flow: No first walks the loop back to the decision", () => {
 {const w=new C.Tour(f);w.next();w.next();w.choose(1);assert(w.current().id==='P4');w.next();assert(w.current().id==='P2');w.next();assert(w.current().id==='P3'&&w.needsChoice()&&!w.canFinish());
  w.choose(0);w.next();w.next();assert(w.current().id==='P7'&&w.canFinish());console.log('No-first trail',w.trail.map(x=>x.id).join(' '));}
 });
-it("Sí first: dead end returns to the decision, then the loop", () => {
+it("Sí first: back to the decision before the meeting point, then the loop, then on once", () => {
 // Sí first: dead end returns to the decision; after No the loop is walked and the tour can finish at the decision
-{const w=new C.Tour(f);w.next();w.next();w.choose(0);w.next();w.next();let r=w.next();assert(r.returned&&w.current().id==='P3'&&w.current().note.endAt==='P7');
- w.choose(1);assert(w.current().id==='P4'&&w.complete()&&!w.canFinish());w.next();w.next();assert(w.current().id==='P3'&&w.canFinish());console.log('Sí-first trail',w.trail.map(x=>x.id).join(' '));}
+// {const w=new C.Tour(f);w.next();w.next();w.choose(0);w.next();w.next();let r=w.next();assert(r.returned&&w.current().id==='P3'&&w.current().note.endAt==='P7');
+//  w.choose(1);assert(w.current().id==='P4'&&w.complete()&&!w.canFinish());w.next();w.next();assert(w.current().id==='P3'&&w.canFinish());console.log('Sí-first trail',w.trail.map(x=>x.id).join(' '));}
+// Phase 3.5: «Sí» goes straight to P5, where «No» (through the loop) meets it, so it goes back to P3 first.
+{const w=new C.Tour(f);w.next();w.next();let r=w.choose(0);assert(r.returned&&w.current().id==='P3'&&w.current().note.direct==='P5');
+ w.choose(1);assert(w.current().id==='P4');w.next();w.next();assert(w.current().id==='P3'&&w.needsChoice()&&!w.canFinish());
+ w.choose(0);assert(w.current().id==='P5');w.next();w.next();assert(w.current().id==='P7'&&w.canFinish());assert.strictEqual(w.trail.map(x=>x.id).join(' '),'P1 P2 P3 P3 P4 P2 P3 P5 P6 P7');}
 });
 it("pure cycle without decisions never hangs", () => {
 // pure cycle without decisions never hangs
@@ -76,9 +84,100 @@ it("subflow refs", () => {
 });
 it("every branch must be taken, even when all steps are visited", () => {
 // every branch must be taken, even when all steps are already visited
-{const sub=C.compile(C.EXAMPLE_SUB);const w=new C.Tour(sub);w.next();w.next();w.choose(0);w.next();assert(w.current().id==='A5'&&w.visited.size===5&&!w.complete()&&!w.canFinish());
- const r=w.next();assert(r.returned&&w.current().id==='A3');assert(w.options()[0].taken&&!w.options()[1].taken);w.choose(1);assert(w.current().id==='A5'&&w.complete()&&w.canFinish());}
+// {const sub=C.compile(C.EXAMPLE_SUB);const w=new C.Tour(sub);w.next();w.next();w.choose(0);w.next();assert(w.current().id==='A5'&&w.visited.size===5&&!w.complete()&&!w.canFinish());
+//  const r=w.next();assert(r.returned&&w.current().id==='A3');assert(w.options()[0].taken&&!w.options()[1].taken);w.choose(1);assert(w.current().id==='A5'&&w.complete()&&w.canFinish());}
+// Phase 3.5: in the subflow both branches meet at A5, so A5 waits for «No».
+{const sub=C.compile(C.EXAMPLE_SUB);const w=new C.Tour(sub);w.next();w.next();w.choose(0);const r=w.next();assert(r.returned&&w.current().id==='A3'&&w.current().note.joinAt==='A5'&&!w.visited.has('A5'));
+ assert(w.options()[0].taken&&!w.options()[1].taken);w.choose(1);assert(w.current().id==='A5'&&w.complete()&&w.canFinish());}
+// Every step visited and a branch not taken: Y is reached first from its own start; D's branches never meet.
+{const two=C.compile({name:'t',categories:[],steps:[{id:'S2',type:'start',title:'s2',exits:'Y'},{id:'S1',type:'start',title:'s1',exits:'D'},{id:'D',type:'decision',title:'d',exits:'a:X | b:Y'},{id:'X',type:'end',title:'x',exits:''},{id:'Y',type:'end',title:'y',exits:''}]});
+ const w=new C.Tour(two);w.next();w.next();w.next();w.choose(0);const r=w.next();assert(r.returned&&w.current().id==='D'&&w.visited.size===5&&!w.complete()&&!w.canFinish());
+ w.choose(1);assert(w.current().id==='Y'&&w.complete()&&w.canFinish());}
 });
+
+// Phase 3.5: branches that meet again are walked together (SPEC §7).
+const flowOf = (rows) => C.compile({ name: 't', categories: [], steps: rows.map(([id, type, exits]) => ({ id, type, title: id, exits })) });
+const ids = (w) => w.trail.map((x) => x.id).join(' ');
+const once = (w, id) => w.trail.filter((x) => x.id === id).length === 1;
+
+it("meeting points: post-dominators shared by two branches; a branch that only shares the end has none", () => {
+  const w = new C.Tour(flowOf([['S', 'start', 'D'], ['D', 'decision', 'A:X | B:Y | C:Z'], ['X', 'activity', 'M'], ['Y', 'activity', 'M'], ['Z', 'end', ''], ['M', 'activity', 'E'], ['E', 'end', '']]));
+  assert.deepStrictEqual(w.meet.get('D'), ['M', 'M', null]);
+  // A loop back into the decision (EXAMPLE's P3) meets the other branch after the decision.
+  assert.deepStrictEqual(new C.Tour(f).meet.get('P3'), ['P5', 'P5']);
+  // Twin branches meet at their common target.
+  assert.deepStrictEqual(new C.Tour(flowOf([['S', 'start', 'D'], ['D', 'decision', 'Sí:M | No:M'], ['M', 'end', '']])).meet.get('D'), ['M', 'M']);
+});
+
+it("one branch meets, one dies: the meeting point and what follows are walked once, in either order", () => {
+  const rows = [['S', 'start', 'D'], ['D', 'decision', 'A:X | B:Y | C:Z'], ['X', 'activity', 'M'], ['Y', 'activity', 'M'], ['Z', 'end', ''], ['M', 'activity', 'E'], ['E', 'end', '']];
+  let w = new C.Tour(flowOf(rows));
+  w.next(); w.choose(0);
+  let r = w.next();
+  assert(r.returned && w.current().id === 'D' && w.current().note.joinAt === 'M' && !w.visited.has('M'));
+  w.choose(1); w.next(); w.next();
+  r = w.next();
+  assert(r.returned && w.current().id === 'D' && w.current().note.endAt === 'E');
+  w.choose(2);
+  assert(w.current().id === 'Z' && w.canFinish());
+  assert.strictEqual(ids(w), 'S D X D Y M E D Z');
+  // The dead branch first: its return is explained, then the two that meet.
+  w = new C.Tour(flowOf(rows));
+  w.next(); w.choose(2);
+  r = w.next();
+  assert(r.returned && w.current().note.endAt === 'Z');
+  w.choose(0); w.next(); w.choose(1); w.next(); w.next();
+  assert(w.current().id === 'E' && w.canFinish());
+  assert.strictEqual(ids(w), 'S D Z D X D Y M E');
+  assert(once(w, 'M') && once(w, 'E'));
+});
+
+it("a branch straight to the meeting point goes back to the decision, with the note said once", () => {
+  // Instalaciones P17: «No» goes straight to P21, «Sí» walks P18 to P20 first.
+  const w = new C.Tour(flowOf([['S', 'start', 'D'], ['D', 'decision', 'Sí:A | No:M'], ['A', 'activity', 'B'], ['B', 'activity', 'M'], ['M', 'activity', 'E'], ['E', 'end', '']]));
+  w.next();
+  let r = w.choose(1);
+  assert(r.returned && w.current().id === 'D' && w.current().note.direct === 'M' && !w.current().note.quiet);
+  assert(w.options()[1].taken && !w.options()[0].taken);
+  w.choose(1);
+  assert(w.current().id === 'D' && w.current().note.quiet);
+  w.choose(0); w.next(); w.next(); w.next();
+  assert(w.current().id === 'E' && w.canFinish() && once(w, 'M'));
+  assert.strictEqual(ids(w), 'S D D D A B M E');
+  // Twins: the first branch goes back, the second one enters.
+  const t = new C.Tour(flowOf([['S', 'start', 'D'], ['D', 'decision', 'Sí:M | No:M'], ['M', 'end', '']]));
+  t.next(); t.choose(0);
+  assert(t.current().id === 'D' && t.current().note.direct === 'M');
+  t.choose(1);
+  assert(t.current().id === 'M' && t.canFinish() && once(t, 'M'));
+});
+
+it("nested decisions: the inner one closes at its meeting point, then the outer one at its own", () => {
+  // Apertura P7 inside P6: P7 meets at P10, P6 at P25.
+  const w = new C.Tour(flowOf([['S', 'start', 'D1'], ['D1', 'decision', 'a:D2 | b:Y'], ['D2', 'decision', 'c:P | d:Q'], ['P', 'activity', 'R'], ['Q', 'activity', 'R'], ['R', 'activity', 'M'], ['Y', 'activity', 'M'], ['M', 'activity', 'E'], ['E', 'end', '']]));
+  assert.deepStrictEqual([w.meet.get('D1'), w.meet.get('D2')], [['M', 'M'], ['R', 'R']]);
+  w.next(); w.choose(0); w.choose(0);
+  let r = w.next();
+  assert(r.returned && w.current().id === 'D2' && w.current().note.joinAt === 'R');
+  w.choose(1); w.next();
+  r = w.next();
+  assert(r.returned && w.current().id === 'D1' && w.current().note.joinAt === 'M');
+  w.choose(1); w.next(); w.next();
+  assert(w.current().id === 'E' && w.canFinish());
+  assert.strictEqual(ids(w), 'S D1 D2 P D2 Q R D1 Y M E');
+});
+
+it("branches that never meet keep the dead-end return (Instalaciones P5)", () => {
+  const w = new C.Tour(flowOf([['S', 'start', 'D'], ['D', 'decision', 'Sí:Y | No:X'], ['X', 'end', ''], ['Y', 'activity', 'E'], ['E', 'end', '']]));
+  assert.deepStrictEqual(w.meet.get('D'), [null, null]);
+  w.next(); w.choose(1);
+  const r = w.next();
+  assert(r.returned && w.current().note.endAt === 'X');
+  w.choose(0); w.next();
+  assert(w.current().id === 'E' && w.canFinish());
+  assert.strictEqual(ids(w), 'S D X D Y E');
+});
+
 afterAll(() => {
 console.log('OK');
 });

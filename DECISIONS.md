@@ -14,6 +14,67 @@ Entry format:
 
 ---
 
+## 2026-11-16 — Branches that meet, "Empezar de nuevo", "Ver el flujo completo" (phase 3.5)
+
+- Decision (approved by the owner before building):
+  - **Meeting points** (`core.js`, the first change to the engine in
+    phase 3). For each step, its post-dominators: the steps every path
+    from it to an end goes through, with every dead end leading to one
+    virtual end. A branch's meeting point is the first post-dominator it
+    shares with another branch of the same decision. A branch that shares
+    only the virtual end with the others has none and keeps the dead-end
+    return. Steps inside a closed cycle (no way to an end) have none.
+    Computed once per `Tour`, kept in `tour.meet`.
+  - **Walking them.** The tour never enters a meeting point while a branch
+    that meets there is still to take: it goes back to the nearest such
+    decision on the current path, and enters the meeting point once,
+    after the last one. A decision walked since then that still has a
+    branch to take comes first, so nested branches are not left behind
+    (a random flow found this case while it was being built).
+  - **A branch straight to the meeting point** (Instalaciones P9, P11,
+    P17; Apertura P31, P34) does not enter it while another branch meets
+    there. The branch is marked taken and the tour stays at the decision:
+    «Esta opción va directo a «X». Antes de seguir, mira las otras.»
+    Choosing it again says nothing more (owner: do not repeat the note).
+  - Notes for the other return: «Esta rama sigue en «X», igual que las
+    otras. Vuelves a la decisión para ver las que faltan.»
+  - Nothing else in the rules changes: dead-end returns, every branch
+    taken, finishing, repeating a branch.
+  - **Two cases in `core.test.js` changed what they expect**, because the
+    rule they tested changed: "Sí first" and "every branch must be taken".
+    Their original lines stay as comments. The case the second guarded
+    (every step visited, a branch not taken) now has a flow of its own,
+    with two starts.
+  - The owner's example was checked against the data first: in Apertura,
+    «Externa» does not end at the first contact with the client, it meets
+    «Interna» at P25 (P12 → P24 → P25). No reference flow has a branch
+    that meets while another ends, so that case uses a built flow.
+  - **Migration 0003**: `tour_runs.abandoned_at`, never set together with
+    `finished_at`. A run is open while both are NULL; the partial unique
+    index is rebuilt on that. The progress report (phase 6) can tell
+    finished runs from abandoned ones.
+  - **"Empezar de nuevo"**, `POST /flows/:id/tour/restart`: beside
+    "Continuar recorrido" in the overview, only while the status is
+    "Recorrido en curso". In one batch it abandons the open run and opens
+    a clean one on the latest release; the minimum time counts from then.
+    Refused once the current major version is reviewed. **It asks first**
+    (owner's decision): the corner shows «¿Empezar de nuevo? Pierdes los
+    pasos que llevas en este recorrido.» with "Cancelar" and "Sí, empezar
+    de nuevo".
+  - **Runs logged under the old rules** may not replay any more. Steps and
+    finishing answer «Las reglas del recorrido cambiaron. Recarga la
+    página para seguir.»; starting abandons that run, opens a clean one
+    and says so in the tour's message line.
+  - **"Ver el flujo completo"**, a link-styled button in the progress row:
+    back to the overview, the run stays open. Named so by the owner:
+    "salir" would sound like abandoning, next to a button that does.
+  - Phase 6 scope (owner's SPEC §7 change, not built): the tour zoom is
+    for every screen size, zoomed by default only on phones.
+  - Browser check: `app/.layout-check/3.5/` (join-note, direct-note,
+    restart-overview, restart-confirm, restarted).
+- Reason: SPEC §7 changes after the owner tested phase 3 live.
+- Spec sections affected: 7 (Viewer: tour rules, layout).
+
 ## 2026-11-13 — "Revisado" in the viewer (phase 3.4)
 
 - Decision:

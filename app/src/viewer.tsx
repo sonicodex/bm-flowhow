@@ -4,7 +4,7 @@ import type { Flow } from "../public/js/core.js";
 import type { Action } from "../public/js/tour-log.js";
 import { currentUser } from "./current-user.ts";
 import { getFlow, latestRelease, type FlowRow } from "./flows.ts";
-import { finishTour, reviewStatus, startTour, takeStep, type ReviewState, type ReviewStatus } from "./tour.ts";
+import { finishTour, restartTour, reviewStatus, startTour, takeStep, type ReviewState, type ReviewStatus } from "./tour.ts";
 
 // The flow viewer (SPEC §7): the overview (phase 2.4) and the tour (phase 3).
 // Users always see the latest release, never a draft (§8); a tour already
@@ -48,7 +48,11 @@ function ViewerPage({ flow, compiled, status }: { flow: FlowRow; compiled: Flow;
             </noscript>
           </div>
           <div class="diagram-actions">
-            {/* public/js/viewer.js turns the page into the tour. */}
+            {/* public/js/viewer.js turns the page into the tour, and asks
+                before "Empezar de nuevo" (phase 3.5). */}
+            <button type="button" class="button-secondary" data-restart hidden={status.state !== "in_progress"}>
+              Empezar de nuevo
+            </button>
             <button type="button" class="button-primary" data-start>
               {status.action}
             </button>
@@ -62,7 +66,7 @@ function ViewerPage({ flow, compiled, status }: { flow: FlowRow; compiled: Flow;
         </aside>
       </div>
       <script type="application/json" id="flow-data">
-        {raw(scriptJson({ id: flow.id, name: flow.name, colour: flow.colour, flow: compiled }))}
+        {raw(scriptJson({ id: flow.id, name: flow.name, colour: flow.colour, flow: compiled, status }))}
       </script>
       <script type="module" src="/js/viewer.js"></script>
     </section>
@@ -102,6 +106,14 @@ viewer.post("/:id{[0-9]+}/tour", async (c) => {
   const user = await currentUser(c);
   const run = await startTour(c.env.DB, user.id, flowId(c), new Date());
   if (!run) return c.notFound();
+  return c.json({ ...run, status: await statusOf(c.env.DB, user.id, flowId(c)) });
+});
+
+viewer.post("/:id{[0-9]+}/tour/restart", async (c) => {
+  const user = await currentUser(c);
+  const run = await restartTour(c.env.DB, user.id, flowId(c), new Date());
+  if (!run) return c.notFound();
+  if ("ok" in run) return c.json({ error: run.error }, 409);
   return c.json({ ...run, status: await statusOf(c.env.DB, user.id, flowId(c)) });
 });
 

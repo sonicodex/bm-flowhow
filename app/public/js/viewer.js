@@ -32,7 +32,10 @@ const showStatus = (status) => {
 };
 
 if (data && cols) {
-  const { id, name, colour, flow } = JSON.parse(data.textContent);
+  const { id, name, colour, flow, status: initial } = JSON.parse(data.textContent);
+  // The review status, as the server last gave it: it labels the overview's
+  // buttons, and "Empezar de nuevo" shows only while it is "en curso".
+  let status = initial;
   const overview = cols.innerHTML;
   const drawOverview = () => {
     const box = document.getElementById('diagram');
@@ -54,8 +57,11 @@ if (data && cols) {
   };
 
   const noteFor = (note) => {
-    if (!note) return '';
+    if (!note || note.quiet) return '';
     const title = (stepId) => quoted(state.tour.byId.get(stepId).title);
+    // Branches that meet again (phase 3.5).
+    if (note.direct) return `<p class="note">Esta opción va directo a ${title(note.direct)}. Antes de seguir, mira las otras.</p>`;
+    if (note.joinAt) return `<p class="note">Esta rama sigue en ${title(note.joinAt)}, igual que las otras. Vuelves a la decisión para ver las que faltan.</p>`;
     const why = note.endAt ? `Esa rama terminó en ${title(note.endAt)}. ` : note.loopTo ? 'Ese camino se repite sin llegar a un cierre. ' : '';
     const then = note.returned ? 'Vuelves a esta decisión para ver las otras opciones.' : 'Ahora sigues con una parte del flujo que faltaba.';
     return `<p class="note">${why}${then}</p>`;
@@ -121,7 +127,9 @@ if (data && cols) {
     cols.innerHTML =
       `<div class="card diagram-card">` +
       `<div class="tour-progress"><span>Pasos visitados: ${seen} de ${total}</span>` +
-      `<div class="bar" role="progressbar" aria-label="Pasos visitados" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${seen}"><div style="width:${Math.round((seen / total) * 100)}%"></div></div></div>` +
+      `<div class="bar" role="progressbar" aria-label="Pasos visitados" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${seen}"><div style="width:${Math.round((seen / total) * 100)}%"></div></div>` +
+      // Back to the overview; the run stays open (phase 3.5).
+      `<button type="button" class="button-link" data-overview>Ver el flujo completo</button></div>` +
       `<div class="diagram-scroll" id="diagram">${renderDiagram(layout, { name, colour }, marks(tour, toured.categories))}</div>` +
       `<div class="diagram-actions"><p class="tour-message" role="status">${esc(state.message)}</p>` +
       `<button type="button" class="button-secondary" data-prev${tour.pos === 0 ? ' disabled' : ''}>Anterior</button>${primary}</div></div>` +
@@ -134,12 +142,14 @@ if (data && cols) {
 
   // `status.action` relabels the button: "Repetir recorrido" after a
   // finish, or "Iniciar recorrido" if a major release came out meanwhile.
-  const showOverview = (lines, status) => {
+  const showOverview = (lines) => {
     state = null;
     cols.innerHTML = overview;
     drawOverview();
     const button = cols.querySelector('[data-start]');
-    if (button && status) button.textContent = status.action;
+    if (button) button.textContent = status.action;
+    const restart = cols.querySelector('[data-restart]');
+    if (restart) restart.hidden = status.state !== 'in_progress';
     const side = cols.querySelector('.viewer-side');
     if (side && lines.length) side.insertAdjacentHTML('afterbegin', `<p class="note">${DONE_ICON}<span>${lines.map(esc).join(' ')}</span></p>`);
   };
@@ -164,32 +174,63 @@ if (data && cols) {
     const res = await post('/finish').catch(() => ({ ok: false, json: {} }));
     state.busy = false;
     if (res.ok) {
-      showStatus(res.json.status);
-      return showOverview(['Flujo revisado.', res.json.newer].filter(Boolean), res.json.status);
+      status = res.json.status;
+      showStatus(status);
+      return showOverview(['Flujo revisado.', res.json.newer].filter(Boolean));
     }
     state.message = res.json.error || 'No se pudo terminar el recorrido. Revisa la conexión e inténtalo de nuevo.';
     renderTour('[data-finish]');
   };
 
-  const start = async (button) => {
+  // "Iniciar", "Continuar" or "Repetir" (path ''), or "Empezar de nuevo"
+  // once confirmed (path '/restart').
+  const start = async (button, path) => {
     button.disabled = true;
-    const res = await post('').catch(() => ({ ok: false, json: {} }));
+    const res = await post(path).catch(() => ({ ok: false, json: {} }));
     const tour = res.ok ? replay(res.json.flow, res.json.log) : null;
     if (!tour) {
       button.disabled = false;
-      button.insertAdjacentHTML('beforebegin', '<p class="tour-message" role="status">No se pudo iniciar el recorrido. Recarga la página e inténtalo de nuevo.</p>');
+      const actions = cols.querySelector('.diagram-actions');
+      actions.querySelector('.tour-message')?.remove();
+      actions.insertAdjacentHTML('afterbegin', `<p class="tour-message" role="status">${esc(res.json.error || 'No se pudo iniciar el recorrido. Recarga la página e inténtalo de nuevo.')}</p>`);
       return;
     }
-    showStatus(res.json.status);
-    state = { flow: res.json.flow, layout: layoutFlow(res.json.flow), tour, busy: false, message: '' };
+    status = res.json.status;
+    showStatus(status);
+    state = { flow: res.json.flow, layout: layoutFlow(res.json.flow), tour, busy: false, message: res.json.notice || '' };
     renderTour();
+  };
+
+  // "Empezar de nuevo" sits beside "Continuar recorrido" and throws away the
+  // steps walked so far, so it asks first (owner's decision, phase 3.5).
+  const confirmRestart = () => {
+    const actions = cols.querySelector('.diagram-actions');
+    actions.dataset.saved = actions.innerHTML;
+    actions.innerHTML =
+      '<p class="tour-message" role="status">¿Empezar de nuevo? Pierdes los pasos que llevas en este recorrido.</p>' +
+      '<button type="button" class="button-secondary" data-cancel>Cancelar</button>' +
+      '<button type="button" class="button-primary" data-confirm-restart>Sí, empezar de nuevo</button>';
+    actions.querySelector('[data-cancel]').focus();
+  };
+  const cancelRestart = () => {
+    const actions = cols.querySelector('.diagram-actions');
+    actions.innerHTML = actions.dataset.saved || '';
+    delete actions.dataset.saved;
+    cols.querySelector('[data-restart]')?.focus();
   };
 
   cols.addEventListener('click', (ev) => {
     const b = ev.target instanceof Element ? ev.target.closest('button') : null;
     if (!b || b.disabled) return;
     if (!state) {
-      if (b.hasAttribute('data-start')) start(b);
+      if (b.hasAttribute('data-start')) start(b, '');
+      else if (b.hasAttribute('data-restart')) confirmRestart();
+      else if (b.hasAttribute('data-cancel')) cancelRestart();
+      else if (b.hasAttribute('data-confirm-restart')) start(b, '/restart');
+      return;
+    }
+    if (b.hasAttribute('data-overview')) {
+      if (!state.busy) showOverview([]);
       return;
     }
     const tour = state.tour;

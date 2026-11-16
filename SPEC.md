@@ -244,10 +244,19 @@ Tour rules:
 - On a decision (any step with more than one exit), the user picks a branch.
   "Siguiente" is disabled until they choose. Every branch is selectable,
   including the ones already taken, which are marked "Ya recorrida".
+- **Branches that meet again are walked together, there and then.** When the
+  paths out of a decision rejoin at a common step, the tour walks each
+  remaining branch up to that meeting point, returning to the decision between
+  them, and only then continues once along the shared path. Say it the way a
+  person would explain it out loud: "here there are three ways the material
+  arrives — this one, this one and this one — and after that they all go the
+  same way." Walking the whole tail of the flow once per branch teaches
+  nothing and feels like a bug.
 - The tour returns to a decision only when a branch reaches a dead end: an end
   step or a step with no next step. It then goes back to the nearest decision
   that still has a branch not yet taken, explains why ("Esa rama terminó en
-  «X»"), and the user chooses again.
+  «X»"), and the user chooses again. This still matters for branches that
+  never rejoin: one may end while another carries on.
 - If no decision has a branch left to take, the tour moves on to another
   unvisited start.
 - **Every branch must be walked.** A tour is complete only when every step
@@ -287,6 +296,19 @@ Tour rules:
 - Record the time each user took to complete the tour (per user and flow
   version). It is always at least the minimum time, because the rule blocks earlier
   completion.
+- A tour belongs to the version it started on and finishes there, even when a
+  newer one is published meanwhile: releases are kept forever, so the document
+  being walked still exists. Never interrupt a tour in progress.
+- Repeating a tour never costs the user their review: the first one is kept,
+  with its date and duration, and the status stays "Revisado" while the repeat
+  is open.
+- While a tour is open and no review has been recorded yet, offer "Empezar de
+  nuevo" beside "Continuar recorrido": it closes the open attempt and opens a
+  clean one. Someone who got lost halfway should not be forced to walk to the
+  end to start over, and at that point there is nothing to lose.
+- Whenever the version a user reviewed or is walking is not the current one,
+  say so in one line. Reaching the end of a tour and finding "Pendiente de
+  revisión" with no explanation reads as a fault.
 
 Not included: in-tour quiz questions, phases or step groupings.
 
@@ -309,10 +331,14 @@ Designed for desktop, usable on mobile.
   summary, category names) is hidden. The action buttons stay in the bottom
   right corner of the diagram card, side by side. The same order applies to
   the overview and the free review.
-- Mobile tour zoom: during the tour the diagram zooms in on the current step,
-  framed together with the step the user came from and the next step or
-  branches, so the labels stay readable. A "Ver todo" / "Acercar" toggle
-  switches between this view and the whole diagram. Zoomed is the default.
+- Tour zoom, on every screen size: during the tour the diagram zooms in on the
+  current step, framed together with the step the user came from and the next
+  step or branches, so the labels stay readable. A "Ver todo" / "Acercar"
+  toggle switches between this view and the whole diagram. Zoomed is the
+  default on a phone.
+  It is not a mobile feature. A small laptop, a low resolution, a projector
+  and a reader who needs larger type all hit the same wall, and a reader who
+  needs it on a desktop has no phone to fall back on.
 
 ### Subflows — stage 2, do not build
 

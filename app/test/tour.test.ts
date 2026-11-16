@@ -9,7 +9,7 @@ import { loadDevFlows } from "../src/devload.ts";
 import { getFlow, latestRelease } from "../src/flows.ts";
 import { applyGrid } from "../src/import.ts";
 import { publishFlow, type Bump } from "../src/publish.ts";
-import { finishTour, reviewStatus, startTour, takeStep, TOO_FAST } from "../src/tour.ts";
+import { finishTour, restartTour, reviewStatus, startTour, takeStep, TOO_FAST } from "../src/tour.ts";
 
 const db = () => env.DB;
 const T0 = Date.parse("2026-11-13T15:00:00.000Z");
@@ -79,7 +79,7 @@ async function walk(
 
 async function logOf(user: number): Promise<LogRow[]> {
   const { results } = await db()
-    .prepare("SELECT v.step_path, v.exit_index FROM tour_visits v JOIN tour_runs r ON r.id = v.run_id WHERE r.user_id = ? AND r.finished_at IS NULL ORDER BY v.id")
+    .prepare("SELECT v.step_path, v.exit_index FROM tour_visits v JOIN tour_runs r ON r.id = v.run_id WHERE r.user_id = ? AND r.finished_at IS NULL AND r.abandoned_at IS NULL ORDER BY v.id")
     .bind(user)
     .all<{ step_path: string; exit_index: number | null }>();
   return results.map((r) => ({ step: r.step_path, exit: r.exit_index }));
@@ -88,33 +88,46 @@ async function logOf(user: number): Promise<LogRow[]> {
 const count = (table: string) => db().prepare(`SELECT count(*) AS n FROM ${table}`).first<number>("n");
 
 describe("the tour on the server (SPEC §7)", () => {
-  it("does not finish with every step visited while a twin branch is not taken", async () => {
+  it("twin branches: the first goes back to the decision, P3 waits for the second and is walked once", async () => {
     const s = await setup("Ramas gemelas");
     await startTour(db(), s.user, s.flowId, at(0));
-    const t = await walk(s, 0, { stop: (tour) => tour.visited.size === s.flow.steps.length && tour.current().id === "P2" });
+    const t = await walk(s, 0, { stop: (tour) => tour.taken.has("P2#0") });
     const tour = replay(s.flow, await logOf(s.user));
-    expect(tour.taken.has("P2#0")).toBe(true);
+    expect(tour.current()).toMatchObject({ id: "P2", note: { direct: "P3", returned: true } });
     expect(tour.taken.has("P2#1")).toBe(false);
-    expect(tour.current().note).toMatchObject({ endAt: "P6", returned: true });
+    expect(tour.visited.has("P3")).toBe(false);
     expect(await finishTour(db(), s.user, s.flowId, at(10_000))).toEqual({ ok: false, error: expect.any(String) });
     expect(await count("review_records")).toBe(0);
     const end = await walk(s, t);
-    expect(replay(s.flow, await logOf(s.user)).taken.has("P2#1")).toBe(true);
+    const done = replay(s.flow, await logOf(s.user));
+    expect(done.trail.filter((x: { id: string }) => x.id === "P3")).toHaveLength(1);
+    expect(await logOf(s.user)).toContainEqual({ step: "P2", exit: 0 });
     expect(await finishTour(db(), s.user, s.flowId, at(end + 30))).toEqual({ ok: true, durationSeconds: end + 30, newer: null });
   });
 
-  it("in Apertura de OT, goes back to P34 for «No» although P35 is already visited", async () => {
+  it("in Apertura de OT, walks every branch to its meeting point and the shared path once", async () => {
     const s = await setup();
     await startTour(db(), s.user, s.flowId, at(0));
     // P34's two branches both lead to P35.
     const p34 = (s.flow.steps as { id: string; exits: { label: string; to: string }[] }[]).find((x) => x.id === "P34")!;
     expect(p34.exits).toEqual([{ label: "Sí", to: "P35" }, { label: "No", to: "P35" }]);
-    await walk(s, 0, { stop: (tour) => tour.taken.has("P34#0") && tour.current().id === "P34" });
-    const tour = replay(s.flow, await logOf(s.user));
-    expect(tour.visited.has("P35")).toBe(true);
-    expect(tour.current().note).toMatchObject({ endAt: "P36", returned: true });
-    expect(tour.options().map((o: { taken: boolean }) => o.taken)).toEqual([true, false]);
-    expect((await finishTour(db(), s.user, s.flowId, at(10_000))).ok).toBe(false);
+    // «¿Quién entrega el material?»: its three branches before P30.
+    await walk(s, 0, { stop: (tour) => tour.visited.has("P30") });
+    let tour = replay(s.flow, await logOf(s.user));
+    expect(["P26#0", "P26#1", "P26#2"].every((k) => tour.taken.has(k))).toBe(true);
+    await walk(s, 0);
+    tour = replay(s.flow, await logOf(s.user));
+    const trail = tour.trail.map((x: { id: string }) => x.id) as string[];
+    // Nothing from P25 on is walked twice, except the P31/P32 loop and the
+    // decisions the tour goes back to.
+    const decisions = new Set(["P26", "P31", "P34"]);
+    for (const id of ["P25", "P27", "P28", "P29", "P30", "P33", "P35", "P36"]) expect([id, trail.filter((x) => x === id).length]).toEqual([id, 1]);
+    expect(trail.slice(trail.indexOf("P25")).filter((x) => !decisions.has(x) && x !== "P32" && trail.filter((y) => y === x).length > 1)).toEqual([]);
+    // P6's branches meet at P25, P7's at P10, P34's at P35.
+    expect(tour.meet.get("P6")).toEqual(["P25", "P25"]);
+    expect(tour.meet.get("P7")).toEqual(["P10", "P10"]);
+    expect(tour.meet.get("P34")).toEqual(["P35", "P35"]);
+    expect(tour.canFinish()).toBe(true);
   });
 
   it("logs each action as step plus exit index, with the server's time", async () => {
@@ -220,6 +233,43 @@ describe("the tour on the server (SPEC §7)", () => {
     });
   }
 
+  it("starts over while there is no review: the open run is abandoned, a clean one opened (phase 3.5)", async () => {
+    const s = await setup("Ramas gemelas");
+    const first = (await startTour(db(), s.user, s.flowId, at(0)))!;
+    await walk(s, 0, { stop: (tour) => tour.trail.length > 3 });
+    const again = await restartTour(db(), s.user, s.flowId, at(100));
+    expect(again).toMatchObject({ log: [], notice: null });
+    expect((again as { runId: number }).runId).not.toBe(first.runId);
+    const runs = await db().prepare("SELECT id, started_at, finished_at, abandoned_at FROM tour_runs ORDER BY id").all();
+    expect(runs.results).toEqual([
+      { id: first.runId, started_at: at(0).toISOString(), finished_at: null, abandoned_at: at(100).toISOString() },
+      { id: expect.any(Number), started_at: at(100).toISOString(), finished_at: null, abandoned_at: null },
+    ]);
+    // The minimum time counts from the clean start.
+    const end = await walk(s, 100);
+    expect(await finishTour(db(), s.user, s.flowId, at(end + 1))).toEqual({ ok: false, error: TOO_FAST });
+    expect((await finishTour(db(), s.user, s.flowId, at(100 + 30))).ok).toBe(true);
+    // Once reviewed, starting over is refused: the review is kept.
+    await startTour(db(), s.user, s.flowId, at(200));
+    expect(await restartTour(db(), s.user, s.flowId, at(300))).toEqual({ ok: false, error: expect.stringContaining("Ya revisaste") });
+    expect(await count("tour_runs")).toBe(3);
+  });
+
+  it("closes a run that no longer replays under the current rules and opens a clean one, saying so", async () => {
+    const s = await setup("Ramas gemelas");
+    const first = (await startTour(db(), s.user, s.flowId, at(0)))!;
+    // A log written under older rules: the row at P2 no longer matches.
+    await db().prepare("INSERT INTO tour_visits (run_id, step_path, exit_index, visited_at) VALUES (?, 'P1', 0, ?), (?, 'P9', 0, ?)")
+      .bind(first.runId, at(1).toISOString(), first.runId, at(2).toISOString()).run();
+    expect(await takeStep(db(), s.user, s.flowId, { at: "P2", action: "choose", exit: 0 }, at(3))).toEqual({ ok: false, error: expect.stringContaining("Recarga") });
+    expect((await finishTour(db(), s.user, s.flowId, at(3))).ok).toBe(false);
+    const again = (await startTour(db(), s.user, s.flowId, at(4)))!;
+    expect(again.runId).not.toBe(first.runId);
+    expect(again.log).toEqual([]);
+    expect(again.notice).toContain("Empiezas uno nuevo");
+    expect(await db().prepare("SELECT abandoned_at FROM tour_runs WHERE id = ?").bind(first.runId).first("abandoned_at")).toBe(at(4).toISOString());
+  });
+
   it("refuses steps and finishing without an open run", async () => {
     const s = await setup();
     expect((await takeStep(db(), s.user, s.flowId, { at: "P1", action: "next" }, at(1))).ok).toBe(false);
@@ -318,6 +368,8 @@ describe("tour routes", () => {
     const page = async () => (await exports.default.fetch(`http://example.com/flows/${s.flowId}`)).text();
     expect(await page()).toContain('data-state="pending"');
     expect(await page()).toContain(">Iniciar recorrido</button>");
+    // "Empezar de nuevo" is in the page, hidden until a run is open.
+    expect(await page()).toContain('<button type="button" class="button-secondary" data-restart="true" hidden="">Empezar de nuevo</button>');
     expect(((await (await post(`/flows/${s.flowId}/tour`)).json()) as any).status).toMatchObject({ state: "in_progress" });
     const html = await page();
     expect(html).toContain('<img class="icon" src="/icons/in_progress.svg" alt="" width="18" height="18"/><strong>Recorrido en curso</strong>');
@@ -325,5 +377,9 @@ describe("tour routes", () => {
     // Finishing is refused this early; the status stays as it was.
     expect((await post(`/flows/${s.flowId}/tour/finish`)).status).toBe(409);
     expect(await page()).toContain('data-state="in_progress"');
+    expect(await page()).toContain('<button type="button" class="button-secondary" data-restart="true">Empezar de nuevo</button>');
+    const restarted = await post(`/flows/${s.flowId}/tour/restart`);
+    expect(restarted.status).toBe(200);
+    expect(await restarted.json()).toMatchObject({ log: [], notice: null, status: { state: "in_progress" } });
   });
 });

@@ -633,7 +633,13 @@ var Core = (function () {
      - A step with one exit leads to the next step, even if it was already visited (loops are walked).
      - A step with several exits waits for the user to choose a branch; visited branches can be repeated.
      - A branch ends only at a dead end (an end step or a step without exits). The tour then returns to
-       the nearest decision that still has an unvisited branch. */
+       the nearest decision that still has an unvisited branch.
+     - Branches that meet again are walked together (SPEC §7): a branch's meeting point is the first step
+       that every path from it to an end goes through and that another branch of the same decision must
+       also go through (their nearest common post-dominator). The tour never enters a meeting point while
+       a branch that meets there is still to take: it goes back to the decision instead, and enters the
+       meeting point once, after the last of them. A branch that only shares the end with the others has
+       no meeting point and ends at its dead end, as above. */
   function Tour(flow) {
     var self = this;
     this.byId = new Map();
@@ -646,8 +652,70 @@ var Core = (function () {
     this.taken = new Set(); // branches already chosen, as 'stepId#exitIndex'
     this.stale = 0;     // consecutive moves onto already visited steps without a choice (guards endless cycles)
     this.starts = first.slice(1);
+    this.meet = this._meetingPoints();
     this._goto(first[0], null);
   }
+  /* decision id -> per exit index, the step where that branch meets another branch, or null. */
+  Tour.prototype._meetingPoints = function () {
+    var self = this, EXIT = '\u0000exit';
+    var succ = function (id) { var to = self.exitsOf(id).map(function (e) { return e.to; }); return to.length ? to : [EXIT]; };
+    // Steps from which an end can be reached; inside a closed cycle nothing post-dominates.
+    var reach = new Set([EXIT]), grew = true;
+    while (grew) { grew = false; this.ids.forEach(function (id) { if (!reach.has(id) && succ(id).some(function (t) { return reach.has(t); })) { reach.add(id); grew = true; } }); }
+    var ids = this.ids.filter(function (id) { return reach.has(id); });
+    var pd = new Map(); pd.set(EXIT, new Set([EXIT]));
+    ids.forEach(function (id) { pd.set(id, new Set(ids.concat([EXIT]))); });
+    var changed = true;
+    while (changed) {
+      changed = false;
+      ids.forEach(function (id) {
+        var next = null;
+        succ(id).forEach(function (t) { var p = pd.get(t); if (!p) return; next = next ? new Set(Array.from(next).filter(function (x) { return p.has(x); })) : new Set(p); });
+        next = next || new Set(); next.add(id);
+        if (next.size !== pd.get(id).size) { pd.set(id, next); changed = true; }
+      });
+    }
+    // Post-dominators form a chain: the nearer one has the larger set.
+    var chain = function (id) { var p = pd.get(id); return p ? Array.from(p).sort(function (a, b) { return pd.get(b).size - pd.get(a).size; }) : []; };
+    var meet = new Map();
+    this.ids.forEach(function (d) {
+      var ex = self.exitsOf(d); if (ex.length < 2) return;
+      var chains = ex.map(function (e) { return chain(e.to); });
+      meet.set(d, chains.map(function (c, i) {
+        var best = -1;
+        chains.forEach(function (o, j) {
+          if (i === j) return;
+          var k = c.findIndex(function (x) { return x !== d && x !== EXIT && o.indexOf(x) >= 0; });
+          if (k >= 0 && (best < 0 || k < best)) best = k;
+        });
+        return best < 0 ? null : c[best];
+      }));
+    });
+    return meet;
+  };
+  /* Where to go back to instead of entering `to`, as a path index, or -1: the nearest decision on the
+     current path with a branch still to take that meets at `to`; but first any decision walked since
+     then that still has a branch to take, so that nested branches are not left behind. */
+  Tour.prototype._holdFor = function (to) {
+    for (var i = this.path.length - 1; i >= 0; i--) {
+      var d = this.path[i], m = this.meet.get(d);
+      if (!m) continue;
+      for (var k = 0; k < m.length; k++) {
+        if (m[k] !== to || this.taken.has(d + '#' + k)) continue;
+        for (var j = this.path.length - 1; j > i; j--) {
+          if (this.exitsOf(this.path[j]).length > 1 && this._hasOpen(this.path[j])) return j;
+        }
+        return i;
+      }
+    }
+    return -1;
+  };
+  Tour.prototype._back = function (i, note) {
+    var id = this.path[i];
+    this.path.length = i; note.returned = true;
+    this._goto(id, note); this.stale = 0;
+    return { moved: true, returned: true };
+  };
   Tour.prototype.exitsOf = function (id) {
     var self = this;
     return this.byId.get(id).exits.filter(function (e) { return self.byId.has(e.to) && e.to !== id; });
@@ -713,9 +781,16 @@ var Core = (function () {
   Tour.prototype.skip = function () { return this._return({ skipped: true }); };
   Tour.prototype.choose = function (i) {
     if (!this.atEnd()) return { moved: false };
-    var e = this.exitsOf(this.current().id)[i];
+    var d = this.current().id, e = this.exitsOf(d)[i];
     if (!e) return { moved: false };
-    this.taken.add(this.current().id + '#' + i);
+    var again = this.taken.has(d + '#' + i);
+    this.taken.add(d + '#' + i);
+    var hold = this._holdFor(e.to);
+    if (hold >= 0) {
+      // A branch that goes straight to the meeting point: back to the decision, said once.
+      if (this.path[hold] === d) return this._back(hold, again ? { direct: e.to, quiet: true } : { direct: e.to });
+      return this._back(hold, { joinAt: e.to });
+    }
     this._goto(e.to, null); this.stale = 0;
     return { moved: true };
   };
@@ -725,6 +800,8 @@ var Core = (function () {
     if (!ex.length) return this._return({ endAt: cur });
     if (ex.length > 1) return { needChoice: true };
     if (this._stuck()) return this._return({ loopTo: ex[0].to, from: cur });
+    var hold = this._holdFor(ex[0].to);
+    if (hold >= 0) return this._back(hold, { joinAt: ex[0].to });
     this._goto(ex[0].to, null);
     return { moved: true };
   };

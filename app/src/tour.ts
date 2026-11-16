@@ -12,6 +12,13 @@ export const SECONDS_PER_STEP = 5;
 export const TOO_FAST = "Fuiste muy veloz, ¿no se te habrá pasado algo? Repasa el flujo y vuelve a intentarlo.";
 const RELOAD = "El recorrido cambió en otra pestaña o ventana. Recarga la página para seguir.";
 const NO_RUN = "No tienes un recorrido abierto en este flujo. Recarga la página.";
+const NEW_RULES = "Las reglas del recorrido cambiaron. Recarga la página para seguir.";
+const RESTARTED_BY_RULES = "Las reglas del recorrido cambiaron y el recorrido que tenías abierto no se pudo retomar. Empiezas uno nuevo.";
+const REVIEWED = "Ya revisaste este flujo: tu revisión se conserva y no hace falta empezar de nuevo.";
+
+// A run is open until it is finished or abandoned (migration 0003).
+const OPEN = "finished_at IS NULL AND abandoned_at IS NULL";
+const OPEN_R = "r.finished_at IS NULL AND r.abandoned_at IS NULL";
 
 export type Refused = { ok: false; error: string };
 
@@ -29,7 +36,7 @@ async function openRun(db: D1Database, userId: number, flowId: number): Promise<
   const run = await db
     .prepare(
       `SELECT r.id, r.release_id, r.started_at FROM tour_runs r JOIN releases rel ON rel.id = r.release_id
-       WHERE r.user_id = ? AND rel.flow_id = ? AND r.finished_at IS NULL
+       WHERE r.user_id = ? AND rel.flow_id = ? AND ${OPEN_R}
        ORDER BY r.started_at DESC, r.id DESC LIMIT 1`,
     )
     .bind(userId, flowId)
@@ -43,7 +50,7 @@ async function openRun(db: D1Database, userId: number, flowId: number): Promise<
   return { id: run.id, startedAt: run.started_at, release, log: results.map((r) => ({ step: r.step_path, exit: r.exit_index })) };
 }
 
-export type Started = { runId: number; version: string; flow: Flow; log: LogRow[] };
+export type Started = { runId: number; version: string; flow: Flow; log: LogRow[]; notice: string | null };
 
 // "Iniciar recorrido" and "Continuar recorrido": resumes the open run, on
 // the release it started on, or opens one on the latest release. After a
@@ -52,6 +59,14 @@ export type Started = { runId: number; version: string; flow: Flow; log: LogRow[
 // draws. Null when the flow has no release.
 export async function startTour(db: D1Database, userId: number, flowId: number, now: Date): Promise<Started | null> {
   let run = await openRun(db, userId, flowId);
+  let notice: string | null = null;
+  // A run logged under older tour rules may not replay under the current
+  // ones (phase 3.5): it is closed as abandoned and a clean one opened.
+  if (run && !replay(run.release.flow, run.log)) {
+    await abandon(db, run.id, now);
+    run = null;
+    notice = RESTARTED_BY_RULES;
+  }
   if (!run) {
     const flow = await getFlow(db, flowId);
     const release = flow && (await latestRelease(db, flow));
@@ -63,7 +78,35 @@ export async function startTour(db: D1Database, userId: number, flowId: number, 
       .run();
     run = (await openRun(db, userId, flowId))!;
   }
-  return { runId: run.id, version: version(run.release), flow: run.release.flow, log: run.log };
+  return { runId: run.id, version: version(run.release), flow: run.release.flow, log: run.log, notice };
+}
+
+const abandon = (db: D1Database, runId: number, now: Date) =>
+  db.prepare(`UPDATE tour_runs SET abandoned_at = ? WHERE id = ? AND ${OPEN}`).bind(now.toISOString(), runId).run();
+
+// "Empezar de nuevo" (phase 3.5): abandons the open run and opens a clean
+// one on the latest release. Only while the status is "Recorrido en curso":
+// once the current major version is reviewed there is a review to keep, and
+// repeating a tour never costs it (§7).
+export async function restartTour(db: D1Database, userId: number, flowId: number, now: Date): Promise<Started | Refused | null> {
+  const flow = await getFlow(db, flowId);
+  const latest = flow && (await latestRelease(db, flow));
+  if (!latest) return null;
+  if ((await reviewStatus(db, userId, flowId, latest)).state === "reviewed") return { ok: false, error: REVIEWED };
+  // One batch: the open run (on whatever release) is abandoned and a clean
+  // one opened on the latest release.
+  await db.batch([
+    db
+      .prepare(
+        `UPDATE tour_runs AS r SET abandoned_at = ?3
+         WHERE r.user_id = ?1 AND ${OPEN_R} AND r.release_id IN (SELECT id FROM releases WHERE flow_id = ?2)`,
+      )
+      .bind(userId, flowId, now.toISOString()),
+    db
+      .prepare("INSERT INTO tour_runs (user_id, release_id, started_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING")
+      .bind(userId, latest.id, now.toISOString()),
+  ]);
+  return startTour(db, userId, flowId, now);
 }
 
 // One action of the tour. The row is written only if the log is still the
@@ -72,7 +115,7 @@ export async function takeStep(db: D1Database, userId: number, flowId: number, a
   const run = await openRun(db, userId, flowId);
   if (!run) return { ok: false, error: NO_RUN };
   const tour = replay(run.release.flow, run.log);
-  if (!tour) throw new Error(`Tour run ${run.id} does not replay`);
+  if (!tour) return { ok: false, error: NEW_RULES };
   const applied = apply(tour, action);
   if (!applied.ok) return { ok: false, error: RELOAD };
   const written = await db
@@ -80,7 +123,7 @@ export async function takeStep(db: D1Database, userId: number, flowId: number, a
       `INSERT INTO tour_visits (run_id, step_path, exit_index, visited_at)
        SELECT ?1, ?2, ?3, ?4
        WHERE (SELECT count(*) FROM tour_visits WHERE run_id = ?1) = ?5
-         AND EXISTS (SELECT 1 FROM tour_runs WHERE id = ?1 AND finished_at IS NULL)`,
+         AND EXISTS (SELECT 1 FROM tour_runs WHERE id = ?1 AND ${OPEN})`,
     )
     .bind(run.id, applied.row.step, applied.row.exit, now.toISOString(), run.log.length)
     .run();
@@ -100,7 +143,7 @@ export async function finishTour(db: D1Database, userId: number, flowId: number,
   const run = await openRun(db, userId, flowId);
   if (!run) return { ok: false, error: NO_RUN };
   const tour = replay(run.release.flow, run.log);
-  if (!tour) throw new Error(`Tour run ${run.id} does not replay`);
+  if (!tour) return { ok: false, error: NEW_RULES };
   if (!tour.canFinish()) return { ok: false, error: RELOAD };
   const elapsed = now.getTime() - Date.parse(run.startedAt);
   if (elapsed < run.release.flow.steps.length * SECONDS_PER_STEP * 1000) return { ok: false, error: TOO_FAST };
@@ -110,7 +153,7 @@ export async function finishTour(db: D1Database, userId: number, flowId: number,
     db
       .prepare(
         `UPDATE tour_runs SET finished_at = ?2
-         WHERE id = ?1 AND finished_at IS NULL AND (SELECT count(*) FROM tour_visits WHERE run_id = ?1) = ?3`,
+         WHERE id = ?1 AND ${OPEN} AND (SELECT count(*) FROM tour_visits WHERE run_id = ?1) = ?3`,
       )
       .bind(run.id, finishedAt, run.log.length),
     // A repeated tour leaves the first review as it was.
@@ -161,7 +204,7 @@ export async function reviewStatus(db: D1Database, userId: number, flowId: numbe
     db
       .prepare(
         `SELECT rel.major, rel.minor FROM tour_runs r JOIN releases rel ON rel.id = r.release_id
-         WHERE r.user_id = ? AND rel.flow_id = ? AND r.finished_at IS NULL LIMIT 1`,
+         WHERE r.user_id = ? AND rel.flow_id = ? AND ${OPEN_R} LIMIT 1`,
       )
       .bind(userId, flowId)
       .first<{ major: number; minor: number }>(),

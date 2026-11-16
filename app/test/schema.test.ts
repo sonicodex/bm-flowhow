@@ -114,6 +114,17 @@ describe("schema", () => {
     expect(await env.DB.prepare("SELECT count(*) AS n FROM tour_runs").first("n")).toBe(2);
   });
 
+  it("closes a run as finished or as abandoned, never both (phase 3.5)", async () => {
+    const user = await seedUser();
+    const flow = await seedFlow();
+    const release = (await run("INSERT INTO releases (flow_id, major, minor, document) VALUES (?, 1, 0, '{}')", flow)).meta.last_row_id;
+    const open = "INSERT INTO tour_runs (user_id, release_id) VALUES (?, ?)";
+    const first = (await run(open, user, release)).meta.last_row_id;
+    await run("UPDATE tour_runs SET abandoned_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?", first);
+    await run(open, user, release); // "Empezar de nuevo"
+    await expect(run("UPDATE tour_runs SET finished_at = abandoned_at WHERE id = ?", first)).rejects.toThrow(/CHECK/);
+  });
+
   it("ties every visit to a run, and deletes a user's runs and visits with the user", async () => {
     const user = await seedUser();
     const flow = await seedFlow();
