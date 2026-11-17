@@ -201,6 +201,20 @@ the step would point nowhere.
 - **Step grid:** one row per step, spreadsheet-like, with selectors for type,
   tags and exits. Exits are edited inside the step row; there is no separate
   edges table.
+- **Nobody types the `label:target` syntax.** It has to exist, because a cell
+  in Excel is text and the same flow travels both ways, but it is a storage
+  format and not something a person should have to learn.
+  - On a step whose type is `decision`, the "Salidas" cell is a short list,
+    one line per branch: the label as free text, the target as a picker of the
+    flow's steps, plus a way to add and remove a branch. The cell stores
+    `Sí:P3, No:P4` underneath, which is what reaches Excel.
+  - "Depende de" is edited the same way, and carries the branch label when the
+    predecessor is a decision.
+  - A branch with no label is an empty field anyone can see, not a rule to be
+    learnt from an error message. A target can only be a step that exists.
+  - On every other type, "Salidas" stays a plain field: there is normally one.
+  - Text pasted from Excel still goes straight into the cell. The list is how
+    the cell is edited inside the app, not a different way to hold the data.
 - **Connect from either side.** A step can declare what it leads to ("Salidas")
   or what it depends on ("Depende de", its predecessors). Both are two views of
   the same connections, stored once as exits:
