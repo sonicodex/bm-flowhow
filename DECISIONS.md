@@ -47,9 +47,10 @@ Entry format:
   - **The provisional screen is gone:** the `/flows/:id/import`,
     `/import/review` and `/import/apply` routes, and the «Importar»
     action in the flows list. Its tests now cover the editor route.
-  - The file field's button text («Choose File») is the browser's own,
-    in the browser's language. It is left as it is: a custom control
-    would be an addition beyond the spec.
+  - The file field stays native: its button text is the browser's own,
+    in the browser's language, so a browser in Spanish already shows
+    «Seleccionar archivo». (The English «Choose File» in the check's
+    screenshots is the headless browser's language.)
   - Browser check: `app/.layout-check/5.5/check.mjs` on a throwaway
     flow, deleted afterwards. It covers:
     - an empty attempt;
