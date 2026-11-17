@@ -14,6 +14,58 @@ Entry format:
 
 ---
 
+## 2026-11-17 — The draft on the server (phase 5.2)
+
+- Decision:
+  - **Opening** (`openDraft`, `src/draft.ts`) gives the editor a grid, the
+    same shape an import produces, built from the stored document by
+    `documentToGrid` (`src/document.ts`): every category is a column, in
+    its order; a cell holds the step's values comma-separated; a link
+    carries its target's name; "Depende de" is empty. With no draft it
+    shows the latest release and **writes nothing**: the draft is created
+    by the first save, so opening the editor does not mark a flow as
+    having one. Tested: both reference flows read back into the exact
+    document they came from.
+  - **A save names its base**: `draft:<revision>` or `release:<id>` (the
+    latest release when there was no draft; `release:0` for none).
+    Migration `0008` adds `drafts.revision`, raised by every write of the
+    draft. The write is conditional in SQL itself (`UPDATE … WHERE
+    revision = ?`, or an `INSERT` only while the latest release is still
+    that one), and the save point is inserted only if that very write put
+    the document there. A stale base is refused (answer 5): «Otra persona
+    guardó este borrador; recarga para ver sus cambios.» when a draft is
+    there, «Otra persona publicó este flujo mientras editabas; recarga
+    para ver la versión publicada.» when there is none (publishing deleted
+    it). A base in a token, not a timestamp: two writes within one
+    millisecond would share a timestamp.
+  - **Saving what the draft already holds writes nothing** and adds no
+    save point (answer 1: the points must not fill with copies).
+  - **`POST /flows/:id/draft`** (`editor`, JSON: `{grid, base,
+    accepted?}`) answers `saved` (with the new base, and whether anything
+    was written), `confirm` (new categories or values, nothing written;
+    the same save sent again with `accepted` creates those and drops the
+    rest: answer 2), `blocked` (422), `conflict` (409) or `invalid` (400).
+    It goes through `applyGrid`, the import's contract, which gained the
+    optional base; without one (dev loader, the provisional import screen)
+    it overwrites as before.
+  - **An editor's save may have no rows** (`parseGrid(…, {allowEmpty})`);
+    an import still needs one. A draft may be invalid, as always: only
+    publishing is blocked.
+  - **`/flows/:id/save-points`** (`editor`): a table, newest first:
+    Guardado (date and time to the second, Bogotá: several saves can fall
+    in one minute), Por, Pasos, Es el borrador actual. «Volver a este
+    punto» copies the point into the draft, adds no save point, deletes
+    none, and raises the revision, so a save still open from before is
+    refused. The list takes the way back at the top (`AdminList` gained
+    `back` and `notice`). Until 5.3 it is reachable by its URL only, and
+    goes back to the flows list.
+  - Browser check: `app/.layout-check/5.2/` (the list before and after
+    going back to a point; desktop and phone). The throwaway flow it
+    created in the local D1 was deleted afterwards.
+- Reason: phase 5 plan, slice 5.2, with the owner's answers 1, 2 and 5;
+  SPEC §8 (save points, going back), §9 (drafts only to editors).
+- Spec sections affected: 6, 8, 9.
+
 ## 2026-11-17 — Flow colour and tag categories (phase 5.1)
 
 - Decision:

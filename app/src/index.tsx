@@ -3,6 +3,7 @@ import { csrf } from "hono/csrf";
 import { assertGuarded, signInFirst } from "./access.tsx";
 import { areas } from "./areas.tsx";
 import { categories } from "./categories.tsx";
+import { editor } from "./editor.tsx";
 import { flowsScreen } from "./flows-screen.tsx";
 import { home } from "./home.tsx";
 import { renderer } from "./layout.tsx";
@@ -29,6 +30,7 @@ app.route("/categories", categories.app);
 app.route("/users", usersScreen.app);
 app.route("/flows", viewer.app);
 app.route("/flows", flowsScreen.app);
+app.route("/flows", editor.app);
 
 // Without a session, an unknown path goes to the login too: only the
 // public routes answer anything else.

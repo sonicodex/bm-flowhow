@@ -9,8 +9,9 @@ import { nameKey } from "./names.ts";
 const ROW_FIELDS = ["id", "type", "ref", "title", "description", "exits", "depends_on"] as const;
 
 // A grid that does not have exactly this shape did not come from our own
-// parser: it is refused whole (400), not reviewed row by row.
-export function parseGrid(body: unknown): { ok: true; grid: Grid } | { ok: false; error: string } {
+// parser: it is refused whole (400), not reviewed row by row. An import
+// needs at least one row; an editor's save may have none (`allowEmpty`).
+export function parseGrid(body: unknown, options: { allowEmpty?: boolean } = {}): { ok: true; grid: Grid } | { ok: false; error: string } {
   const fail = (why: string) => ({ ok: false as const, error: `El grid no tiene la forma esperada: ${why}` });
   if (typeof body !== "object" || body === null) return fail("no es un objeto.");
   const { categories, rows } = body as Record<string, unknown>;
@@ -19,7 +20,7 @@ export function parseGrid(body: unknown): { ok: true; grid: Grid } | { ok: false
   }
   const keys = categories.map((c: string) => nameKey(c));
   if (new Set(keys).size !== keys.length) return fail("hay una categoría repetida.");
-  if (!Array.isArray(rows) || rows.length === 0) return fail("rows debe ser una lista con al menos una fila.");
+  if (!Array.isArray(rows) || (rows.length === 0 && !options.allowEmpty)) return fail("rows debe ser una lista con al menos una fila.");
   for (const [i, row] of rows.entries()) {
     if (typeof row !== "object" || row === null) return fail(`la fila ${i} no es un objeto.`);
     const r = row as Record<string, unknown>;
@@ -122,19 +123,36 @@ export async function documentFor(db: D1Database, flowId: number, grid: Grid): P
   return toDocument(prep, index);
 }
 
-export type ApplyResult = { ok: true; document: FlowDocument } | { ok: false; errors: RowError[] };
+// What a save started from (phase 5.2): the draft at a revision, or, when
+// there was no draft, the flow's latest release (0: none). A save whose base
+// is no longer current is refused instead of overwriting someone else.
+export type Base = { draft: number } | { release: number };
+
+export type ApplyResult =
+  | { ok: true; document: FlowDocument; revision: number; saved: boolean }
+  | { ok: false; errors: RowError[]; conflict?: boolean };
+
+const CONFLICT_SAVED = "Otra persona guardó este borrador; recarga para ver sus cambios.";
+const CONFLICT_PUBLISHED = "Otra persona publicó este flujo mientras editabas; recarga para ver la versión publicada.";
 
 // Replaces the draft with the grid, as one save (draft plus save point).
 // Accepted categories and tags are created; anything new and not accepted
 // is dropped: a rejected category takes its column with it. Refused if any
 // error blocks. The grid is reviewed again here: the server never trusts
 // the review the browser saw.
+//
+// With a `base`, the write happens only if the draft is still what the
+// editor started from (phase 5 plan, answer 5), checked inside the write
+// itself; and saving what the draft already holds writes nothing, so the
+// save points do not fill with copies. Without one (the dev loader, the
+// provisional import screen) the draft is overwritten.
 export async function applyGrid(
   db: D1Database,
   flowId: number,
   grid: Grid,
   accepted: Accepted,
   userId: number | null = null,
+  base?: Base,
 ): Promise<ApplyResult> {
   let index = await loadTagIndex(db);
   const prep = await prepare(db, flowId, grid, index);
@@ -148,6 +166,8 @@ export async function applyGrid(
     // Created before the draft so the document can hold their ids. Both
     // inserts tolerate a concurrent creation of the same name. (`WHERE true`:
     // SQLite cannot parse INSERT ... SELECT ... ON CONFLICT without a WHERE.)
+    // If the save is then refused as a conflict they remain, accepted but
+    // unused: harmless, as after a failed draft write.
     await db.batch([
       ...cats.map((c) =>
         db
@@ -169,15 +189,56 @@ export async function applyGrid(
 
   const document = toDocument(prep, index);
   const json = JSON.stringify(document);
-  await db.batch([
+  const NOW = "strftime('%Y-%m-%dT%H:%M:%fZ', 'now')";
+
+  if (!base) {
+    const [written] = await db.batch<{ revision: number }>([
+      db
+        .prepare(
+          `INSERT INTO drafts (flow_id, document, updated_by) VALUES (?, ?, ?)
+           ON CONFLICT (flow_id) DO UPDATE SET document = excluded.document, updated_by = excluded.updated_by,
+             updated_at = ${NOW}, revision = revision + 1
+           RETURNING revision`,
+        )
+        .bind(flowId, json, userId),
+      db.prepare("INSERT INTO save_points (flow_id, document, created_by) VALUES (?, ?, ?)").bind(flowId, json, userId),
+    ]);
+    return { ok: true, document, revision: written!.results[0]!.revision, saved: true };
+  }
+
+  if ("draft" in base) {
+    const current = await db.prepare("SELECT document, revision FROM drafts WHERE flow_id = ?").bind(flowId).first<{ document: string; revision: number }>();
+    if (current && current.revision === base.draft && current.document === json) return { ok: true, document, revision: base.draft, saved: false };
+  }
+  const write =
+    "draft" in base
+      ? db
+          .prepare(
+            `UPDATE drafts SET document = ?, updated_by = ?, updated_at = ${NOW}, revision = revision + 1
+             WHERE flow_id = ? AND revision = ? RETURNING revision`,
+          )
+          .bind(json, userId, flowId, base.draft)
+      : db
+          .prepare(
+            `INSERT INTO drafts (flow_id, document, updated_by)
+             SELECT ?, ?, ? WHERE (SELECT coalesce(max(id), 0) FROM releases WHERE flow_id = ?) = ?
+             ON CONFLICT (flow_id) DO NOTHING RETURNING revision`,
+          )
+          .bind(flowId, json, userId, flowId, base.release);
+  const revision = "draft" in base ? base.draft + 1 : 1;
+  // The save point copies the draft only if this very write put it there.
+  const [written] = await db.batch<{ revision: number }>([
+    write,
     db
       .prepare(
-        `INSERT INTO drafts (flow_id, document, updated_by) VALUES (?, ?, ?)
-         ON CONFLICT (flow_id) DO UPDATE SET document = excluded.document, updated_by = excluded.updated_by,
-           updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`,
+        `INSERT INTO save_points (flow_id, document, created_by)
+         SELECT flow_id, document, ? FROM drafts WHERE flow_id = ? AND revision = ? AND document = ?`,
       )
-      .bind(flowId, json, userId),
-    db.prepare("INSERT INTO save_points (flow_id, document, created_by) VALUES (?, ?, ?)").bind(flowId, json, userId),
+      .bind(userId, flowId, revision, json),
   ]);
-  return { ok: true, document };
+  if (written!.results.length) return { ok: true, document, revision, saved: true };
+  const draftLeft = await db.prepare("SELECT 1 FROM drafts WHERE flow_id = ?").bind(flowId).first();
+  // A draft there: someone saved. None: someone published (and so deleted it).
+  const message = draftLeft ? CONFLICT_SAVED : CONFLICT_PUBLISHED;
+  return { ok: false, conflict: true, errors: [{ row: null, message, blocking: true }] };
 }

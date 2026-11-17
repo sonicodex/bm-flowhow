@@ -80,6 +80,9 @@ describe("route access (phase 4.2)", () => {
       "GET /flows/:id/import": "editor",
       "POST /flows/:id/import/review": "editor",
       "POST /flows/:id/import/apply": "editor",
+      "POST /flows/:id{[0-9]+}/draft": "editor",
+      "GET /flows/:id{[0-9]+}/save-points": "editor",
+      "POST /flows/:id{[0-9]+}/save-points/:point{[0-9]+}/restore": "editor",
     });
   });
 
@@ -111,6 +114,8 @@ describe("route access (phase 4.2)", () => {
     // A category and value of their own too: the walk deletes them.
     const spareCategory = (await env.DB.prepare("INSERT INTO tag_categories (name, name_key) VALUES ('Sobrante', 'sobrante') RETURNING id").first<number>("id"))!;
     const spareValue = (await env.DB.prepare("INSERT INTO tags (category_id, name, name_key) VALUES (?, 'Sobra', 'sobra') RETURNING id").bind(spareCategory).first<number>("id"))!;
+    // A save point of the flow, for "Volver a este punto".
+    const point = (await env.DB.prepare("INSERT INTO save_points (flow_id, document) SELECT flow_id, document FROM releases WHERE flow_id = ? RETURNING id").bind(flow).first<number>("id"))!;
     const idFor = (path: string) =>
       path.startsWith("/users") ? target.id : path.startsWith("/areas") ? spareArea : path.startsWith("/categories") ? spareCategory : flow;
     // Who gets through each kind of access; everyone else is refused.
@@ -129,7 +134,7 @@ describe("route access (phase 4.2)", () => {
     const routes = guardedRoutes(app).filter((r) => r.access !== "public");
     for (const { method, path, access } of routes) {
       if (access === "public") continue;
-      const url = path.replace(/:id(\{[^}]*\})?/, String(idFor(path))).replace(/:value(\{[^}]*\})?/, String(spareValue));
+      const url = path.replace(/:id(\{[^}]*\})?/, String(idFor(path))).replace(/:value(\{[^}]*\})?/, String(spareValue)).replace(/:point(\{[^}]*\})?/, String(point));
       const label = `${method} ${url} (${access})`;
       expect(sentToLogin(await send(anonymous, method, url), method), `${label}: sin sesión`).toBe(true);
       const res = await send(pending.fetch, method, url);

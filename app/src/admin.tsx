@@ -20,10 +20,19 @@ export function AdminList(props: {
   empty: { purpose: string; howToAdd: string };
   // A line under the title, for what the list's order or rows mean.
   note?: string;
+  // For a list that belongs to a record (a flow's save points): the way
+  // back, at the top as on a form.
+  back?: { href: string; label: string };
   error?: string;
+  notice?: string;
 }) {
   return (
     <>
+      {props.back && (
+        <p class="admin-back">
+          <a href={props.back.href}>← {props.back.label}</a>
+        </p>
+      )}
       <div class="admin-head">
         <h1 class="page-title">{props.title}</h1>
         {props.action && (
@@ -33,7 +42,7 @@ export function AdminList(props: {
         )}
       </div>
       {props.note && <p class="muted admin-subtitle">{props.note}</p>}
-      <Messages error={props.error} />
+      <Messages error={props.error} notice={props.notice} />
       <AdminTable columns={props.columns} rows={props.rows} empty={props.empty} />
     </>
   );
