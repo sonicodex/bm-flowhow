@@ -217,6 +217,10 @@ the step would point nowhere.
   the resulting diagram); replaces the whole draft; lands in the draft, never
   publishes; unknown tags are shown for the admin to accept or reject.
 - **Live preview:** read-only diagram next to the grid, redrawn while editing.
+  It starts folded away, because the grid needs the width more: with the
+  preview open on a small screen the editing columns are squeezed and typing
+  a row means scrolling sideways. A visible control opens and closes it, and
+  the choice is remembered for that person.
 - **Ease of use here is critical.** Prefer the simplest interaction.
 
 ### Publish validations
