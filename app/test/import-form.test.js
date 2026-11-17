@@ -110,5 +110,8 @@ describe('POST /flows/:id/draft/review', () => {
     const page = await (await board.fetch(`/flows/${id}/edit`)).text();
     expect(page).toContain('data-import="true" aria-expanded="false" aria-controls="import-box"');
     expect(page).toContain('<section class="card editor-import" id="import-box" aria-labelledby="import-title" hidden="">');
+    // The template and the export (phase 5.6) are built in the browser.
+    expect(page).toContain('<button type="button" class="button-secondary" data-export="true">Exportar a Excel</button>');
+    expect(page).toContain('<button type="button" class="button-link" data-template="true">Descarga la plantilla</button>: trae las columnas');
   });
 });

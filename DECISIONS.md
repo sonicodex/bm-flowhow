@@ -14,6 +14,53 @@ Entry format:
 
 ---
 
+## 2026-11-17 — Template and export (phase 5.6)
+
+- Decision:
+  - **An .xlsx writer with no dependency**, `public/js/xlsx-write.js`,
+    beside the reader and checked against its JSDoc. It writes only what
+    the reader reads back:
+    - every cell as an inline string, so Excel never turns «1.10» into
+      a number or «1-2» into a date;
+    - a bold, frozen header row and column widths;
+    - zip entries stored uncompressed, with a fixed date, so the same
+      grid gives the same bytes;
+    - characters XML cannot carry (control characters other than tab
+      and line breaks) are dropped.
+  - **One format for both**, the import's: sheet «Flujo», with ID, Tipo,
+    Flujo, Título, Descripción, every category in its screen order, and
+    Salidas. Types by their Spanish name. No «Depende de» (SPEC §6:
+    export writes Salidas only), so the template has none either. An
+    import still accepts the column.
+  - **The Tipo column offers the seven types as a drop-down list**, in
+    both files (rows 2 to 1000, or further for a longer export). It is
+    an aid for typing in Excel, not a new rule: the import already
+    refuses an unknown type with its row.
+  - **Built in the browser, from the grid on screen**, unsaved edits
+    included: what you see is what you get. No new route.
+    - «Exportar a Excel» sits in the toolbar and downloads
+      `Flujo_<nombre>.xlsx` (characters a file name cannot hold are
+      replaced).
+    - «Descarga la plantilla» sits in the import box, where someone
+      starting in Excel is already looking, and downloads
+      `Plantilla_FlowHow.xlsx`.
+  - Round-trip tests (`test/xlsx-write.test.js`): export, then import,
+    gives back both reference flows exactly. It also holds for text
+    Excel would change, line breaks, markup characters, an emoji, and
+    30 categories (columns past Z).
+  - Browser check: `app/.layout-check/5.6/check.mjs` on Instalaciones,
+    nothing saved. It downloads the export with an unsaved title and
+    the template. openpyxl, a reader independent of ours, opens both:
+    one «Flujo» sheet, bold frozen header, the Tipo list. Our reader
+    gives back the grid with the unsaved title. Desktop and phone, no
+    horizontal scroll.
+  - Not verified here: opening the files in Excel itself. Excel shows
+    a repair dialog for a package it dislikes even when other readers
+    accept it.
+- Reason: phase 5 plan, slice 5.6; SPEC §6 (three ways to fill the grid;
+  export uses the template format).
+- Spec sections affected: 6.
+
 ## 2026-11-17 — Import inside the editor (phase 5.5)
 
 - Decision:

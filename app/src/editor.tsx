@@ -137,6 +137,9 @@ function EditorPage({
             <button type="button" class="button-secondary" data-import aria-expanded="false" aria-controls="import-box">
               Importar desde Excel
             </button>
+            <button type="button" class="button-secondary" data-export>
+              Exportar a Excel
+            </button>
           </div>
           <div class="table-frame">
             <div class="table-scroll" data-table-scroll>
@@ -182,6 +185,13 @@ function ImportBox() {
       <h2 id="import-title">Importar desde Excel</h2>
       <p>
         Reemplaza todos los pasos del borrador. Antes de guardar verás una revisión con los problemas y el diagrama que resultaría.
+      </p>
+      <p class="editor-template">
+        ¿Vas a empezar en Excel?{" "}
+        <button type="button" class="button-link" data-template>
+          Descarga la plantilla
+        </button>
+        : trae las columnas de todas las categorías que ya existen y la lista de tipos.
       </p>
       <label for="import-file">Un archivo .xlsx (se lee su hoja «Flujo»)</label>
       <input id="import-file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />

@@ -6,7 +6,7 @@
 import Core from './core.js';
 import { layoutFlow } from './diagram-layout.js';
 import { renderDiagram } from './diagram.js';
-import { gridFromText, gridFromXlsx } from './import-form.js';
+import { exportName, exportXlsx, gridFromText, gridFromXlsx, TEMPLATE_NAME, templateXlsx } from './import-form.js';
 import {
   blankRow, checkGrid, compileGrid, dependsOnText, diagramKey, dropValues, nextStepId, renameStep, setDependsOn, suggestions, toSave,
 } from './grid-edit.js';
@@ -426,6 +426,20 @@ if (dataEl && table) {
   window.addEventListener('beforeunload', (ev) => {
     if (dirty() && !leaving) ev.preventDefault();
   });
+
+  // ---- Template and export (SPEC §6; phase 5.6): built here, from the grid
+  // on screen, unsaved edits included: what you see is what you get. ----
+
+  const download = (bytes, name) => {
+    const url = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    const a = Object.assign(document.createElement('a'), { href: url, download: name });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  document.querySelector('[data-export]').addEventListener('click', () => download(exportXlsx(toSave(grid)), exportName(data.name)));
+  document.querySelector('[data-template]').addEventListener('click', () => download(templateXlsx(Object.keys(data.values)), TEMPLATE_NAME));
 
   // ---- Import (SPEC §6 import rules; phase 5.5): a paste or an .xlsx,
   // read here into a grid, reviewed by the server, shown with the diagram
