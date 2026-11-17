@@ -51,7 +51,7 @@ describe('parseTable with the Flujo column', () => {
 
   it('blocks a link whose target flow does not exist', () => {
     const p = C.parseTable(text, () => null);
-    assert.deepStrictEqual(p.errors, [{ row: 1, message: 'Fila 3 (B): no existe un flujo llamado «Facturación».', blocking: true }]);
+    assert.deepStrictEqual(p.errors, [{ row: 1, message: 'Fila 3 (B): en la columna Flujo dice «Facturación», pero no hay ningún flujo con ese nombre.', blocking: true }]);
   });
 
   it('still reads the old Subflujo header', () => {
@@ -75,7 +75,7 @@ describe('parseTable with the Flujo column', () => {
 
   it('warns, without blocking, when Flujo is filled on a step that is not a link', () => {
     const p = C.parseTable('ID\tTipo\tFlujo\tTítulo\nA\tFin\tFacturación\tUno', () => FACT);
-    assert.deepStrictEqual(p.errors, [{ row: 0, message: 'Fila 2 (A): la columna Flujo solo se usa en pasos Enlace o Subflujo; se ignoró «Facturación».', blocking: false }]);
+    assert.deepStrictEqual(p.errors, [{ row: 0, message: 'Fila 2 (A): es de tipo Fin, así que no lleva a otro flujo; se ignoró «Facturación» de la columna Flujo.', blocking: false }]);
     assert.strictEqual(p.steps[0].ref, undefined);
   });
 });
@@ -86,9 +86,9 @@ describe('validateRefs on link steps', () => {
   });
 
   it('reports a missing target, an unknown target and a link to its own flow', () => {
-    assert.deepStrictEqual(messages(C.validateRefs(linkFlow(null), SELF, lib)), ['Fila 3 (B): falta el flujo de destino (columna Flujo).']);
-    assert.deepStrictEqual(messages(C.validateRefs(linkFlow(99), SELF, lib)), ['Fila 3 (B): el flujo de destino ya no existe.']);
-    assert.deepStrictEqual(messages(C.validateRefs(linkFlow(SELF), SELF, lib)), ['Fila 3 (B): un enlace no puede apuntar a su propio flujo.']);
+    assert.deepStrictEqual(messages(C.validateRefs(linkFlow(null), SELF, lib)), ['Fila 3 (B): es un enlace, pero no dice a qué flujo lleva. Elígelo en la columna Flujo.']);
+    assert.deepStrictEqual(messages(C.validateRefs(linkFlow(99), SELF, lib)), ['Fila 3 (B): es un enlace a un flujo que ya no existe. Elige otro en la columna Flujo.']);
+    assert.deepStrictEqual(messages(C.validateRefs(linkFlow(SELF), SELF, lib)), ['Fila 3 (B): es un enlace a este mismo flujo, y un enlace lleva a otro. Para volver a un paso de este flujo, escríbelo en Salidas.']);
   });
 
   it('allows two flows that link to each other', () => {
@@ -105,8 +105,8 @@ describe('validate: one gate for structure and references', () => {
       { id: 'B', type: 'link', title: 'b', exits: '' },
     ]);
     assert.deepStrictEqual(messages(C.validate(f, { selfId: SELF, lib })), [
-      'Fila 3 (B): no tiene salida y no es de tipo Fin.',
-      'Fila 3 (B): falta el flujo de destino (columna Flujo).',
+      'Fila 3 (B): no lleva a ningún paso. Escribe en Salidas cuál sigue o, si aquí termina el proceso, cámbialo a tipo Fin.',
+      'Fila 3 (B): es un enlace, pero no dice a qué flujo lleva. Elígelo en la columna Flujo.',
     ]);
   });
 
@@ -165,7 +165,7 @@ describe('tableToGrid', () => {
 describe('gridToDraft', () => {
   it('reports an unknown "Depende de" step without blocking, and changes nothing', () => {
     const p = C.gridToDraft({ categories: [], rows: [row('A', 'start', { exits: 'B' }), row('B', 'end', { depends_on: 'ZZ' })] });
-    assert.deepStrictEqual(p.errors, [{ row: 1, message: 'Fila 3 (B): depende de «ZZ», que no existe.', blocking: false }]);
+    assert.deepStrictEqual(p.errors, [{ row: 1, message: 'Fila 3 (B): en Depende de dice «ZZ», pero ningún paso tiene ese ID.', blocking: false }]);
     assert.strictEqual(p.steps[0].exits, 'B');
   });
 
@@ -193,7 +193,7 @@ describe('gridToDraft', () => {
     assert.deepStrictEqual(C.validate(f, { selfId: SELF, lib }), []);
 
     const missing = C.gridToDraft(apertura, () => null);
-    assert.deepStrictEqual(missing.errors, [{ row: 12, message: 'Fila 14 (P13): no existe un flujo llamado «Instalaciones».', blocking: true }]);
+    assert.deepStrictEqual(missing.errors, [{ row: 12, message: 'Fila 14 (P13): en la columna Flujo dice «Instalaciones», pero no hay ningún flujo con ese nombre.', blocking: true }]);
   });
 });
 
@@ -202,21 +202,21 @@ describe('one row numbering: the spreadsheet\'s, with the step ID (1.2.6)', () =
     const grid = { categories: [], rows: [row('P1', 'start', { ref: 'Facturación', depends_on: 'ZZ' }), row('P2', 'end')] };
     const all = review(grid);
     assert.deepStrictEqual(all.map((e) => e.message), [
-      'Fila 2 (P1): la columna Flujo solo se usa en pasos Enlace o Subflujo; se ignoró «Facturación».',
-      'Fila 2 (P1): depende de «ZZ», que no existe.',
-      'Fila 2 (P1): no tiene salida y no es de tipo Fin.',
-      'Fila 3 (P2): no es alcanzable desde ningún inicio.',
+      'Fila 2 (P1): es de tipo Inicio, así que no lleva a otro flujo; se ignoró «Facturación» de la columna Flujo.',
+      'Fila 2 (P1): en Depende de dice «ZZ», pero ningún paso tiene ese ID.',
+      'Fila 2 (P1): no lleva a ningún paso. Escribe en Salidas cuál sigue o, si aquí termina el proceso, cámbialo a tipo Fin.',
+      'Fila 3 (P2): ningún camino desde el Inicio llega a este paso. Escribe en su Depende de el paso que va antes.',
     ]);
   });
 
   it('names the row alone when the ID is missing', () => {
     const msgs = messages(C.validate(flowWith([row('P1', 'start', { exits: 'P2' }), row('', 'activity', { exits: 'P2' }), row('P2', 'end')])));
-    assert.ok(msgs.includes('Fila 3: falta el ID.'), msgs.join(' / '));
+    assert.ok(msgs.includes('Fila 3: no tiene ID, y sin él ningún otro paso puede llevar a este.'), msgs.join(' / '));
   });
 
   it('names both rows of a repeated ID', () => {
     const msgs = messages(C.validate(flowWith([row('P1', 'start', { exits: 'P2' }), row('P2', 'end'), row('P2', 'end')])));
-    assert.ok(msgs.includes('Fila 4 (P2): el ID «P2» está repetido; también está en la fila 3.'), msgs.join(' / '));
+    assert.ok(msgs.includes('Fila 4 (P2): el ID «P2» ya lo tiene la fila 3; cada paso necesita uno propio.'), msgs.join(' / '));
   });
 });
 
@@ -228,17 +228,17 @@ describe('one error shape {row, message, blocking}, each problem once (1.2.6)', 
     const all = review(grid);
     assert.ok(all.every((e) => Object.keys(e).sort().join() === 'blocking,message,row'));
     assert.deepStrictEqual(all.filter((e) => e.blocking).map((e) => e.message), [
-      'Fila 3: falta el ID.',
-      'Fila 4 (P2): tipo «Tarea» no reconocido. Usa Inicio, Actividad, Decisión, Espera, Subflujo, Enlace o Fin.',
-      'Fila 5 (P2): el ID «P2» está repetido; también está en la fila 4.',
+      'Fila 3: no tiene ID, y sin él ningún otro paso puede llevar a este.',
+      'Fila 4 (P2): «Tarea» no es un tipo de paso. Usa Inicio, Actividad, Decisión, Espera, Subflujo, Enlace o Fin.',
+      'Fila 5 (P2): el ID «P2» ya lo tiene la fila 4; cada paso necesita uno propio.',
     ]);
     // Structure rules are shown but only block publishing.
-    assert.ok(all.some((e) => !e.blocking && e.message === 'Fila 5 (P2): una decisión necesita al menos dos salidas.'));
+    assert.ok(all.some((e) => !e.blocking && e.message === 'Fila 5 (P2): es una decisión, pero solo tiene una salida, a P1. Necesita una por cada respuesta, con su rótulo. Por ejemplo: Sí:P1 | No:….'));
   });
 
   it('reports an unknown type exactly once', () => {
     const all = review({ categories: [], rows: [row('P1', 'Tarea')] });
-    assert.strictEqual(all.filter((e) => /tipo «Tarea»/.test(e.message)).length, 1);
+    assert.strictEqual(all.filter((e) => /«Tarea» no es un tipo de paso/.test(e.message)).length, 1);
   });
 
   it('marks reference problems as not blocking: they stop publishing', () => {
@@ -264,7 +264,7 @@ describe('flow ids stay numbers, never text (1.2.6)', () => {
     // A Map, like the server's lookup, tells 20 from "20" (object keys would not).
     const byId = new Map([[SELF, { name: 'Yo', published: null }]]);
     const mapLib = (id) => byId.get(id) || null;
-    assert.deepStrictEqual(messages(C.validateRefs(linkFlow(SELF), SELF, mapLib)), ['Fila 3 (B): un enlace no puede apuntar a su propio flujo.']);
-    assert.deepStrictEqual(messages(C.validateRefs(linkFlow(String(SELF)), SELF, mapLib)), ['Fila 3 (B): el flujo de destino ya no existe.']);
+    assert.deepStrictEqual(messages(C.validateRefs(linkFlow(SELF), SELF, mapLib)), ['Fila 3 (B): es un enlace a este mismo flujo, y un enlace lleva a otro. Para volver a un paso de este flujo, escríbelo en Salidas.']);
+    assert.deepStrictEqual(messages(C.validateRefs(linkFlow(String(SELF)), SELF, mapLib)), ['Fila 3 (B): es un enlace a un flujo que ya no existe. Elige otro en la columna Flujo.']);
   });
 });

@@ -76,7 +76,7 @@ describe('POST /flows/:id/draft/review', () => {
     const id = await newFlow('Apertura de OT');
     const review = await (await post(`/flows/${id}/draft/review`, { grid: apertura })).json();
     expect(review.blocking).toBe(true);
-    expect(review.errors.map((e) => e.message)).toContain('Fila 14 (P13): no existe un flujo llamado «Instalaciones».');
+    expect(review.errors.map((e) => e.message)).toContain('Fila 14 (P13): en la columna Flujo dice «Instalaciones», pero no hay ningún flujo con ese nombre.');
     const saved = await post(`/flows/${id}/draft`, { grid: apertura, base: 'draft:1', accepted: { categories: [], tags: [] } });
     expect(saved.status).toBe(422);
     expect(await count('SELECT count(*) AS n FROM save_points')).toBe(0);

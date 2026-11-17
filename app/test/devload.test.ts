@@ -58,7 +58,7 @@ describe("loadDevFlows", () => {
   it("stops with the row messages when a grid cannot be imported", async () => {
     const broken = structuredClone(instalaciones) as Grid;
     broken.rows[1]!.id = "";
-    await expect(loadDevFlows(db(), [{ name: "Instalaciones", grid: broken }])).rejects.toThrow("Instalaciones: la importación se bloqueó.\nFila 3: falta el ID.");
+    await expect(loadDevFlows(db(), [{ name: "Instalaciones", grid: broken }])).rejects.toThrow("Instalaciones: la importación se bloqueó.\nFila 3: no tiene ID, y sin él ningún otro paso puede llevar a este.");
     expect(await count("releases")).toBe(0);
   });
 });

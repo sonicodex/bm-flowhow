@@ -166,7 +166,7 @@ describe("saving the draft (phase 5.2)", () => {
     let r = await save(id, { grid: grid([row("A", "start"), row("A", "end")]), base: "draft:1" });
     expect(r.status).toBe(422);
     expect(r.body.status).toBe("blocked");
-    expect(JSON.stringify(r.body.errors)).toContain("repetido");
+    expect(JSON.stringify(r.body.errors)).toContain("ya lo tiene la fila 2");
     for (const bad of [null, {}, { grid: TWO }, { grid: TWO, base: "draft:0" }, { grid: TWO, base: "otro:1" }, { grid: { rows: [] }, base: "draft:1" },
       { grid: TWO, base: "draft:1", accepted: { tags: "x" } }]) {
       r = await save(id, bad);

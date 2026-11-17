@@ -14,6 +14,53 @@ Entry format:
 
 ---
 
+## 2026-11-17 — Problem messages speak about the row, not the rule
+
+- Decision:
+  - **The owner's finding:** «cada salida de una decisión necesita rótulo
+    (ej. Sí:P5 | No:P4)» stated the rule, with ids that were not the
+    user's, and did not say what that row lacked. Every message of the
+    problem list (`core.js`: `validate`, `validateRefs`, `gridToDraft`)
+    now says what happens with that row, using its own data, and what to
+    do about it. The rules, and which ones block, are unchanged.
+  - **Decisions say how many exits they have, and their example is built
+    from the row's own exits:**
+    - with no label: «Fila 3 (P2): es una decisión, así que cada salida
+      necesita un rótulo que diga qué significa. Por ejemplo: Sí:P3 |
+      No:P4.»;
+    - a label already there is kept, and the others get Sí and No if
+      they are free, then «Opción n»;
+    - with one exit: «…solo tiene una salida, a P3. Necesita una por
+      cada respuesta, con su rótulo. Por ejemplo: Sí:P3 | No:….»;
+    - with none: «…no tiene salidas…», with «…» in place of the steps.
+  - **One message per decision.** A decision with fewer than two exits
+    gets only the message about its exits, not also the one about labels.
+    A decision with no exit no longer also gets «no lleva a ningún paso»,
+    the general message. It is still blocked, by its own message.
+  - **The example is written with `formatExits`**, the same function
+    that writes the Salidas cell, so it follows the grid's separator. It
+    shows «|» today, because the comma of SPEC §5 (the owner's pending
+    change) is not built yet.
+  - The rest, briefly:
+    - an exit to a missing id names it, and says that no step has it;
+    - «no lleva a ningún paso», with what to write, or to change it to
+      Fin;
+    - an unreachable step says to write the step before it in its
+      Depende de;
+    - a flow with no Inicio says which step to change;
+    - links and subflows say what is missing and which column to fix;
+    - a Flujo cell on another type names that type;
+    - an unknown id in Depende de says that no step has it;
+    - a missing id, a repeated id, a missing title and an unknown type
+      say why it matters for that row.
+  - The tests keep every case, with the new texts. New ones cover:
+    - the owner's example;
+    - a label kept;
+    - three exits;
+    - one exit and none.
+- Reason: owner's report from using the editor (phase 5 testing).
+- Spec sections affected: 6 (publish validations: wording only).
+
 ## 2026-11-17 — The live preview starts folded away (SPEC §6)
 
 - Decision:

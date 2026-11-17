@@ -79,20 +79,50 @@ describe('checkGrid: what the server will say', () => {
     let errors = checkGrid({ categories: [], rows: [row('P1', 'decision', { exits: 'P2' }), row('P1', 'end'), row('P3', 'activity')] }, ctx);
     expect(errors.filter((e) => e.blocking).map((e) => e.row)).toEqual([1]);
     const messages = errors.map((e) => e.message).join('\n');
-    expect(messages).toContain('una decisión necesita al menos dos salidas');
-    expect(messages).toContain('no tiene salida y no es de tipo Fin');
-    expect(messages).toContain('El flujo no tiene ningún paso de tipo Inicio.');
+    expect(messages).toContain('Fila 2 (P1): es una decisión, pero solo tiene una salida, a P2.');
+    expect(messages).toContain('no lleva a ningún paso');
+    expect(messages).toContain('Ningún paso es de tipo Inicio: cambia a Inicio el paso con el que empieza el proceso.');
     errors = checkGrid({ categories: [], rows: [row('P1', 'start', { exits: 'P2' }), row('P2', 'end'), row('P3', 'end')] }, ctx);
-    expect(errors.map((e) => [e.row, e.message])).toEqual([[2, 'Fila 4 (P3): no es alcanzable desde ningún inicio.']]);
+    expect(errors.map((e) => [e.row, e.message])).toEqual([[2, 'Fila 4 (P3): ningún camino desde el Inicio llega a este paso. Escribe en su Depende de el paso que va antes.']]);
   });
 
   it('resolves link targets by name, ignoring case and accents, as the server does', () => {
     const grid = { categories: [], rows: [row('P1', 'start', { exits: 'P2' }), row('P2', 'link', { ref: 'facturacion', exits: 'P3' }), row('P3', 'end')] };
     expect(checkGrid(grid, ctx)).toEqual([]);
     grid.rows[1].ref = 'Despachos';
-    expect(checkGrid(grid, ctx).map((e) => e.message)).toEqual(['Fila 3 (P2): un enlace no puede apuntar a su propio flujo.']);
+    expect(checkGrid(grid, ctx).map((e) => e.message)).toEqual(['Fila 3 (P2): es un enlace a este mismo flujo, y un enlace lleva a otro. Para volver a un paso de este flujo, escríbelo en Salidas.']);
     grid.rows[1].ref = '';
-    expect(checkGrid(grid, ctx).map((e) => e.message)).toEqual(['Fila 3 (P2): falta el flujo de destino (columna Flujo).']);
+    expect(checkGrid(grid, ctx).map((e) => e.message)).toEqual(['Fila 3 (P2): es un enlace, pero no dice a qué flujo lleva. Elígelo en la columna Flujo.']);
+  });
+});
+
+describe('the messages say what is wrong with that row, with its own data', () => {
+  const ctx = { flowId: 1, name: 'Despachos', flows: [{ id: 1, name: 'Despachos', published: null }] };
+  const decision = (exits) =>
+    checkGrid({ categories: [], rows: [row('P1', 'start', { exits: 'P2' }), row('P2', 'decision', { exits }), row('P3', 'end'), row('P4', 'end'), row('P5', 'end')] }, ctx)
+      .filter((e) => e.row === 1)
+      .map((e) => e.message);
+
+  it('names the decision\'s own exits in its example', () => {
+    // The owner's case: a decision P2 going to P3 and P4, with no labels.
+    expect(decision('P3 | P4')).toEqual([
+      'Fila 3 (P2): es una decisión, así que cada salida necesita un rótulo que diga qué significa. Por ejemplo: Sí:P3 | No:P4.',
+    ]);
+    // A label already there is kept; the others get the ones still free.
+    expect(decision('No:P3 | P4')).toEqual([
+      'Fila 3 (P2): es una decisión, así que cada salida necesita un rótulo que diga qué significa. Por ejemplo: No:P3 | Sí:P4.',
+    ]);
+    expect(decision('P3 | P4 | P5')[0]).toMatch(/Por ejemplo: Sí:P3 \| No:P4 \| Opción 3:P5\.$/);
+  });
+
+  it('says how many exits a decision has, and only one message for it', () => {
+    expect(decision('P3')).toEqual([
+      'Fila 3 (P2): es una decisión, pero solo tiene una salida, a P3. Necesita una por cada respuesta, con su rótulo. Por ejemplo: Sí:P3 | No:….',
+    ]);
+    // P3..P5 are unreachable then; this row has its own message only.
+    expect(decision('')).toEqual([
+      'Fila 3 (P2): es una decisión, pero no tiene salidas. Necesita una por cada respuesta, con su rótulo. Por ejemplo: Sí:… | No:….',
+    ]);
   });
 });
 

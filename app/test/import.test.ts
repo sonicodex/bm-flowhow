@@ -76,9 +76,9 @@ describe("reviewGrid and applyGrid", () => {
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.errors.map((e) => e.message)).toEqual([
-      "Fila 3: falta el ID.",
-      "Fila 4 (B): tipo «Tarea» no reconocido. Usa Inicio, Actividad, Decisión, Espera, Subflujo, Enlace o Fin.",
-      "Fila 5 (B): el ID «B» está repetido; también está en la fila 4.",
+      "Fila 3: no tiene ID, y sin él ningún otro paso puede llevar a este.",
+      "Fila 4 (B): «Tarea» no es un tipo de paso. Usa Inicio, Actividad, Decisión, Espera, Subflujo, Enlace o Fin.",
+      "Fila 5 (B): el ID «B» ya lo tiene la fila 4; cada paso necesita uno propio.",
     ]);
     expect(await db().prepare("SELECT document FROM drafts WHERE flow_id = ?").bind(id).first<string>("document")).toBe(before);
     expect(await count("SELECT count(*) AS n FROM save_points")).toBe(0);
@@ -88,14 +88,14 @@ describe("reviewGrid and applyGrid", () => {
     const id = await flow("Apertura de OT");
     const r = await applyGrid(db(), id, APERTURA, await acceptAll(id, APERTURA));
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.errors.map((e) => e.message)).toEqual(["Fila 14 (P13): no existe un flujo llamado «Instalaciones»."]);
+    if (!r.ok) expect(r.errors.map((e) => e.message)).toEqual(["Fila 14 (P13): en la columna Flujo dice «Instalaciones», pero no hay ningún flujo con ese nombre."]);
   });
 
   it("drafts a flow that breaks the structure rules: they block only publishing", async () => {
     const id = await flow("X");
     const grid = tiny([row("A", "start", { exits: "B" }), row("B", "activity")]);
     expect((await reviewGrid(db(), id, grid)).errors).toEqual([
-      { row: 1, message: "Fila 3 (B): no tiene salida y no es de tipo Fin.", blocking: false },
+      { row: 1, message: "Fila 3 (B): no lleva a ningún paso. Escribe en Salidas cuál sigue o, si aquí termina el proceso, cámbialo a tipo Fin.", blocking: false },
     ]);
     expect((await applyGrid(db(), id, grid, { categories: [], tags: [] })).ok).toBe(true);
     const p = await publishFlow(db(), id);
@@ -230,7 +230,7 @@ describe("publishFlow", () => {
     expect((await applyGrid(db(), id, grid, { categories: [], tags: [] })).ok).toBe(true);
     await db().prepare("DELETE FROM flows WHERE id = ?").bind(target).run();
     const r = await publishFlow(db(), id);
-    expect(r.ok ? [] : r.errors.map((e) => e.message)).toEqual(["Fila 3 (B): el flujo de destino ya no existe."]);
+    expect(r.ok ? [] : r.errors.map((e) => e.message)).toEqual(["Fila 3 (B): es un enlace a un flujo que ya no existe. Elige otro en la columna Flujo."]);
     await db().prepare("DELETE FROM drafts WHERE flow_id = ?").bind(id).run();
     expect(await publishFlow(db(), id)).toMatchObject({ ok: false, errors: [{ message: "No hay borrador para publicar." }] });
   });

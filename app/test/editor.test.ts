@@ -197,7 +197,7 @@ describe("publishing from the editor (phase 5.7)", () => {
     const res = await post(`/flows/${id}/publish`, { base, bump: "minor" });
     expect(res.status).toBe(422);
     const body = (await res.json()) as { errors: { message: string }[] };
-    expect(body.errors.map((e) => e.message)).toContain("El flujo no tiene ningún paso de tipo Inicio.");
+    expect(body.errors.map((e) => e.message)).toContain("Ningún paso es de tipo Inicio: cambia a Inicio el paso con el que empieza el proceso.");
     for (const bad of [{ base, bump: "huge" }, { base: "draft:x", bump: "minor" }, null]) {
       expect((await post(`/flows/${id}/publish`, bad)).status).toBe(400);
     }
