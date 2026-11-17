@@ -1083,10 +1083,10 @@ textarea:focus-visible,
 .step-grid .c-id { width: calc(var(--space-10) * 2); }
 .step-grid .c-type { width: calc(var(--space-10) * 3); }
 .step-grid .c-ref { width: calc(var(--space-10) * 4); }
-.step-grid .c-title { width: calc(var(--space-10) * 6); }
+.step-grid .c-title { width: calc(var(--space-10) * 8.5); }
 .step-grid .c-desc { width: calc(var(--space-10) * 8); }
 .step-grid .c-tag { width: calc(var(--space-10) * 4); }
-.step-grid .c-dep,
+.step-grid .c-dep { width: calc(var(--space-10) * 4); }
 .step-grid .c-exits { width: calc(var(--space-10) * 7); }
 .step-grid .c-remove { width: var(--space-10); }
 
@@ -1105,12 +1105,35 @@ textarea:focus-visible,
   outline: var(--border-width) solid transparent;
 }
 
-/* A title or a description grows with its text, up to a few lines; then
-   it scrolls. */
+/* So the grid can be scanned at once (SPEC §6), rows keep two heights: a
+   title shows up to two lines, a description one, cut; a decision's row is
+   taller with its branches. While edited, a title or a description grows
+   with its text, up to a few lines, then scrolls. */
 .step-grid textarea {
   display: block;
-  resize: vertical;
+  resize: none;
   field-sizing: content;
+  overflow: hidden;
+  max-height: calc(2lh + 2 * var(--space-2) + 2 * var(--border-width));
+}
+
+.step-grid textarea[data-f="description"] {
+  /* One line as tall as the field, like a one-line input: overflow is cut
+     at the padding's edge, so with no padding no part of a second line
+     peeks under it. */
+  padding-block: 0;
+  line-height: calc(var(--space-10) - 2 * var(--border-width));
+  max-height: var(--space-10);
+}
+
+.step-grid textarea[data-f="description"]:focus {
+  padding-block: var(--space-2);
+  line-height: inherit;
+  max-height: calc(var(--space-10) * 4);
+}
+
+.step-grid textarea:focus {
+  overflow: auto;
   max-height: calc(var(--space-10) * 4);
 }
 
@@ -1136,8 +1159,8 @@ textarea:focus-visible,
   color: var(--color-text-muted);
 }
 
-/* "Salidas" of a decision and every "Depende de" (SPEC §6; phase 5.10):
-   one line per branch, a label and a step picker, with its remove button. */
+/* "Salidas" of a decision (SPEC §6; phase 5.10): one line per branch, a
+   label and a step picker, with its remove button. Only these rows grow. */
 .step-grid .grid-branches {
   display: flex;
   flex-direction: column;
@@ -1173,7 +1196,6 @@ textarea:focus-visible,
    branch takes two lines there, its label above its step picker, so the
    whole cell fits beside them. */
 @media (max-width: 760px) {
-  .step-grid .c-dep,
   .step-grid .c-exits { width: calc(var(--space-10) * 5); }
 
   .step-grid .grid-branch {
@@ -1188,7 +1210,7 @@ textarea:focus-visible,
 /* What is missing is a field anyone can see (an empty label, a branch with
    no step): its border is drawn, in the colour of problems. Colour is not
    alone: the field is empty, showing its «p. ej. Sí», it is marked
-   aria-invalid, and the decision's own row carries the bar and the icon. */
+   aria-invalid, and its row carries the bar and the icon. */
 .step-grid [aria-invalid="true"] {
   border-color: var(--color-status-pending);
 }

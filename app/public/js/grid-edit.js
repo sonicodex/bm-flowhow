@@ -135,46 +135,47 @@ export function setBranches(rows, index, lines) {
   );
 }
 
+/* ---- "Depende de" (SPEC §6, as revised after 5.10): a plain field that
+   picks predecessors. A branch label belongs to its decision and is edited
+   only there; this field shows it, in parentheses, and never changes it. */
+
 /**
- * A step's predecessors as lines: each step leading to it, with the label
- * of that branch. A decision with two branches to it gives two lines.
- * @param {GridRow[]} rows @param {number} index @returns {Line[]}
+ * "Depende de" as it is shown: each predecessor once, in order, and after
+ * a decision the labels of its branches here: «P1, P2 (Sí)». A branch still
+ * with no label says so: «P2 (sin rótulo)».
+ * @param {GridRow[]} rows @param {number} index @returns {string}
  */
-export function predecessorsOf(rows, index) {
-  return Core.parseExits(dependsOnText(rows, index));
+export function dependsOnView(rows, index) {
+  const decisions = new Set(rows.filter((r) => r.type === 'decision').map((r) => String(r.id).trim()));
+  /** @type {Map<string, string[]>} */
+  const byStep = new Map();
+  Core.parseExits(dependsOnText(rows, index)).forEach((p) => {
+    if (!byStep.has(p.to)) byStep.set(p.to, []);
+    byStep.get(p.to).push(p.label || 'sin rótulo');
+  });
+  return [...byStep].map(([id, labels]) => (decisions.has(id) ? `${id} (${labels.join(' / ')})` : id)).join(', ');
+}
+
+/** "Depende de" while it is edited: the predecessors' ids only. @param {GridRow[]} rows @param {number} index */
+export function dependsOnIds(rows, index) {
+  return [...new Set(Core.parseExits(dependsOnText(rows, index)).map((p) => p.to))].join(', ');
 }
 
 /**
- * Makes exactly the listed lines lead to the step at `index`, rewriting the
- * predecessors' exits. Unlike typing "Depende de" as text, the label is
- * written as it is in the line, empty included: emptying a label field
- * takes the label away. A predecessor's other exits, and their order, stay.
- * @param {GridRow[]} rows @param {number} index @param {Line[]} lines
+ * Makes exactly the listed steps lead to the step at `index`. Only ids are
+ * read: what is in parentheses, or before a colon, is a label, and a label
+ * is not changed from here. A decision's branches to the step keep theirs;
+ * a new one starts with none, an empty field on the decision's row.
+ * @param {GridRow[]} rows @param {number} index @param {string} text
  * @returns {string|null} the message to show, or null when it was applied
  */
-export function setPredecessors(rows, index, lines) {
-  const id = String(rows[index].id).trim();
-  if (!id) return 'Ponle primero un ID al paso.';
-  /** @type {Map<string, string[]>} predecessor id -> the labels of its branches here */
-  const wanted = new Map();
-  lines.forEach((l) => {
-    const from = String(l.to).trim();
-    if (!from || from === id) return;
-    if (!wanted.has(from)) wanted.set(from, []);
-    wanted.get(from).push(cleanLabel(l.label.trim()).label);
-  });
-  rows.forEach((r) => {
-    const sid = String(r.id).trim();
-    const labels = (sid && wanted.get(sid)) || [];
-    const exits = Core.parseExits(r.exits);
-    const at = exits.findIndex((e) => e.to === id);
-    if (at === -1 && !labels.length) return;
-    const others = exits.filter((e) => e.to !== id);
-    const here = labels.map((label) => ({ label, to: id }));
-    const before = at === -1 ? others.length : exits.slice(0, at).filter((e) => e.to !== id).length;
-    r.exits = Core.formatExits(others.slice(0, before).concat(here, others.slice(before)));
-  });
-  return null;
+export function setDependsOnIds(rows, index, text) {
+  const ids = String(text)
+    .replace(/\([^)]*\)/g, '')
+    .split(/[,|;]/)
+    .map((p) => p.slice(p.lastIndexOf(':') + 1).trim())
+    .filter(Boolean);
+  return setDependsOn(rows, index, ids.join(', '));
 }
 
 /**

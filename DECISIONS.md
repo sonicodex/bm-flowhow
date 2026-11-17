@@ -14,8 +14,69 @@ Entry format:
 
 ---
 
+## 2026-11-17 — Phase 5.10, revised: labels only in the decision; the grid scans again (SPEC §6)
+
+- Decision:
+  - **The owner's review of 5.10:**
+    - «Agregar paso anterior» showed on every row.
+    - A branch label was editable in two places.
+    - Salidas sat off screen.
+    - Rows of four different heights could no longer be scanned.
+    - SPEC §6 was corrected by the owner: a label belongs to its decision
+      and is edited only there, and only decision rows grow.
+  - **Depende de is a plain field on every row again,** with the step
+    suggestions.
+    - It shows each predecessor once, and after a decision the labels of
+      its branches here, which it cannot change: «P11 (Sí), P14». A branch
+      with no label shows «P2 (sin rótulo)».
+    - While edited it holds the ids only.
+    - Only ids are read (`setDependsOnIds`). What is in parentheses or
+      before a colon is ignored, so a label typed there changes nothing.
+    - A decision added as a predecessor gets a new branch with no label,
+      an empty marked field on the decision's own row, with its message.
+    - `predecessorsOf` and `setPredecessors`, the list version, are gone
+      with their tests. New tests cover the view, ids only, a decision
+      added from here, removal and an unknown id.
+  - **Column order in the editor:** Fila, ID, Tipo, Flujo, Título,
+    Depende de, Salidas, Descripción, the categories.
+    - Connecting from either side is what the editor is for, so it stays
+      in view.
+    - The export keeps the Excel order (`import-form.js`, unchanged).
+    - The width freed goes to Título: 6 → 8.5 × `--space-10`.
+    - At 1280px with the preview folded, measured on Instalaciones:
+      Salidas ends at x=1225 and the table's visible edge is x=1255.
+  - **Two row heights, the owner's choice:**
+    - A title shows up to two lines.
+    - A description shows one, cut. With no vertical padding while not
+      edited, so no part of a second line peeks under it.
+    - Both open while edited (up to four lines, then scroll).
+    - Only a decision's row is taller, with its branches and «Agregar
+      rama».
+    - Instalaciones measures 49 or 63px per row, 127 on its four
+      decisions. Before, it was 49 to 99px on every row.
+    - `resize` is off on these fields, since their height is now set by
+      these rules.
+  - The phone rules of 5.10 now apply to Salidas only. There is no
+    horizontal page scroll on a phone.
+  - **Browser checks:**
+    - `app/.layout-check/5.10/dep.mjs`, on a throwaway flow deleted
+      afterwards, covers Depende de: shown, edited as ids, labels kept, a
+      decision added and labelled on its own row, a typed label ignored,
+      and an unknown id.
+    - `instalaciones.mjs` covers Instalaciones, opened only: measures,
+      the full screenshot, a description open while edited, and the
+      phone.
+- Reason: the owner's review of 5.10 and SPEC §6 as corrected on
+  2026-11-17; answers on column order and row heights.
+- Spec sections affected: 6.
+
+---
+
 ## 2026-11-17 — Phase 5.10: branches edited as lists, nobody types the syntax (SPEC §6)
 
+- *Superseded in part on 2026-11-17 by «Phase 5.10, revised»: Depende de
+  is a plain field again and shows labels without editing them; the
+  connection columns sit after Título.*
 - Decision:
   - **SPEC §6, as changed by the owner:** nobody types `label:target`.
     The cell keeps it (Excel is text, and the same flow travels both

@@ -3,8 +3,8 @@
 // (editor.js) is not, as with the other browser modules.
 import { describe, expect, it } from 'vitest';
 import {
-  blankRow, branchesOf, checkGrid, cleanLabel, compileGrid, dependsOnText, diagramKey, dropValues, nextStepId, predecessorsOf, renameStep, setBranches,
-  setDependsOn, setPredecessors, stepOptions, suggestions, toSave,
+  blankRow, branchesOf, checkGrid, cleanLabel, compileGrid, dependsOnIds, dependsOnText, dependsOnView, diagramKey, dropValues, nextStepId, renameStep,
+  setBranches, setDependsOn, setDependsOnIds, stepOptions, suggestions, toSave,
 } from '../public/js/grid-edit.js';
 
 const row = (id, type, extra = {}) => ({ id, type, ref: '', title: 't' + id, description: '', tags: {}, exits: '', depends_on: '', ...extra });
@@ -102,22 +102,43 @@ describe('branches as lists: nobody types the syntax (SPEC §6, 5.10)', () => {
     expect(stepOptions(rows, 1)).toEqual([{ id: 'P1', title: 'tP1', decision: true }]);
   });
 
-  it('reads predecessors as lines, a decision\'s two branches to the step as two', () => {
-    const rows = [row('P1', 'decision', { exits: 'Sí:P3, No:P3' }), row('P2', 'activity', { exits: 'P3' }), row('P3', 'end')];
-    expect(predecessorsOf(rows, 2)).toEqual([{ label: 'Sí', to: 'P1' }, { label: 'No', to: 'P1' }, { label: '', to: 'P2' }]);
+});
+
+describe('"Depende de" picks predecessors and shows labels it cannot change (SPEC §6)', () => {
+  const rows = () => [
+    row('P1', 'decision', { exits: 'Sí:P3, No:P3' }),
+    row('P2', 'activity', { exits: 'P3' }),
+    row('P4', 'decision', { exits: 'P3, No:P2' }),
+    row('P3', 'end'),
+  ];
+
+  it('shows each predecessor once, a decision with the labels of its branches here', () => {
+    expect(dependsOnView(rows(), 3)).toBe('P1 (Sí / No), P2, P4 (sin rótulo)');
+    expect(dependsOnIds(rows(), 3)).toBe('P1, P2, P4');
+    expect(dependsOnView(rows(), 0)).toBe('');
   });
 
-  it('writes predecessors exactly: an emptied label is taken away, order and other exits stay', () => {
-    const rows = [row('P1', 'decision', { exits: 'Sí:P2, No:P3, Tal vez:P4' }), row('P2', 'activity', { exits: 'P3' }), row('P3', 'end'), row('P4', 'end')];
-    expect(setPredecessors(rows, 2, [{ label: '', to: 'P1' }, { label: '', to: 'P2' }])).toBe(null);
-    expect(ids(rows)).toEqual(['P1→Sí:P2, P3, Tal vez:P4', 'P2→P3', 'P3→', 'P4→']);
-    // Taking P2 out and adding P4 (not a decision) at the end of its exits.
-    expect(setPredecessors(rows, 2, [{ label: 'No', to: 'P1' }, { label: '', to: 'P4' }, { label: '', to: '' }])).toBe(null);
-    expect(ids(rows)).toEqual(['P1→Sí:P2, No:P3, Tal vez:P4', 'P2→', 'P3→', 'P4→P3']);
-    // The step itself is never its own predecessor; a step with no id says so.
-    expect(setPredecessors(rows, 2, [{ label: '', to: 'P3' }])).toBe(null);
-    expect(rows[2].exits).toBe('');
-    expect(setPredecessors([row('', 'end')], 0, [{ label: '', to: 'P1' }])).toBe('Ponle primero un ID al paso.');
+  it('reads only ids: a label typed or left in the field changes nothing', () => {
+    const r = rows();
+    expect(setDependsOnIds(r, 3, 'P1 (Quizá), Tal vez:P2, P4 (sin rótulo)')).toBe(null);
+    expect(ids(r)).toEqual(['P1→Sí:P3, No:P3', 'P2→P3', 'P4→P3, No:P2', 'P3→']);
+  });
+
+  it('a decision added from here gets a branch with no label, to be named on its own row', () => {
+    const r = rows();
+    expect(setDependsOnIds(r, 1, 'P4')).toBe(null);
+    expect(r[2].exits).toBe('P3, No:P2');
+    expect(setDependsOnIds(r, 0, 'P4')).toBe(null);
+    expect(r[2].exits).toBe('P3, No:P2, P1');
+    expect(dependsOnView(r, 0)).toBe('P4 (sin rótulo)');
+  });
+
+  it('taking a step out removes every branch it had to this one; an unknown id changes nothing', () => {
+    const r = rows();
+    expect(setDependsOnIds(r, 3, 'P2, P4')).toBe(null);
+    expect(r[0].exits).toBe('');
+    expect(setDependsOnIds(r, 3, 'P2, P9')).toBe('No existe el paso «P9». No se cambió nada.');
+    expect(r[2].exits).toBe('P3, No:P2');
   });
 });
 
