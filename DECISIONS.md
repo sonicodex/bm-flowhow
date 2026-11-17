@@ -14,6 +14,39 @@ Entry format:
 
 ---
 
+## 2026-11-17 — Live preview beside the grid (phase 5.4)
+
+- Decision:
+  - **The viewer's own diagram** (`layoutFlow`, `renderDiagram`), in the
+    flow's colour, read-only, in a card beside the grid: two columns,
+    3 : 2, as in the prototype. The card stays in view while the grid
+    scrolls down (sticky), and its diagram scrolls inside it. Below
+    960 px wide it goes under the grid, as SPEC §6 and the plan say for
+    the phone; the grid needs the width before the phone breakpoint
+    (760 px) does.
+  - **What it draws is what the server would store**: `compileGrid`
+    (`grid-edit.js`, now shared with `checkGrid`) resolves link targets
+    and merges "Depende de", so a step connected only from that column
+    shows its arrow at once.
+  - **Redrawn while editing**, after the grid's 200 ms pause, and only
+    when what the diagram shows changed (`diagramKey`: ids, types,
+    titles, exits). Typing a description or a tag redraws nothing.
+    Measured on Instalaciones (30 steps): one layout and render takes
+    about 1 ms. A grid half typed that the layout cannot draw shows a
+    line instead of failing; the next edit redraws.
+  - **Diagram and grid point at each other** (proposed with the plan):
+    the step whose row has focus carries the active step's shadow
+    (`--shadow-focus-svg`, §9), scrolled into view inside the preview
+    without moving the page; clicking a step on the diagram goes to its
+    row's title. The row lands clear of the frozen columns
+    (`scroll-padding-left`).
+  - Browser check: `app/.layout-check/5.4/check.mjs` on Instalaciones,
+    nothing saved: focus and click marks, a description that does not
+    redraw, a title and a new step connected by "Depende de" that do;
+    desktop and phone with no horizontal scroll.
+- Reason: phase 5 plan, slice 5.4; SPEC §6 (live preview).
+- Spec sections affected: 6.
+
 ## 2026-11-17 — The step grid (phase 5.3)
 
 - Decision:

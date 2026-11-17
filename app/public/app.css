@@ -1209,3 +1209,65 @@ textarea:focus-visible,
 .step-grid thead .c-id {
   background: var(--color-subtle);
 }
+
+/* The editor's two columns (phase 5.4): the grid, and the preview beside
+   it, which stays in view while the grid scrolls down. One column on a
+   narrow screen, the preview below the grid. */
+.editor-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.editor-main {
+  min-width: 0;
+}
+
+.editor-preview {
+  position: sticky;
+  top: var(--space-4);
+  padding: var(--space-4) 0 0;
+}
+
+.editor-preview h2 {
+  margin: 0 var(--space-4) var(--space-1);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+}
+
+.editor-preview > p {
+  margin: 0 var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.editor-preview .diagram-scroll {
+  max-height: 80vh;
+  padding-bottom: var(--space-4);
+}
+
+.editor-preview .node {
+  cursor: pointer;
+}
+
+/* The step whose row has focus carries the active step's shadow (§9). */
+.editor-preview .node.selected {
+  filter: var(--shadow-focus-svg);
+}
+
+/* Going to a row from the diagram leaves its title clear of the frozen
+   columns. */
+.table-scroll:has(> .step-grid) {
+  /* Row number (1.5) plus ID (2), as set on .step-grid. */
+  scroll-padding-left: calc(var(--space-10) * 3.5);
+}
+
+@media (max-width: 960px) {
+  .editor-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .editor-preview {
+    position: static;
+  }
+}

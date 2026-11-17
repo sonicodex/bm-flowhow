@@ -2,7 +2,7 @@
 // its functions are tested here, in the Workers runtime. The page wiring
 // (editor.js) is not, as with the other browser modules.
 import { describe, expect, it } from 'vitest';
-import { blankRow, checkGrid, dependsOnText, dropValues, nextStepId, renameStep, setDependsOn, suggestions, toSave } from '../public/js/grid-edit.js';
+import { blankRow, checkGrid, compileGrid, dependsOnText, diagramKey, dropValues, nextStepId, renameStep, setDependsOn, suggestions, toSave } from '../public/js/grid-edit.js';
 
 const row = (id, type, extra = {}) => ({ id, type, ref: '', title: 't' + id, description: '', tags: {}, exits: '', depends_on: '', ...extra });
 const ids = (rows) => rows.map((r) => `${r.id}→${r.exits}`);
@@ -93,6 +93,34 @@ describe('checkGrid: what the server will say', () => {
     expect(checkGrid(grid, ctx).map((e) => e.message)).toEqual(['Fila 3 (P2): un enlace no puede apuntar a su propio flujo.']);
     grid.rows[1].ref = '';
     expect(checkGrid(grid, ctx).map((e) => e.message)).toEqual(['Fila 3 (P2): falta el flujo de destino (columna Flujo).']);
+  });
+});
+
+describe('the preview (phase 5.4)', () => {
+  const ctx = { flowId: 1, name: 'Despachos', flows: [{ id: 1, name: 'Despachos', published: null }, { id: 2, name: 'Facturación', published: null }] };
+
+  it('compiles the grid as the server does: "Depende de" merged, links resolved', () => {
+    const grid = { categories: ['R'], rows: [row('P1', 'start', { tags: { R: 'a, b' } }), row('P2', 'link', { ref: 'FACTURACION', depends_on: 'P1' })] };
+    const { flow, errors } = compileGrid(grid, ctx);
+    expect(errors).toEqual([]);
+    expect(flow.steps.map((s) => [s.id, s.exits, s.ref])).toEqual([['P1', [{ label: '', to: 'P2' }], null], ['P2', [], 2]]);
+    expect(flow.steps[0].tags).toEqual({ R: ['a', 'b'] });
+    // The same problems with or without the compiled flow at hand.
+    expect(checkGrid(grid, ctx, compileGrid(grid, ctx))).toEqual(checkGrid(grid, ctx));
+  });
+
+  it('redraws only when what the diagram shows changed', () => {
+    const grid = { categories: ['R'], rows: [row('P1', 'start', { exits: 'P2' }), row('P2', 'end')] };
+    const key = () => diagramKey(compileGrid(grid, ctx).flow);
+    const before = key();
+    grid.rows[0].description = 'Otra descripción';
+    grid.rows[1].tags = { R: 'Almacén' };
+    expect(key()).toBe(before);
+    for (const change of [() => (grid.rows[0].title = 'Nuevo'), () => (grid.rows[1].type = 'activity'), () => (grid.rows[0].exits = 'Sí:P2'), () => (grid.rows[1].id = 'P9')]) {
+      const was = key();
+      change();
+      expect(key()).not.toBe(was);
+    }
   });
 });
 

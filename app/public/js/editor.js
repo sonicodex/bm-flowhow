@@ -1,9 +1,14 @@
 // The step grid (SPEC §6; phase 5.3): one row per step, typed in place. The
 // operations live in grid-edit.js; this file draws the table, keeps
 // "Depende de" and "Salidas" in step, checks the grid as the server will,
-// and saves it (POST /flows/:id/draft, src/draft.ts).
+// redraws the preview beside it (phase 5.4), and saves it
+// (POST /flows/:id/draft, src/draft.ts).
 import Core from './core.js';
-import { blankRow, checkGrid, dependsOnText, dropValues, nextStepId, renameStep, setDependsOn, suggestions, toSave } from './grid-edit.js';
+import { layoutFlow } from './diagram-layout.js';
+import { renderDiagram } from './diagram.js';
+import {
+  blankRow, checkGrid, compileGrid, dependsOnText, diagramKey, dropValues, nextStepId, renameStep, setDependsOn, suggestions, toSave,
+} from './grid-edit.js';
 
 const dataEl = document.getElementById('editor-data');
 const table = document.getElementById('step-grid');
@@ -12,6 +17,7 @@ const problems = document.getElementById('problems');
 const statusEl = document.getElementById('save-status');
 const saveButton = document.querySelector('[data-save]');
 const addButton = document.querySelector('[data-add]');
+const preview = document.getElementById('preview');
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const ICON = (name, alt = '') => `<img class="icon" src="/icons/${name}.svg" alt="${esc(alt)}" width="18" height="18">`;
@@ -98,7 +104,9 @@ if (dataEl && table) {
   const dirty = () => JSON.stringify(toSave(grid)) !== savedJson;
 
   function refresh() {
-    const errors = checkGrid(grid, ctx);
+    const compiled = compileGrid(grid, ctx);
+    const errors = checkGrid(grid, ctx, compiled);
+    drawPreview(compiled.flow);
     const bad = new Set(errors.filter((e) => e.row !== null).map((e) => e.row));
     table.querySelectorAll('tr[data-row]').forEach((tr) => {
       const has = bad.has(Number(tr.dataset.row));
@@ -131,6 +139,60 @@ if (dataEl && table) {
     if (d) statusEl.textContent = 'Cambios sin guardar';
     else if (statusEl.textContent === 'Cambios sin guardar') statusEl.textContent = '';
   }
+
+  // ---- The preview (SPEC §6: read-only, beside the grid, redrawn while
+  // editing). Laid out again only when what it draws changed. ----
+
+  let drawn = null;
+  /** The step whose row has focus: marked on the diagram as the active step. */
+  let selected = '';
+
+  function drawPreview(flow) {
+    const key = diagramKey(flow);
+    if (key === drawn) return;
+    drawn = key;
+    try {
+      preview.innerHTML = renderDiagram(layoutFlow(flow), { name: data.name, colour: data.colour });
+    } catch {
+      // A grid half typed can be one no layout expects; the next edit redraws.
+      preview.innerHTML = '<p class="muted">La vista previa se dibuja de nuevo cuando la tabla esté completa.</p>';
+    }
+    markSelected();
+  }
+
+  function markSelected() {
+    preview.querySelectorAll('.node.selected').forEach((g) => g.classList.remove('selected'));
+    const node = selected && preview.querySelector(`.node[data-id="${CSS.escape(selected)}"]`);
+    if (!node) return;
+    node.classList.add('selected');
+    // Keep it in view inside the preview, without moving the page.
+    const box = preview.getBoundingClientRect();
+    const at = node.getBoundingClientRect();
+    if (at.top < box.top || at.bottom > box.bottom) preview.scrollTop += at.top - box.top - (box.height - at.height) / 2;
+    if (at.left < box.left || at.right > box.right) preview.scrollLeft += at.left - box.left - (box.width - at.width) / 2;
+  }
+
+  table.addEventListener('focusin', (ev) => {
+    const r = rows[Number(ev.target.dataset?.r)];
+    const id = r ? String(r.id).trim() : '';
+    if (id !== selected) {
+      selected = id;
+      markSelected();
+    }
+  });
+
+  // A step on the diagram leads to its row.
+  preview.addEventListener('click', (ev) => {
+    const node = ev.target.closest('.node[data-id]');
+    if (!node) return;
+    const i = rows.findIndex((r) => String(r.id).trim() === node.dataset.id);
+    const el = i === -1 ? null : field(i, 'title');
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', inline: 'nearest' });
+    el.focus({ preventScroll: true });
+    selected = node.dataset.id;
+    markSelected();
+  });
 
   // ---- Messages above the grid ----
 
@@ -181,7 +243,10 @@ if (dataEl && table) {
       if (!res.ok) {
         say(esc(res.message), 'error');
         t.value = r.id;
-      } else say('');
+      } else {
+        say('');
+        selected = String(r.id).trim();
+      }
       syncConnections();
     } else if (f === 'dep') {
       const message = setDependsOn(rows, i, t.value);

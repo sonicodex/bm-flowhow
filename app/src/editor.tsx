@@ -9,8 +9,8 @@ import { listSavePoints, openDraft, restoreSavePoint, saveDraft, type Opened, ty
 import { flowEntries, getFlow, type FlowListEntry, type FlowRow } from "./flows.ts";
 import type { AppEnv } from "./session.ts";
 
-// The editor (SPEC §6, §8; phase 5). Editors only: the step grid (5.3),
-// saving the draft and its save points (5.2).
+// The editor (SPEC §6, §8; phase 5). Editors only: the step grid (5.3) with
+// its live preview (5.4), saving the draft and its save points (5.2).
 export const editor = new Router();
 
 
@@ -18,6 +18,8 @@ export const editor = new Router();
 export type EditorData = {
   flowId: number;
   name: string;
+  // Palette slot, for the preview (§9: the flow colour drives the diagram).
+  colour: number;
   grid: Opened["grid"];
   base: string;
   // Ids that some release of this flow holds: they stay as they are
@@ -61,6 +63,7 @@ async function editorData(db: D1Database, flow: FlowRow): Promise<{ data: Editor
     data: {
       flowId: flow.id,
       name: flow.name,
+      colour: flow.colour,
       grid: opened.grid,
       base: opened.base,
       lockedIds: ids.results.map((r) => r.id).filter((id) => typeof id === "string"),
@@ -103,27 +106,38 @@ function EditorPage({ flow, data, source, version }: { flow: FlowRow; data: Edit
         <a href={`/flows/${flow.id}/import`}>Importar desde Excel</a>
       </nav>
       <div id="editor-panel"></div>
-      <div class="editor-toolbar">
-        <button type="button" class="button-secondary" data-add>
-          Agregar paso
-        </button>
-      </div>
-      <div class="table-frame">
-        <div class="table-scroll" data-table-scroll>
-          <table class="step-grid" id="step-grid">
-            <noscript>
-              <caption class="form-error">La tabla de pasos necesita JavaScript.</caption>
-            </noscript>
-          </table>
+      <div class="editor-cols">
+        <div class="editor-main">
+          <div class="editor-toolbar">
+            <button type="button" class="button-secondary" data-add>
+              Agregar paso
+            </button>
+          </div>
+          <div class="table-frame">
+            <div class="table-scroll" data-table-scroll>
+              <table class="step-grid" id="step-grid">
+                <noscript>
+                  <caption class="form-error">La tabla de pasos necesita JavaScript.</caption>
+                </noscript>
+              </table>
+            </div>
+          </div>
+          <p class="muted editor-hint">
+            Conecta los pasos por cualquiera de los dos lados: en <strong>Depende de</strong> escribe el ID del paso anterior, o en{" "}
+            <strong>Salidas</strong> el del siguiente; la otra columna se actualiza sola. Con varias, sepáralas con | y, en una decisión,
+            rotúlalas: <code>Sí:P5 | No:P4</code>. En las categorías, separa varios valores con coma. Los pasos ya publicados conservan su ID:
+            el avance de las personas depende de él.
+          </p>
+          <section class="card editor-problems" id="problems" aria-live="polite"></section>
         </div>
+        {/* SPEC §6: a read-only diagram next to the grid, redrawn while
+            editing (phase 5.4). Below the grid on a narrow screen. */}
+        <aside class="card editor-preview" aria-labelledby="preview-title">
+          <h2 id="preview-title">Vista previa</h2>
+          <p class="muted">Toca un paso para ir a su fila.</p>
+          <div class="diagram-scroll" id="preview"></div>
+        </aside>
       </div>
-      <p class="muted editor-hint">
-        Conecta los pasos por cualquiera de los dos lados: en <strong>Depende de</strong> escribe el ID del paso anterior, o en{" "}
-        <strong>Salidas</strong> el del siguiente; la otra columna se actualiza sola. Con varias, sepáralas con | y, en una decisión,
-        rotúlalas: <code>Sí:P5 | No:P4</code>. En las categorías, separa varios valores con coma. Los pasos ya publicados conservan su ID:
-        el avance de las personas depende de él.
-      </p>
-      <section class="card editor-problems" id="problems" aria-live="polite"></section>
       <script type="application/json" id="editor-data">
         {raw(scriptJson(data))}
       </script>

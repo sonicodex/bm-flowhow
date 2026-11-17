@@ -36,6 +36,12 @@ describe("the editor page (phase 5.3)", () => {
     expect(html).toContain(`<a href="/flows/${id}/details">Datos del flujo</a>`);
     expect(html).toContain(`<a href="/flows/${id}/save-points">Puntos guardados</a>`);
     expect(data!.base).toMatch(/^release:\d+$/);
+    // The preview beside the grid, in the flow's colour (phase 5.4).
+    expect(html).toContain('<aside class="card editor-preview" aria-labelledby="preview-title"><h2 id="preview-title">Vista previa</h2>');
+    expect(html).toContain('<div class="diagram-scroll" id="preview"></div>');
+    const colour = await env.DB.prepare("SELECT colour FROM flows WHERE id = ?").bind(id).first<number>("colour");
+    expect(data!.colour).toBe(colour);
+    expect(html).toContain(`<section class="editor flow-${colour}">`);
     expect(data!.grid.rows).toHaveLength(36);
     // Every id of the release is kept as it is (answer 4).
     expect(data!.lockedIds.sort()).toEqual(data!.grid.rows.map((r) => r.id).sort());

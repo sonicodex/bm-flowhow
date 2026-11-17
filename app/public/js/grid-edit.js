@@ -83,16 +83,38 @@ export function setDependsOn(rows, index, text) {
 }
 
 /**
+ * The grid compiled as the server compiles it: target names resolved with
+ * the same list of flows, "Depende de" merged into exits. `errors` are what
+ * only this step knows (unknown target names, unknown predecessors).
+ * @param {Grid} grid @param {CheckContext} ctx @returns {{ flow: Flow, errors: RowError[] }}
+ */
+export function compileGrid(grid, ctx) {
+  const byKey = new Map(ctx.flows.map((f) => [Core.norm(f.name), f.id]));
+  const draft = Core.gridToDraft(grid, (name) => byKey.get(Core.norm(name)) ?? null);
+  return { flow: Core.compile({ name: ctx.name, objective: '', categories: draft.categories, steps: draft.steps }), errors: draft.errors };
+}
+
+/**
  * Every problem of the grid, as the server will find them on saving and on
  * publishing: the same core.js functions, with the same list of flows.
- * @param {Grid} grid @param {CheckContext} ctx @returns {RowError[]}
+ * @param {Grid} grid @param {CheckContext} ctx
+ * @param {{ flow: Flow, errors: RowError[] }} [compiled] compileGrid's answer, when already at hand
+ * @returns {RowError[]}
  */
-export function checkGrid(grid, ctx) {
-  const byKey = new Map(ctx.flows.map((f) => [Core.norm(f.name), f.id]));
+export function checkGrid(grid, ctx, compiled) {
   const byId = new Map(ctx.flows.map((f) => [f.id, { name: f.name, published: f.published }]));
-  const draft = Core.gridToDraft(grid, (name) => byKey.get(Core.norm(name)) ?? null);
-  const flow = Core.compile({ name: ctx.name, objective: '', categories: draft.categories, steps: draft.steps });
-  return draft.errors.concat(Core.validate(flow, { selfId: ctx.flowId, lib: (id) => byId.get(id) ?? null }));
+  const { flow, errors } = compiled || compileGrid(grid, ctx);
+  return errors.concat(Core.validate(flow, { selfId: ctx.flowId, lib: (id) => byId.get(id) ?? null }));
+}
+
+/**
+ * What the diagram draws of a compiled flow: steps, types, titles and
+ * exits. When it has not changed, the preview is not laid out again (typing
+ * a description or a tag redraws nothing).
+ * @param {Flow} flow @returns {string}
+ */
+export function diagramKey(flow) {
+  return JSON.stringify(flow.steps.map((s) => [s.id, s.type, s.title, s.exits]));
 }
 
 /** The grid as it is sent: exits carry every connection. @param {Grid} grid @returns {Grid} */
