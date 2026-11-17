@@ -1,3 +1,4 @@
+import type { Child } from "hono/jsx";
 import type { Context } from "hono";
 import { raw } from "hono/html";
 import Core from "../public/js/core.js";
@@ -5,12 +6,14 @@ import { Router } from "./access.tsx";
 import { scriptJson } from "./layout.tsx";
 import { AdminList, RowActions, yesNo } from "./admin.tsx";
 import { loadTagIndex } from "./document.ts";
-import { listSavePoints, openDraft, restoreSavePoint, reviewImport, saveDraft, type Opened, type SaveAnswer, type SavePoint } from "./draft.ts";
+import { listSavePoints, openDraft, parseBase, restoreSavePoint, reviewImport, saveDraft, type Opened, type SaveAnswer, type SavePoint } from "./draft.ts";
 import { flowEntries, getFlow, type FlowListEntry, type FlowRow } from "./flows.ts";
+import { publishFlow, PUBLISH_CONFLICT } from "./publish.ts";
 import type { AppEnv } from "./session.ts";
 
 // The editor (SPEC §6, §8; phase 5). Editors only: the step grid (5.3) with
-// its live preview (5.4), saving the draft and its save points (5.2).
+// its live preview (5.4), saving the draft and its save points (5.2), import
+// (5.5), template and export (5.6, in the browser), publishing (5.7).
 export const editor = new Router();
 
 
@@ -31,10 +34,15 @@ export type EditorData = {
   // Each category's values, for the cells' suggestions.
   values: Record<string, string[]>;
   types: { value: string; label: string }[];
+  // The latest release ("1.0"), or null: the publish panel shows the next
+  // minor and major version from it (phase 5.7).
+  published: string | null;
+  // How many areas the flow has: the first publication needs one (§6).
+  areas: number;
 };
 
 async function editorData(db: D1Database, flow: FlowRow): Promise<{ data: EditorData; opened: Opened; version: string | null }> {
-  const [opened, entries, index, ids, latest] = await Promise.all([
+  const [opened, entries, index, ids, latest, areas] = await Promise.all([
     openDraft(db, flow.id),
     flowEntries(db),
     loadTagIndex(db),
@@ -49,6 +57,7 @@ async function editorData(db: D1Database, flow: FlowRow): Promise<{ data: Editor
       .prepare("SELECT major || '.' || minor AS v FROM releases WHERE flow_id = ? ORDER BY major DESC, minor DESC LIMIT 1")
       .bind(flow.id)
       .first<string>("v"),
+    db.prepare("SELECT count(*) AS n FROM flow_areas WHERE flow_id = ?").bind(flow.id).first<number>("n"),
   ]);
   const values: Record<string, string[]> = {};
   for (const c of index.categories) {
@@ -70,6 +79,8 @@ async function editorData(db: D1Database, flow: FlowRow): Promise<{ data: Editor
       flows: entries.map(({ key: _k, ...f }) => f),
       values,
       types: Core.TYPES.map((t: string) => ({ value: t, label: (Core.TYPE_LABELS as Record<string, string>)[t]! })),
+      published: latest,
+      areas: areas ?? 0,
     },
   };
 }
@@ -92,7 +103,7 @@ function EditorPage({
   data: EditorData;
   source: Opened["source"];
   version: string | null;
-  notice?: string;
+  notice?: Child;
 }) {
   return (
     <section class={`editor flow-${flow.colour}`}>
@@ -109,9 +120,14 @@ function EditorPage({
           <button type="button" class="button-primary" data-save disabled>
             Guardar
           </button>
+          <button type="button" class="button-secondary" data-publish>
+            Publicar
+          </button>
         </div>
       </div>
-      <p class="muted admin-subtitle">{sourceLine(source, version)}</p>
+      <p class="muted admin-subtitle" id="source-line">
+        {sourceLine(source, version)}
+      </p>
       <nav class="editor-links" aria-label="Del flujo">
         <a href={`/flows/${flow.id}/details`}>Datos del flujo</a>
         <a href={`/flows/${flow.id}/save-points`}>Puntos guardados</a>
@@ -214,7 +230,14 @@ editor.get("/:id{[0-9]+}/edit", "editor", async (c) => {
   const flow = await getFlow(c.env.DB, Number(c.req.param("id")));
   if (!flow) return c.notFound();
   const { data, opened, version } = await editorData(c.env.DB, flow);
-  const notice = c.req.query("importado") === "1" ? "Importado al borrador. Revísalo aquí; nadie lo ve hasta que lo publiques." : undefined;
+  const published = /^\d{1,6}\.\d{1,6}$/.test(c.req.query("publicada") ?? "") ? c.req.query("publicada") : null;
+  const notice = published ? (
+    <>
+      Publicada la versión {published}. Ya la ven las personas de las áreas del flujo. <a href={`/flows/${flow.id}`}>Ver el flujo</a>
+    </>
+  ) : c.req.query("importado") === "1" ? (
+    "Importado al borrador. Revísalo aquí; nadie lo ve hasta que lo publiques."
+  ) : undefined;
   return c.render(<EditorPage flow={flow} data={data} source={opened.source} version={version} notice={notice} />, {
     title: `Editar ${flow.name}`,
   });
@@ -241,6 +264,31 @@ editor.post("/:id{[0-9]+}/draft", "editor", async (c) => {
   }
   const answer = await saveDraft(c.env.DB, flow.id, body, c.get("user")!.id);
   return c.json(answer, STATUS[answer.status]);
+});
+
+// Publishing from the editor (SPEC §6 publish validations, §8; phase 5.7):
+// `{base, bump}`. Only the saved draft the editor has open is published:
+// `base` names it, and anything else is a conflict. The five validations
+// are publishFlow's; every problem blocks.
+editor.post("/:id{[0-9]+}/publish", "editor", async (c) => {
+  const flow = await flowOf(c);
+  if (!flow) return c.notFound();
+  const body = (await c.req.json().catch(() => null)) as { base?: unknown; bump?: unknown } | null;
+  const base = parseBase(body?.base);
+  const bump = body?.bump === "major" ? "major" : body?.bump === "minor" ? "minor" : null;
+  if (!base || !bump) return c.json({ status: "invalid", error: "La publicación no tiene la forma esperada." }, 400);
+  if ("release" in base) {
+    // The editor shows a release: there is nothing of its own to publish,
+    // unless someone saved a draft meanwhile.
+    const draft = await c.env.DB.prepare("SELECT 1 AS x FROM drafts WHERE flow_id = ?").bind(flow.id).first("x");
+    return draft
+      ? c.json({ status: "conflict", message: PUBLISH_CONFLICT }, 409)
+      : c.json({ status: "nothing", message: "No hay cambios sin publicar: guarda un cambio primero." }, 422);
+  }
+  const r = await publishFlow(c.env.DB, flow.id, bump, c.get("user")!.id, base.draft);
+  if (r.ok === true) return c.json({ status: "published", version: r.version });
+  if (r.conflict) return c.json({ status: "conflict", message: PUBLISH_CONFLICT }, 409);
+  return c.json({ status: "blocked", errors: r.errors }, 422);
 });
 
 // The review of an import, as JSON (src/draft.ts): writes nothing.

@@ -339,12 +339,13 @@ if (dataEl && table) {
 
   // ---- Saving ----
 
+  /** @returns {Promise<boolean>} whether the grid is now saved */
   async function save(accepted) {
     const errors = refresh();
     if (errors.some((e) => e.blocking)) {
       say('No se guardó: primero corrige los problemas de la lista «Antes de guardar».', 'error');
       problems.scrollIntoView({ block: 'nearest' });
-      return;
+      return false;
     }
     saving = true;
     saveButton.disabled = true;
@@ -364,6 +365,11 @@ if (dataEl && table) {
     saving = false;
     statusEl.textContent = '';
     if (answer.status === 'saved') {
+      // The first save over a release makes a draft: the line under the
+      // title says so (the same words as src/editor.tsx sourceLine).
+      if (data.published && !base.startsWith('draft:') && answer.base.startsWith('draft:')) {
+        document.getElementById('source-line').textContent = `Borrador sobre la versión publicada ${data.published}. Nadie lo ve hasta que lo publiques.`;
+      }
       base = answer.base;
       savedJson = JSON.stringify(sent);
       say('');
@@ -376,6 +382,7 @@ if (dataEl && table) {
       say(`No se guardó: ${answer.errors.map((e) => esc(e.message)).join(' ')}`, 'error');
     } else say(esc(answer.error || 'No se pudo guardar.'), 'error');
     showDirty();
+    return answer.status === 'saved';
   }
 
   // New values typed in the grid: accept or reject each before anything is
@@ -425,6 +432,84 @@ if (dataEl && table) {
 
   window.addEventListener('beforeunload', (ev) => {
     if (dirty() && !leaving) ev.preventDefault();
+  });
+
+  // ---- Publish (SPEC §6 publish validations, §8; phase 5.7). What is
+  // published is the saved draft this page has open (`base`): the panel
+  // asks to save first, says what blocks, and offers minor (the default)
+  // or major with what each means for the people who use the flow. ----
+
+  const publishButton = document.querySelector('[data-publish]');
+  const next = (bump) => {
+    const [major, minor] = data.published.split('.').map(Number);
+    return bump === 'major' ? `${major + 1}.0` : `${major}.${minor + 1}`;
+  };
+  const actions = (main) =>
+    `<div class="editor-message-actions">${main}<button type="button" class="button-secondary" data-close>Volver a la tabla</button></div>`;
+
+  function openPublish() {
+    if (dirty()) {
+      say('<h2>Primero guarda los cambios</h2><p>Se publica lo guardado, y la tabla tiene cambios sin guardar.</p>' +
+        actions('<button type="button" class="button-primary" data-save-publish>Guardar y seguir</button>'));
+      return;
+    }
+    if (!base.startsWith('draft:')) {
+      say(`<h2>No hay nada que publicar</h2><p>Lo que ves es la versión publicada ${esc(data.published || '')}. Cambia algo y guárdalo para publicar una versión nueva.</p>` + actions(''));
+      return;
+    }
+    const problemsNow = refresh();
+    if (problemsNow.length) {
+      say(`<h2>Todavía no se puede publicar</h2><p>Corrige ${count(problemsNow.length)} de la lista bajo la tabla y guarda.</p>` + actions(''));
+      problems.scrollIntoView({ block: 'nearest' });
+      return;
+    }
+    if (!data.published && !data.areas) {
+      say(`<h2>Falta asignar un área</h2><p>La primera publicación necesita al menos un área: sin ella nadie vería el flujo. Asígnala en <a href="/flows/${data.flowId}/details">Datos del flujo</a> y vuelve aquí.</p>` + actions(''));
+      return;
+    }
+    const choice = data.published
+      ? '<fieldset class="choice-list"><legend>¿Qué tipo de cambio es?</legend>' +
+        `<label><input type="radio" name="bump" value="minor" checked> <strong>Menor: ${esc(data.published)} → ${next('minor')}</strong></label>` +
+        '<p class="muted">Ajustes que no cambian el proceso. Quien ya lo revisó sigue como «Revisado».</p>' +
+        `<label><input type="radio" name="bump" value="major"> <strong>Mayor: ${esc(data.published)} → ${next('major')}</strong></label>` +
+        '<p class="muted">El proceso cambió. Todos deben recorrerlo de nuevo: vuelven a «Pendiente de revisión».</p></fieldset>'
+      : '<p>Será la versión 1.0, la primera. Desde ese momento la ven las personas de las áreas del flujo.</p>';
+    say('<h2>Publicar</h2>' + choice + '<p class="muted">La versión publicada no se puede cambiar después; los puntos guardados de este borrador se borran.</p>' +
+      actions(`<button type="button" class="button-primary" data-confirm-publish>${data.published ? 'Publicar' : 'Publicar la versión 1.0'}</button>`));
+  }
+
+  async function publish(button) {
+    const bump = panel.querySelector('input[name="bump"]:checked')?.value || 'minor';
+    button.disabled = true;
+    let answer;
+    try {
+      const res = await fetch(`/flows/${data.flowId}/publish`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ base, bump }),
+      });
+      answer = await res.json();
+    } catch {
+      answer = { status: 'invalid', error: 'No se pudo publicar: revisa la conexión y vuelve a intentarlo.' };
+    }
+    if (answer.status === 'published') {
+      leaving = true;
+      location.href = `/flows/${data.flowId}/edit?publicada=${encodeURIComponent(answer.version)}`;
+      return;
+    }
+    if (answer.status === 'conflict') {
+      say(`${esc(answer.message)} <button type="button" class="button-link" data-reload>Recargar</button>`, 'error');
+    } else if (answer.status === 'blocked') {
+      say(`<h2>No se publicó</h2><ul class="plain-list">${answer.errors.map((e) => `<li>${esc(e.message)}</li>`).join('')}</ul>`, 'error');
+    } else say(esc(answer.message || answer.error || 'No se pudo publicar.'), 'error');
+  }
+
+  publishButton.addEventListener('click', openPublish);
+  panel.addEventListener('click', async (ev) => {
+    const t = ev.target;
+    if (t.closest('[data-close]')) say('');
+    else if (t.closest('[data-save-publish]') && (await save())) openPublish();
+    else if (t.closest('[data-confirm-publish]')) publish(t.closest('[data-confirm-publish]'));
   });
 
   // ---- Template and export (SPEC §6; phase 5.6): built here, from the grid

@@ -14,6 +14,56 @@ Entry format:
 
 ---
 
+## 2026-11-17 — Publishing from the editor (phase 5.7)
+
+- Decision:
+  - **«Publicar» sits beside «Guardar»** and opens a panel above the
+    grid. Publishing goes through `POST /flows/:id/publish` with
+    `{base, bump}`, onto the existing `publishFlow`, which already holds
+    the five validations of SPEC §6. Every problem blocks, as before.
+  - **Only the saved draft the page has open is published.** `base`
+    names its revision. `publishFlow` takes the revision and checks it
+    twice: before validating, and inside the write itself (every
+    statement of the batch names it). A save by someone else between
+    the check and the write therefore publishes nothing and deletes
+    nothing. Either way the answer is «Otra persona cambió o publicó
+    este borrador; recarga para ver lo que se publicaría.» The dev
+    loader still calls it without a revision.
+  - **The panel answers before asking**, in this order:
+    - unsaved changes: «Primero guarda los cambios», with
+      «Guardar y seguir»;
+    - a release on screen: nothing to publish;
+    - problems in the grid: points at the list under it;
+    - first publication with no area: points at «Datos del flujo».
+    The server repeats every check; the panel only saves a round trip.
+  - **Minor is the default (§8). Each choice shows its version and what
+    it means for the people who use the flow in stage 1:**
+    - minor: whoever reviewed it stays «Revisado»;
+    - major: everyone goes back to «Pendiente de revisión»
+      (`tour.ts`).
+    The panel does not mention certifications: they are stage 2. The
+    first publication shows no choice: it is 1.0.
+  - The panel also warns that a release cannot be changed afterwards,
+    and that the draft's save points are deleted (§8).
+  - After publishing, the editor reloads on the new release with
+    «Publicada la versión x.y. Ya la ven las personas de las áreas del
+    flujo.» and a link to the flow.
+  - **Fix (from 5.3):** after the first save over a release, the line
+    under the title still said «Estás viendo la versión publicada». It
+    now changes to «Borrador sobre la versión publicada…».
+  - Not tested: a save landing between the revision check and the
+    write. The tests cannot interleave the two; the statements guard it.
+  - Browser check: `app/.layout-check/5.7/check.mjs` on a throwaway
+    flow, deleted afterwards. It covers:
+    - two steps typed, and «Guardar y seguir»;
+    - no area, then an area assigned in the flow form;
+    - 1.0 published, then «nothing to publish» on the release;
+    - a change saved, then a major release: 2.0, by `junta`, with no
+      draft or save points left;
+    - desktop and phone, with no horizontal scroll.
+- Reason: phase 5 plan, slice 5.7; SPEC §6 (publish validations), §8.
+- Spec sections affected: 6, 8.
+
 ## 2026-11-17 — Template and export (phase 5.6)
 
 - Decision:
