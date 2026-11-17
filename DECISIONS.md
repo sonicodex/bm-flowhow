@@ -47,7 +47,10 @@ Entry format:
     and that the draft's save points are deleted (§8).
   - After publishing, the editor reloads on the new release with
     «Publicada la versión x.y. Ya la ven las personas de las áreas del
-    flujo.» and a link to the flow.
+    flujo.» and a link to the flow. If the flow has no area (they were
+    removed after the first publication), that sentence is replaced by
+    the flow form's own warning (`NO_AREAS_WARNING`): no Empleado sees
+    it, only Líderes and the Junta directiva.
   - **Fix (from 5.3):** after the first save over a release, the line
     under the title still said «Estás viendo la versión publicada». It
     now changes to «Borrador sobre la versión publicada…».

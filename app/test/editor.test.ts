@@ -134,6 +134,11 @@ describe("publishing from the editor (phase 5.7)", () => {
     );
     expect(html).toContain('<button type="button" class="button-secondary" data-publish="true">Publicar</button>');
     expect(await (await board.fetch(`/flows/${id}/edit?publicada=<b>`)).text()).not.toContain("Publicada");
+    // Areas removed after the first publication: the flow form's warning.
+    await env.DB.prepare("DELETE FROM flow_areas WHERE flow_id = ?").bind(id).run();
+    expect(await (await board.fetch(`/flows/${id}/edit?publicada=1.1`)).text()).toContain(
+      `Publicada la versión 1.1. Este flujo publicado quedó sin áreas, así que ningún Empleado lo verá. Solo lo verán los Líderes y la Junta directiva. <a href="/flows/${id}">Ver el flujo</a>`,
+    );
   });
 
   it("numbers minor and major from the latest release", async () => {

@@ -8,6 +8,7 @@ import { AdminList, RowActions, yesNo } from "./admin.tsx";
 import { loadTagIndex } from "./document.ts";
 import { listSavePoints, openDraft, parseBase, restoreSavePoint, reviewImport, saveDraft, type Opened, type SaveAnswer, type SavePoint } from "./draft.ts";
 import { flowEntries, getFlow, type FlowListEntry, type FlowRow } from "./flows.ts";
+import { NO_AREAS_WARNING } from "./flows-screen.tsx";
 import { publishFlow, PUBLISH_CONFLICT } from "./publish.ts";
 import type { AppEnv } from "./session.ts";
 
@@ -233,7 +234,10 @@ editor.get("/:id{[0-9]+}/edit", "editor", async (c) => {
   const published = /^\d{1,6}\.\d{1,6}$/.test(c.req.query("publicada") ?? "") ? c.req.query("publicada") : null;
   const notice = published ? (
     <>
-      Publicada la versión {published}. Ya la ven las personas de las áreas del flujo. <a href={`/flows/${flow.id}`}>Ver el flujo</a>
+      {/* With no area (removed after the first publication), the flow
+          form's own warning: no Empleado sees it. */}
+      Publicada la versión {published}. {data.areas ? "Ya la ven las personas de las áreas del flujo." : NO_AREAS_WARNING}{" "}
+      <a href={`/flows/${flow.id}`}>Ver el flujo</a>
     </>
   ) : c.req.query("importado") === "1" ? (
     "Importado al borrador. Revísalo aquí; nadie lo ve hasta que lo publiques."
