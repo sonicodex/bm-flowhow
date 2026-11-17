@@ -48,6 +48,17 @@ describe("route access (phase 4.2)", () => {
       "GET /areas/:id{[0-9]+}": "editor",
       "POST /areas/:id{[0-9]+}": "editor",
       "POST /areas/:id{[0-9]+}/delete": "editor",
+      "GET /categories": "editor",
+      "GET /categories/new": "editor",
+      "POST /categories": "editor",
+      "GET /categories/:id{[0-9]+}": "editor",
+      "POST /categories/:id{[0-9]+}": "editor",
+      "POST /categories/:id{[0-9]+}/move": "editor",
+      "POST /categories/:id{[0-9]+}/values": "editor",
+      "GET /categories/:id{[0-9]+}/values/:value{[0-9]+}": "editor",
+      "POST /categories/:id{[0-9]+}/values/:value{[0-9]+}": "editor",
+      "POST /categories/:id{[0-9]+}/values/:value{[0-9]+}/delete": "editor",
+      "POST /categories/:id{[0-9]+}/delete": "editor",
       "GET /users": "users",
       "GET /users/new": "users",
       "POST /users": "users",
@@ -97,7 +108,11 @@ describe("route access (phase 4.2)", () => {
     // what the walk changes touches no one walking.
     const target = await signIn({ username: "objetivo", role: "leader" });
     const spareArea = (await env.DB.prepare("INSERT INTO areas (name, name_key) VALUES ('Sobrante', 'sobrante') RETURNING id").first<number>("id"))!;
-    const idFor = (path: string) => (path.startsWith("/users") ? target.id : path.startsWith("/areas") ? spareArea : flow);
+    // A category and value of their own too: the walk deletes them.
+    const spareCategory = (await env.DB.prepare("INSERT INTO tag_categories (name, name_key) VALUES ('Sobrante', 'sobrante') RETURNING id").first<number>("id"))!;
+    const spareValue = (await env.DB.prepare("INSERT INTO tags (category_id, name, name_key) VALUES (?, 'Sobra', 'sobra') RETURNING id").bind(spareCategory).first<number>("id"))!;
+    const idFor = (path: string) =>
+      path.startsWith("/users") ? target.id : path.startsWith("/areas") ? spareArea : path.startsWith("/categories") ? spareCategory : flow;
     // Who gets through each kind of access; everyone else is refused.
     const allowed: Record<Exclude<Access, "public">, (keyof typeof users)[]> = {
       account: ["inArea", "otherArea", "leader", "board", "owner"],
@@ -114,7 +129,7 @@ describe("route access (phase 4.2)", () => {
     const routes = guardedRoutes(app).filter((r) => r.access !== "public");
     for (const { method, path, access } of routes) {
       if (access === "public") continue;
-      const url = path.replace(/:id(\{[^}]*\})?/, String(idFor(path)));
+      const url = path.replace(/:id(\{[^}]*\})?/, String(idFor(path))).replace(/:value(\{[^}]*\})?/, String(spareValue));
       const label = `${method} ${url} (${access})`;
       expect(sentToLogin(await send(anonymous, method, url), method), `${label}: sin sesión`).toBe(true);
       const res = await send(pending.fetch, method, url);
@@ -146,15 +161,17 @@ describe("route access (phase 4.2)", () => {
     expect((await board.fetch(`/flows/${created.id}`)).status).toBe(404);
   });
 
-  it("shows the Flujos and Áreas links only to editors", async () => {
+  it("shows the Flujos, Áreas and Categorías links only to editors", async () => {
     const board = await signIn();
     const leader = await signIn({ username: "lia", role: "leader" });
     const boardHtml = await (await board.fetch("/home")).text();
     expect(boardHtml).toContain('<a href="/flows">Flujos</a>');
     expect(boardHtml).toContain('<a href="/areas">Áreas</a>');
+    expect(boardHtml).toContain('<a href="/categories">Categorías</a>');
     const leaderHtml = await (await leader.fetch("/home")).text();
     expect(leaderHtml).not.toContain('href="/flows"');
     expect(leaderHtml).not.toContain('href="/areas"');
+    expect(leaderHtml).not.toContain('href="/categories"');
   });
 
   it("refuses the admin layer without can_view_admin_layer, whatever the role", async () => {

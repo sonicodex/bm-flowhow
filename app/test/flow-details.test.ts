@@ -10,8 +10,8 @@ import { signIn, type Signed } from "./session.ts";
 
 const area = async (name: string) =>
   (await env.DB.prepare("INSERT INTO areas (name, name_key) VALUES (?, ?) RETURNING id").bind(name, nameKey(name)).first<number>("id"))!;
-const save = (who: Signed, id: number, fields: { name: string; objective?: string; areas?: number[] }) => {
-  const body = new URLSearchParams({ name: fields.name, objective: fields.objective ?? "" });
+const save = (who: Signed, id: number, fields: { name: string; objective?: string; colour?: string; areas?: number[] }) => {
+  const body = new URLSearchParams({ name: fields.name, objective: fields.objective ?? "", colour: fields.colour ?? "1" });
   for (const a of fields.areas ?? []) body.append("area", String(a));
   return who.fetch(`/flows/${id}/details`, { method: "POST", body });
 };
@@ -94,5 +94,33 @@ describe("flow form (phase 4.4)", () => {
     html = await (await board.fetch(res.headers.get("location")!)).text();
     expect(html).toContain("Cambios guardados.");
     expect(html).not.toContain(NO_AREAS_WARNING);
+  });
+
+  it("saves the colour as a palette slot, without a new version (phase 5.1)", async () => {
+    await loadDevFlows(env.DB, [{ name: "Instalaciones", grid: instalaciones as Grid }]);
+    const id = (await env.DB.prepare("SELECT id FROM flows WHERE name = 'Instalaciones'").first<number>("id"))!;
+    const board = await signIn();
+    const releases = () => env.DB.prepare("SELECT count(*) AS n FROM releases WHERE flow_id = ?").bind(id).first<number>("n");
+    const colour = () => env.DB.prepare("SELECT colour FROM flows WHERE id = ?").bind(id).first<number>("colour");
+    const before = await releases();
+    // The form offers the twelve slots, the current one chosen.
+    let html = await (await board.fetch(`/flows/${id}/details`)).text();
+    expect(html.match(/name="colour"/g)).toHaveLength(12);
+    expect(html).toContain(`value="${await colour()}" class="swatch flow-${await colour()}" aria-label="Color ${await colour()}" checked=""`);
+    const res = await save(board, id, { name: "Instalaciones", colour: "7" });
+    expect(res.status).toBe(303);
+    expect(await colour()).toBe(7);
+    expect(await releases()).toBe(before);
+    html = await (await board.fetch(`/flows/${id}/details`)).text();
+    expect(html).toContain('value="7" class="swatch flow-7" aria-label="Color 7" checked=""');
+    // The viewer paints with it.
+    expect(await (await board.fetch(`/flows/${id}`)).text()).toContain("flow-7");
+    // Anything but a slot is refused, and nothing changes.
+    for (const bad of ["0", "13", "", "azul"]) {
+      const r = await save(board, id, { name: "Instalaciones", colour: bad });
+      expect(r.status, bad).toBe(422);
+      expect(await r.text()).toContain("Elige uno de los colores.");
+    }
+    expect(await colour()).toBe(7);
   });
 });

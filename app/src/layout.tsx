@@ -17,6 +17,7 @@ function Nav() {
     <nav class="site-nav" aria-label="Administración">
       {user.canEdit && <a href="/flows">Flujos</a>}
       {user.canEdit && <a href="/areas">Áreas</a>}
+      {user.canEdit && <a href="/categories">Categorías</a>}
       {user.canManageUsers && <a href="/users">Usuarios</a>}
     </nav>
   );

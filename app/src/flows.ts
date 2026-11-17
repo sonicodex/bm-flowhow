@@ -70,10 +70,11 @@ export async function createFlow(
   return { ok: true, id: inserted!.meta.last_row_id };
 }
 
-export type FlowDetails = { name: string; objective: string; areaIds: number[] };
+export type FlowDetails = { name: string; objective: string; colour: number; areaIds: number[] };
 
-// The flow form (SPEC §6; phase 4.4): name, objective and assigned areas,
-// written in one batch. Areas are optional here; the first publication
+// The flow form (SPEC §6; phases 4.4 and 5.1): name, objective, colour
+// (§5: a palette slot, presentation only, never a new version) and assigned
+// areas, written in one batch. Areas are optional here; the first publication
 // requires one (§5). A flow's steps refer to other flows by id, so a rename
 // breaks no link.
 export async function saveFlowDetails(db: D1Database, id: number, details: FlowDetails): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -82,9 +83,10 @@ export async function saveFlowDetails(db: D1Database, id: number, details: FlowD
   const key = nameKey(name);
   const taken = await db.prepare("SELECT id, name FROM flows WHERE name_key = ?").bind(key).first<{ id: number; name: string }>();
   if (taken && taken.id !== id) return { ok: false, error: `Ya existe un flujo llamado «${taken.name}». ${NAME_RULE}` };
+  if (!Number.isSafeInteger(details.colour) || details.colour < 1 || details.colour > COLOURS) return { ok: false, error: "Elige uno de los colores." };
   try {
     await db.batch([
-      db.prepare("UPDATE flows SET name = ?, name_key = ?, objective = ? WHERE id = ?").bind(name, key, details.objective.trim(), id),
+      db.prepare("UPDATE flows SET name = ?, name_key = ?, objective = ?, colour = ? WHERE id = ?").bind(name, key, details.objective.trim(), details.colour, id),
       db.prepare("DELETE FROM flow_areas WHERE flow_id = ?").bind(id),
       ...[...new Set(details.areaIds)].map((areaId) => db.prepare("INSERT INTO flow_areas (flow_id, area_id) VALUES (?, ?)").bind(id, areaId)),
     ]);

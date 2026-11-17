@@ -268,6 +268,19 @@ var Core = (function () {
      `type` is a type code, or the cell as written when it is not a known type;
      `ref` is the target flow's name. Nothing is resolved here.
      Errors here are about the table itself and always block. */
+  /* The import format's fixed columns, by header (ignoring case and
+     accents). Any other header is a tag category, so a category can never
+     take one of these names. */
+  var FIXED_COLUMNS = {
+    id: 'id', tipo: 'type', type: 'type', titulo: 'title', title: 'title', descripcion: 'description', description: 'description',
+    salidas: 'exits', exits: 'exits', 'depende de': 'dep', 'depends on': 'dep', flujo: 'ref', subflujo: 'ref', subflow: 'ref'
+  };
+  /** @param {string} header @returns {string|null} */
+  function fixedColumn(header) {
+    var n = norm(header);
+    return Object.prototype.hasOwnProperty.call(FIXED_COLUMNS, n) ? FIXED_COLUMNS[n] : null;
+  }
+
   function tableToGrid(table) {
     var out = { grid: { categories: [], rows: [] }, errors: [] };
     var cell = function (v) { return String(v == null ? '' : v).trim(); };
@@ -277,14 +290,8 @@ var Core = (function () {
     var col = { id: -1, type: -1, title: -1, description: -1, exits: -1, dep: -1, ref: -1 };
     var cats = []; var seen = new Set();
     head.forEach(function (h, i) {
-      var n = norm(h);
-      if (n === 'id') col.id = i;
-      else if (n === 'tipo' || n === 'type') col.type = i;
-      else if (n === 'titulo' || n === 'title') col.title = i;
-      else if (n === 'descripcion' || n === 'description') col.description = i;
-      else if (n === 'salidas' || n === 'exits') col.exits = i;
-      else if (n === 'depende de' || n === 'depends on') col.dep = i;
-      else if (n === 'flujo' || n === 'subflujo' || n === 'subflow') col.ref = i;
+      var n = norm(h); var fixed = fixedColumn(h);
+      if (fixed) col[fixed] = i;
       else if (h) {
         if (seen.has(n)) out.errors.push({ row: null, message: 'La columna «' + h + '» está repetida.', blocking: true });
         else { seen.add(n); cats.push({ name: h, i: i }); }
@@ -872,7 +879,7 @@ var Core = (function () {
 
   return {
     TYPES: TYPES, TYPE_LABELS: TYPE_LABELS, EXAMPLE: EXAMPLE, EXAMPLE_SUB: EXAMPLE_SUB, validateRefs: validateRefs, norm: norm, parseExits: parseExits, parseTags: parseTags, formatExits: formatExits, predecessorsText: predecessorsText, applyDependsOn: applyDependsOn,
-    compile: compile, validate: validate, textToTable: textToTable, tableToGrid: tableToGrid, gridToDraft: gridToDraft, parseTable: parseTable, toTSV: toTSV, wrapTitle: wrapTitle, layout: layout, Tour: Tour
+    compile: compile, validate: validate, textToTable: textToTable, tableToGrid: tableToGrid, fixedColumn: fixedColumn, gridToDraft: gridToDraft, parseTable: parseTable, toTSV: toTSV, wrapTitle: wrapTitle, layout: layout, Tour: Tour
   };
 })();
 export default Core;

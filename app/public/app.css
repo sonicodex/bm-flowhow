@@ -789,7 +789,7 @@ textarea:focus-visible,
 
 .admin-actions form {
   display: inline;
-  margin: 0;
+  margin-block: 0;
 }
 
 .admin-name {
@@ -900,4 +900,40 @@ textarea:focus-visible,
 
 .temp-password {
   font-size: var(--text-xl);
+}
+
+/* The flow colour in the flow form (phase 5.1): the twelve palette slots
+   as radio buttons. The chosen one is ringed in the text colour, so the
+   choice never relies on hue alone. Scoped under .swatches so the form's
+   own input rule does not paint them as text fields. */
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.swatches .swatch {
+  appearance: none;
+  width: var(--space-8);
+  height: var(--space-8);
+  margin: 0;
+  padding: 0;
+  background: var(--flow);
+  border: calc(var(--border-width) * 2) solid transparent;
+  border-radius: 50%;
+  outline: var(--border-width) solid transparent;
+  cursor: pointer;
+}
+
+.swatches .swatch:checked {
+  border-color: var(--color-text);
+  box-shadow: inset 0 0 0 calc(var(--border-width) * 3) var(--color-surface);
+}
+
+.swatches .swatch:focus-visible {
+  box-shadow: var(--shadow-focus);
+}
+
+.swatches .swatch:checked:focus-visible {
+  box-shadow: inset 0 0 0 calc(var(--border-width) * 3) var(--color-surface), var(--shadow-focus);
 }

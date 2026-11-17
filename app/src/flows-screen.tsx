@@ -1,7 +1,7 @@
 import type { RowError } from "../public/js/core.js";
 import { Router } from "./access.tsx";
 import { AdminForm, AdminList, RowActions, yesNo } from "./admin.tsx";
-import { createFlow, getFlow, saveFlowDetails, type FlowDetails } from "./flows.ts";
+import { COLOURS, createFlow, getFlow, saveFlowDetails, type FlowDetails } from "./flows.ts";
 import { applyGrid, parseGrid, reviewGrid, type NewTag, type Review } from "./import.ts";
 
 // Provisional flows and import screens (phase 1.5): a scaffold to exercise
@@ -237,8 +237,8 @@ flowsScreen.post("/:id/import/apply", "editor", async (c) => {
   return c.render(<ReviewPage flow={flow} review={review} grid={JSON.stringify(parsed.grid)} />, { title: `Revisión ${flow.name}` });
 });
 
-// The flow form (SPEC §6 "Flow form"; phase 4.4): name, objective and the
-// areas whose Empleados see it. Editors only.
+// The flow form (SPEC §6 "Flow form"; phases 4.4 and 5.1): name, objective,
+// colour and the areas whose Empleados see it. Editors only.
 type AreaOption = { id: number; name: string };
 
 // Saving a published flow with no area is allowed (DECISIONS, phase 4.4), but
@@ -279,6 +279,15 @@ function DetailsPage({
         {values.objective}
       </textarea>
       <fieldset class="choice-list">
+        <legend>Color</legend>
+        <p class="muted">Pinta el flujo en el diagrama y en el recorrido. Cambiarlo no crea una versión nueva.</p>
+        <div class="swatches">
+          {Array.from({ length: COLOURS }, (_, i) => i + 1).map((n) => (
+            <input type="radio" name="colour" value={String(n)} class={`swatch flow-${n}`} aria-label={`Color ${n}`} checked={values.colour === n} />
+          ))}
+        </div>
+      </fieldset>
+      <fieldset class="choice-list">
         <legend>Áreas</legend>
         <p class="muted">Los Empleados de estas áreas verán el flujo publicado. Hace falta al menos una para publicarlo por primera vez.</p>
         {areas.length ? (
@@ -304,7 +313,7 @@ flowsScreen.get("/:id{[0-9]+}/details", "editor", async (c) => {
   const flow = await flowOf(c);
   if (!flow) return c.notFound();
   const { results } = await db.prepare("SELECT area_id FROM flow_areas WHERE flow_id = ?").bind(flow.id).all<{ area_id: number }>();
-  const values = { name: flow.name, objective: flow.objective, areaIds: results.map((r) => r.area_id) };
+  const values = { name: flow.name, objective: flow.objective, colour: flow.colour, areaIds: results.map((r) => r.area_id) };
   const saved = c.req.query("guardado") === "1";
   const published = saved && !!(await db.prepare("SELECT 1 FROM releases WHERE flow_id = ?").bind(flow.id).first());
   const warning = published && values.areaIds.length === 0 ? NO_AREAS_WARNING : null;
@@ -323,6 +332,7 @@ flowsScreen.post("/:id{[0-9]+}/details", "editor", async (c) => {
   const values: FlowDetails = {
     name: one(form.name),
     objective: one(form.objective),
+    colour: Number(one(form.colour)),
     areaIds: list(form.area).map(Number).filter((n) => Number.isSafeInteger(n) && n > 0),
   };
   const result = await saveFlowDetails(db, flow.id, values);

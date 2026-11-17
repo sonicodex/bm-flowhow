@@ -148,6 +148,13 @@ describe('tableToGrid', () => {
     assert.deepStrictEqual(read.errors, [{ row: null, message: 'La columna «responsable» está repetida.', blocking: true }]);
   });
 
+  it('names the fixed columns, which no category can take (phase 5.1)', () => {
+    for (const [h, key] of [['ID', 'id'], ['tipo', 'type'], ['Titulo', 'title'], ['Descripción', 'description'], ['SALIDAS', 'exits'], [' Depende de ', 'dep'], ['Flujo', 'ref'], ['Subflujo', 'ref']]) {
+      assert.strictEqual(C.fixedColumn(h), key, h);
+    }
+    for (const h of ['Responsable', 'Herramienta', '', 'constructor', 'toString']) assert.strictEqual(C.fixedColumn(h), null, h);
+  });
+
   it('blocks a table without the ID and Título headers, or without steps', () => {
     assert.deepStrictEqual(messages(C.tableToGrid(table('Paso\tNombre\nA\tUno')).errors), ['La primera fila debe traer los encabezados. Como mínimo: ID y Título.']);
     assert.deepStrictEqual(messages(C.tableToGrid(table('ID\tTítulo')).errors), ['Solo llegó la fila de encabezados.']);

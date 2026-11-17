@@ -14,6 +14,106 @@ Entry format:
 
 ---
 
+## 2026-11-17 — Flow colour and tag categories (phase 5.1)
+
+- Decision:
+  - **The flow form takes the colour**: the twelve palette slots as radio
+    buttons (`.swatch flow-N`, named «Color N»), the chosen one ringed in
+    the text colour so it never relies on hue alone. Anything but a slot
+    1–12 is refused. It changes `flows.colour` only: no version.
+  - **`/categories`** (access `editor`, like areas; header link
+    «Categorías»), the §9 pattern:
+    - List: Nombre, Valores, Flujos; actions Editar, Subir/Bajar, and
+      Borrar only when never used. A line above the table says the order
+      is the template's column order and decides each category's
+      convention on the diagram. Moving renumbers every position 1..n.
+    - Creating a category goes straight to its form («Categoría creada.
+      Agrega sus valores.»), since a category exists to hold values.
+      Renaming stays on the form with «Cambios guardados.».
+    - The form lists the values in a table (Valor, Flujos; Editar, and
+      Borrar when never used) with «Nuevo valor» below. A value opens its
+      own rename form, like every row.
+    - **"Used" means any draft, save point or release ever held it**
+      (`json_each` over the three tables). Flujos counts those flows. The
+      condition sits inside the DELETE, so a document written after the
+      page was drawn still stops it. The form of a used category or value
+      says, and a refused delete repeats: «Como las publicaciones no
+      cambian nunca, una categoría o un valor que se usó alguna vez ya no
+      se puede borrar. Sí se puede renombrar.» (owner's wording request).
+    - Deleting an unused category deletes its values, in one batch.
+  - **A category cannot take a fixed column's name** (ID, Tipo, Título,
+    Descripción, Salidas, Depende de, Flujo, and their aliases): the
+    importer would read that column as the fixed one. `core.js` gained
+    `fixedColumn(header)`, which `tableToGrid` now uses too, so the list
+    exists once.
+  - **A value cannot contain a comma**: the grid separates values with
+    one. Names compare ignoring case and accents, as everywhere; a value
+    is unique within its category only.
+  - `AdminTable` split out of `AdminList` for the values table, and
+    `AdminList` gained an optional `note` under the title.
+  - Fixed on the way: `.admin-actions form { margin: 0 }` cancelled the
+    gap between a row's actions («EditarBorrar» in areas since 4.4); it
+    now sets only the block margins.
+  - Browser check: `app/.layout-check/5.1/` (categories, a category, new
+    category, the flow form; desktop and phone, no horizontal scroll).
+- Reason: phase 5 plan, slice 5.1; SPEC §5 (flow colour in the flow form,
+  tags with categories), §9 (Administration screens).
+- Spec sections affected: 5, 9.
+
+## 2026-11-17 — Phase 5 plan: the editor
+
+- Decision (proposed and approved by the owner before building). Everything
+  goes in, nothing cut: the Board keeps importing from Excel, above all to
+  create, and also creates and edits inside the app, as in the prototype.
+  - **5.1 Flow form and tag categories.** The flow form gains the colour
+    (§5: chosen in the flow form; 4.4 left it out). Tag categories and
+    their values get the §9 table pattern (deferred from phase 4).
+  - **5.2 Draft on the server.** Open (a missing draft is copied from the
+    latest release), save through the import contract (`reviewGrid` /
+    `applyGrid`: one input shape), save points listed and "Volver a este
+    punto".
+  - **5.3 The grid.** One row per step; Salidas and Depende de kept in step
+    with `core.js`; rows with errors marked; the same `validate()` as the
+    server.
+  - **5.4 Live preview** beside the grid, redrawn while editing.
+  - **5.5 Import inside the editor.** Paste or .xlsx, then the review
+    (row errors, the resulting diagram, accept or reject new tags), then
+    the draft is replaced. The provisional screen and its routes go.
+  - **5.6 Template and export**, an .xlsx writer with no dependency, and a
+    round-trip test.
+  - **5.7 Publish** from the editor: the five validations, minor or major.
+  - **5.8 Versions**: list of releases and "Restaurar" into the draft.
+  - **5.9 Closing**: flows list, access table, browser check.
+  - The owner's answers:
+    1. **An explicit «Guardar»**, each one a save point, and a warning on
+       leaving with unsaved changes. No autosave: it would flood the save
+       points.
+    2. **New tag values typed in the grid** are listed on saving, to
+       accept or reject there, as in the import.
+    3. **Tags and exits are text cells with suggestions** (existing values;
+       step ids with their titles). Fast on the keyboard, and they read and
+       write like Excel.
+    4. **A step's id** is assigned on adding (`P{n}`, the next free one) and
+       editable only while the step is in no release: tour progress hangs
+       on it. Renaming rewrites its references inside the draft.
+    5. **Two editors at once**: the second save is refused («Otra persona
+       guardó este borrador; recarga para ver sus cambios») instead of
+       overwriting the first.
+    6. **Categories are managed only on their screen**, not from the grid;
+       an import may still create them when accepted in its review. A
+       category or a value can be renamed always, and deleted only if no
+       draft, save point or release ever used it. The message says why:
+       releases never change, so what was used once can never be deleted.
+    7. **Paste is a text box that replaces the whole draft** through the
+       review (§6 import rules). **Pasting a block straight onto the grid's
+       cells is out of scope, not ruled out**: it is the first thing
+       someone will try, and it is the first candidate if the editor grows.
+    8. **No «Copiar tabla»** (the prototype's copy to clipboard): exporting
+       already covers that path.
+- Reason: SPEC §11 phase 5; owner's approval.
+- Spec sections affected: 5 (Flow colour, Tags with categories), 6, 8, 9
+  (Administration screens).
+
 ## 2026-11-16 — Administration screens as tables (phase 4.4, redone)
 
 - Decision: areas, users and flows follow the one pattern of SPEC §9

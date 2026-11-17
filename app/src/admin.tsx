@@ -18,6 +18,8 @@ export function AdminList(props: {
   // Said instead of the table when it has no rows: what it is for, and how
   // to add the first one.
   empty: { purpose: string; howToAdd: string };
+  // A line under the title, for what the list's order or rows mean.
+  note?: string;
   error?: string;
 }) {
   return (
@@ -30,35 +32,41 @@ export function AdminList(props: {
           </a>
         )}
       </div>
+      {props.note && <p class="muted admin-subtitle">{props.note}</p>}
       <Messages error={props.error} />
-      {props.rows.length ? (
-        <div class="table-frame">
-          <div class="table-scroll" data-table-scroll>
-            <table class="admin-table">
-              <thead>
-                <tr>
-                  {props.columns.map((c) => (
-                    <th scope="col" class={c.numeric ? "num" : undefined}>
-                      {c.label}
-                    </th>
-                  ))}
-                  <th scope="col" class="admin-actions">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody>{props.rows}</tbody>
-            </table>
-          </div>
-          <script type="module" src="/js/table-scroll.js"></script>
-        </div>
-      ) : (
-        <div class="card admin-empty">
-          <p>{props.empty.purpose}</p>
-          <p class="muted">{props.empty.howToAdd}</p>
-        </div>
-      )}
+      <AdminTable columns={props.columns} rows={props.rows} empty={props.empty} />
     </>
+  );
+}
+
+// The table alone, for a list inside another page (a category's values).
+export function AdminTable(props: { columns: Column[]; rows: Child[]; empty: { purpose: string; howToAdd: string } }) {
+  return props.rows.length ? (
+    <div class="table-frame">
+      <div class="table-scroll" data-table-scroll>
+        <table class="admin-table">
+          <thead>
+            <tr>
+              {props.columns.map((c) => (
+                <th scope="col" class={c.numeric ? "num" : undefined}>
+                  {c.label}
+                </th>
+              ))}
+              <th scope="col" class="admin-actions">
+                Acciones
+              </th>
+            </tr>
+          </thead>
+          <tbody>{props.rows}</tbody>
+        </table>
+      </div>
+      <script type="module" src="/js/table-scroll.js"></script>
+    </div>
+  ) : (
+    <div class="card admin-empty">
+      <p>{props.empty.purpose}</p>
+      <p class="muted">{props.empty.howToAdd}</p>
+    </div>
   );
 }
 
