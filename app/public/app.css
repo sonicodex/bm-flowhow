@@ -1330,3 +1330,12 @@ textarea:focus-visible,
 .editor-review > h2:focus {
   outline: none;
 }
+
+/* The preview folded away (SPEC §6): the grid takes the whole width. */
+.editor-cols.is-folded {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.editor-preview[hidden] {
+  display: none;
+}

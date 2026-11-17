@@ -36,8 +36,16 @@ describe("the editor page (phase 5.3)", () => {
     expect(html).toContain(`<a href="/flows/${id}/details">Datos del flujo</a>`);
     expect(html).toContain(`<a href="/flows/${id}/save-points">Puntos guardados</a>`);
     expect(data!.base).toMatch(/^release:\d+$/);
-    // The preview beside the grid, in the flow's colour (phase 5.4).
-    expect(html).toContain('<aside class="card editor-preview" aria-labelledby="preview-title"><h2 id="preview-title">Vista previa</h2>');
+    // The preview beside the grid, in the flow's colour (phase 5.4),
+    // folded away until opened (SPEC §6), remembered per person.
+    expect(html).toContain('<div class="editor-cols is-folded">');
+    expect(html).toContain(
+      '<aside class="card editor-preview" id="preview-card" aria-labelledby="preview-title" hidden=""><h2 id="preview-title">Vista previa</h2>',
+    );
+    expect(html).toContain(
+      '<button type="button" class="button-secondary" data-preview-toggle="true" aria-expanded="false" aria-controls="preview-card">Mostrar vista previa</button>',
+    );
+    expect(data!.userId).toBe(board.id);
     expect(html).toContain('<div class="diagram-scroll" id="preview"></div>');
     const colour = await env.DB.prepare("SELECT colour FROM flows WHERE id = ?").bind(id).first<number>("colour");
     expect(data!.colour).toBe(colour);

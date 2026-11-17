@@ -14,6 +14,50 @@ Entry format:
 
 ---
 
+## 2026-11-17 — The live preview starts folded away (SPEC §6)
+
+- Decision:
+  - **The owner changed SPEC §6:** the preview starts folded away,
+    because the grid needs the width more. With the preview open on a
+    small screen, the editing columns are squeezed and typing a row
+    means scrolling sideways.
+  - **The control is a button in the editor's toolbar**, «Mostrar vista
+    previa» / «Ocultar vista previa», with `aria-expanded` and
+    `aria-controls`.
+  - **Folded, the grid takes the whole width.** Nothing is laid out until
+    the preview opens; opening draws the current grid at once.
+  - **The choice is remembered per person and per device** (the owner's
+    answer). It lives in the browser's `localStorage`, under a key that
+    carries the user's id (`flowhow.editor.preview.<id>`). So:
+    - on a large screen, the person opens it once and it stays open;
+    - on their phone, it stays folded unless they open it there;
+    - two people sharing a computer each keep their own choice.
+    Only «open» is stored. Without storage (private window, site data
+    cleared) the editor simply starts folded every time.
+    Remembering it on the server, which would add a migration, was not
+    chosen: it would follow the person to every device, opening the
+    preview on the phone too.
+  - Measured at 1280 px wide on Instalaciones, the columns fully in view
+    without scrolling sideways:
+    - folded: Fila, ID, Tipo, Flujo, Título, Descripción and
+      Responsable;
+    - open: up to Título.
+    On a phone (390 px) the preview was already below the grid, so
+    folding it changes nothing there: Fila, ID and Tipo fit either way.
+    The squeeze the change removes happens between the phone and a large
+    screen.
+  - Browser check: `app/.layout-check/preview-fold/check.mjs` on
+    Instalaciones, nothing saved. It covers:
+    - folded on the first visit;
+    - opened, stored under the user's id, still open after a reload;
+    - a step clicked on the diagram goes to its row;
+    - closed, the key removed, folded after a reload;
+    - desktop and phone, with no horizontal page scroll.
+- Reason: SPEC §6, as changed by the owner on 2026-11-17.
+- Spec sections affected: 6.
+
+---
+
 ## 2026-11-17 — Phase 5 closed: the editor (phase 5.9)
 
 - Decision:
@@ -244,6 +288,8 @@ Entry format:
 ## 2026-11-17 — Live preview beside the grid (phase 5.4)
 
 - Decision:
+  - *Superseded in part on 2026-11-17 by «The live preview starts folded
+    away»: the card is no longer always open.*
   - **The viewer's own diagram** (`layoutFlow`, `renderDiagram`), in the
     flow's colour, read-only, in a card beside the grid: two columns,
     3 : 2, as in the prototype. The card stays in view while the grid

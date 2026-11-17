@@ -21,6 +21,8 @@ export const editor = new Router();
 // What public/js/editor.js starts from.
 export type EditorData = {
   flowId: number;
+  // Whose choice of preview, open or folded, this device remembers (§6).
+  userId: number;
   name: string;
   // Palette slot, for the preview (§9: the flow colour drives the diagram).
   colour: number;
@@ -42,7 +44,7 @@ export type EditorData = {
   areas: number;
 };
 
-async function editorData(db: D1Database, flow: FlowRow): Promise<{ data: EditorData; opened: Opened; version: string | null }> {
+async function editorData(db: D1Database, flow: FlowRow, userId: number): Promise<{ data: EditorData; opened: Opened; version: string | null }> {
   const [opened, entries, index, ids, latest, areas] = await Promise.all([
     openDraft(db, flow.id),
     flowEntries(db),
@@ -72,6 +74,7 @@ async function editorData(db: D1Database, flow: FlowRow): Promise<{ data: Editor
     version: latest,
     data: {
       flowId: flow.id,
+      userId,
       name: flow.name,
       colour: flow.colour,
       grid: opened.grid,
@@ -146,7 +149,10 @@ function EditorPage({
           takes the place of the grid until the import is applied or
           dropped. */}
       <section class="editor-review" id="import-review" aria-labelledby="review-title" hidden></section>
-      <div class="editor-cols">
+      {/* SPEC §6: the preview starts folded away, so the grid has the
+          width; editor.js opens it if this person opened it before on this
+          device. */}
+      <div class="editor-cols is-folded">
         <div class="editor-main">
           <div class="editor-toolbar">
             <button type="button" class="button-secondary" data-add>
@@ -157,6 +163,9 @@ function EditorPage({
             </button>
             <button type="button" class="button-secondary" data-export>
               Exportar a Excel
+            </button>
+            <button type="button" class="button-secondary" data-preview-toggle aria-expanded="false" aria-controls="preview-card">
+              Mostrar vista previa
             </button>
           </div>
           <div class="table-frame">
@@ -178,7 +187,7 @@ function EditorPage({
         </div>
         {/* SPEC §6: a read-only diagram next to the grid, redrawn while
             editing (phase 5.4). Below the grid on a narrow screen. */}
-        <aside class="card editor-preview" aria-labelledby="preview-title">
+        <aside class="card editor-preview" id="preview-card" aria-labelledby="preview-title" hidden>
           <h2 id="preview-title">Vista previa</h2>
           <p class="muted">Toca un paso para ir a su fila.</p>
           <div class="diagram-scroll" id="preview"></div>
@@ -231,7 +240,7 @@ function ImportBox() {
 editor.get("/:id{[0-9]+}/edit", "editor", async (c) => {
   const flow = await getFlow(c.env.DB, Number(c.req.param("id")));
   if (!flow) return c.notFound();
-  const { data, opened, version } = await editorData(c.env.DB, flow);
+  const { data, opened, version } = await editorData(c.env.DB, flow, c.get("user")!.id);
   const versionIn = (key: string) => (/^\d{1,6}\.\d{1,6}$/.test(c.req.query(key) ?? "") ? c.req.query(key) : null);
   const published = versionIn("publicada");
   const restored = versionIn("restaurada");

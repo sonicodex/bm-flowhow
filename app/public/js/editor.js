@@ -19,6 +19,8 @@ const statusEl = document.getElementById('save-status');
 const saveButton = document.querySelector('[data-save]');
 const addButton = document.querySelector('[data-add]');
 const preview = document.getElementById('preview');
+const previewCard = document.getElementById('preview-card');
+const previewToggle = document.querySelector('[data-preview-toggle]');
 const importBox = document.getElementById('import-box');
 const importButton = document.querySelector('[data-import]');
 const reviewEl = document.getElementById('import-review');
@@ -153,6 +155,8 @@ if (dataEl && table) {
   let selected = '';
 
   function drawPreview(flow) {
+    // Folded away: nothing is laid out until it opens.
+    if (previewCard.hidden) return;
     const key = diagramKey(flow);
     if (key === drawn) return;
     drawn = key;
@@ -175,6 +179,36 @@ if (dataEl && table) {
     const at = node.getBoundingClientRect();
     if (at.top < box.top || at.bottom > box.bottom) preview.scrollTop += at.top - box.top - (box.height - at.height) / 2;
     if (at.left < box.left || at.right > box.right) preview.scrollLeft += at.left - box.left - (box.width - at.width) / 2;
+  }
+
+  // Open or folded (SPEC §6): folded by default, so the grid has the width.
+  // The choice is remembered per person on this device: a large screen
+  // opens it once, a phone keeps it folded. Storage may be unavailable;
+  // then it simply starts folded every time.
+  const previewKey = `flowhow.editor.preview.${data.userId}`;
+  function showPreview(open, remember) {
+    previewCard.hidden = !open;
+    cols.classList.toggle('is-folded', !open);
+    previewToggle.setAttribute('aria-expanded', String(open));
+    previewToggle.textContent = open ? 'Ocultar vista previa' : 'Mostrar vista previa';
+    if (remember) {
+      try {
+        if (open) localStorage.setItem(previewKey, 'open');
+        else localStorage.removeItem(previewKey);
+      } catch {
+        // Not remembered; the editor works the same.
+      }
+    }
+    if (open) {
+      drawn = null;
+      drawPreview(compileGrid(grid, ctx).flow);
+    }
+  }
+  previewToggle.addEventListener('click', () => showPreview(previewCard.hidden, true));
+  try {
+    if (localStorage.getItem(previewKey) === 'open') showPreview(true, false);
+  } catch {
+    // Starts folded.
   }
 
   table.addEventListener('focusin', (ev) => {
