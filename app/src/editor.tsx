@@ -246,6 +246,8 @@ editor.get("/:id{[0-9]+}/edit", "editor", async (c) => {
     `El borrador volvió a la versión ${restored}, la que todos ven. Tus cambios anteriores siguen en los puntos guardados.`
   ) : restored ? (
     `El borrador ahora tiene el contenido de la versión ${restored}. Nadie lo ve todavía: publícalo para que vuelva a ser el que todos ven; será una versión nueva.`
+  ) : c.req.query("creado") === "1" ? (
+    "Flujo creado. Escribe sus pasos en la tabla con «Agregar paso», o tráelos de Excel con «Importar desde Excel»."
   ) : c.req.query("importado") === "1" ? (
     "Importado al borrador. Revísalo aquí; nadie lo ve hasta que lo publiques."
   ) : undefined;

@@ -67,7 +67,7 @@ function NewFlowPage({ value, error }: { value: string; error?: string }) {
     <AdminForm back={BACK} title="Nuevo flujo" error={error} action="/flows" submit="Crear flujo">
       <label for="flow-name">Nombre</label>
       <input id="flow-name" name="name" value={value} required maxlength={100} />
-      <p class="muted">Nace sin publicar. En «Editar» le das sus pasos, y desde ahí, en «Datos del flujo», su objetivo, color y áreas.</p>
+      <p class="muted">Nace sin publicar. Al crearlo pasas a su editor, donde le das sus pasos; su objetivo, color y áreas van en «Datos del flujo».</p>
     </AdminForm>
   );
 }
@@ -83,7 +83,9 @@ flowsScreen.post("/", "editor", async (c) => {
     c.status(422);
     return c.render(<NewFlowPage value={name.trim()} error={r.error} />, { title: "Nuevo flujo" });
   }
-  return c.redirect("/flows", 303);
+  // A new flow has no steps: its editor is where they are written or
+  // imported (phase 5.9).
+  return c.redirect(`/flows/${r.id}/edit?creado=1`, 303);
 });
 
 async function flowOf(c: { env: Env; req: { param: (k: string) => string | undefined } }) {

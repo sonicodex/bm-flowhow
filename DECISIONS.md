@@ -14,6 +14,45 @@ Entry format:
 
 ---
 
+## 2026-11-17 — Phase 5 closed: the editor (phase 5.9)
+
+- Decision:
+  - **Creating a flow leads to its editor**
+    (`/flows/:id/edit?creado=1`), not back to the list, as 5.3 left
+    pending. A new flow has no steps, and the editor is where they are
+    written or imported. The editor says how: «Agregar paso» or
+    «Importar desde Excel». The new flow form's hint says it too.
+  - **The access table** (`test/access.test.ts`) holds every route the
+    phase added, all `editor`:
+    - the editor and the draft's save and import review;
+    - publishing;
+    - save points and versions, with their restore routes;
+    - the categories screens.
+    The test walks each route as each role.
+  - **DEPLOY.md** gains what to measure for the editor after deploying:
+    its save, import review and publish on the largest real flow.
+  - **CLAUDE.md** lists `xlsx-write.js` beside the reader.
+  - **End-to-end browser check**: `app/.layout-check/5.9/check.mjs`, on
+    a throwaway flow, deleted afterwards (it left no tour runs). It
+    walks the Board's path:
+    1. Create the flow from the list, landing on its editor.
+    2. Download the template, then import Flujo_Apertura_OT.xlsx
+       (36 steps, a link to Instalaciones) through the review.
+    3. Add a step connected from «Depende de», drawn in the preview,
+       and save with Ctrl+S.
+    4. Publish: the panel asks for an area, set in the flow form, then
+       1.0.
+    5. A change, then 1.1.
+    6. Restore 1.0 from «Versiones», published as 1.2.
+    7. The flows list shows 1.2, with no draft. The local `empleado`
+       (area Desarrollo) finds the flow on the home screen, and gets
+       403 on the editor and on publishing.
+    The editor, desktop and phone, with no horizontal page scroll.
+  - Local state found during the check and left untouched: «Apertura de
+    OT» and «Prueba» have drafts from 2026-11-12, from before phase 5.
+- Reason: phase 5 plan, slice 5.9.
+- Spec sections affected: 6, 8, 9.
+
 ## 2026-11-17 — Versions and «Restaurar» (phase 5.8)
 
 - Decision:

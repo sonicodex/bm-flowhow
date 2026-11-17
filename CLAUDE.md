@@ -23,6 +23,9 @@ Working notes for Claude Code agents on this repo. Keep it short.
 - `app/public/js/xlsx.js` — the .xlsx reader, shared by the browser and
   `app/tools/`. It refuses what it does not understand instead of guessing,
   and every message tells the user to paste from Excel instead.
+- `app/public/js/xlsx-write.js` — the .xlsx writer behind the template and
+  the export. It writes only what `xlsx.js` reads back; the round trip is
+  `app/test/xlsx-write.test.js`.
 - `app/public/theme.css`, `flowhow_logotype.svg`, `fonts/`, `icons/` — the
   owner's design tokens and assets, served as they are. Do not edit.
 

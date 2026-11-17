@@ -78,6 +78,11 @@ With `npx wrangler tail` while using the app:
   the owner's: do not lower it silently.
 - The tour requests and, in phase 6, the progress report, as DECISIONS
   2026-11-12 (deployment check) asks.
+- The editor's writes on the largest real flow (Apertura de OT, 36
+  steps): `POST /flows/:id/draft` (the save, which reviews the whole
+  grid), `/draft/review` (the import's review) and `/publish`. Each one
+  validates the flow and loads every other flow's latest release, to
+  check links.
 
 ## 6. After every deployment
 

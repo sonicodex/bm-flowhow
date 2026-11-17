@@ -49,7 +49,13 @@ describe("administration screens (phase 4.4)", () => {
 
   it("creates a flow from its own form, which keeps what was typed when refused", async () => {
     const board = await signIn();
-    expect((await board.fetch("/flows", { method: "POST", body: new URLSearchParams({ name: "Ventas" }) })).headers.get("location")).toBe("/flows");
+    // Straight to its editor, where its steps are written or imported (phase 5.9).
+    const created = await board.fetch("/flows", { method: "POST", body: new URLSearchParams({ name: "Ventas" }) });
+    const id = (await env.DB.prepare("SELECT id FROM flows WHERE name = 'Ventas'").first<number>("id"))!;
+    expect(created.headers.get("location")).toBe(`/flows/${id}/edit?creado=1`);
+    expect(await (await board.fetch(`/flows/${id}/edit?creado=1`)).text()).toContain(
+      "Flujo creado. Escribe sus pasos en la tabla con «Agregar paso», o tráelos de Excel con «Importar desde Excel».",
+    );
     const res = await board.fetch("/flows", { method: "POST", body: new URLSearchParams({ name: "VENTAS" }) });
     expect(res.status).toBe(422);
     const html = await res.text();
