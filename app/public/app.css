@@ -703,6 +703,9 @@ textarea:focus-visible,
 }
 
 .table-scroll {
+  /* Positioned, so it also clips absolutely placed content (a visually
+     hidden heading) instead of letting it widen the page. */
+  position: relative;
   overflow-x: auto;
   border-radius: var(--radius);
 }
@@ -936,4 +939,273 @@ textarea:focus-visible,
 
 .swatches .swatch:checked:focus-visible {
   box-shadow: inset 0 0 0 calc(var(--border-width) * 3) var(--color-surface), var(--shadow-focus);
+}
+
+/* Read by screen readers, not drawn. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---- The editor (phase 5.3) ----
+   The step grid, spreadsheet-like: cells look like plain text until the
+   pointer is on their row or they have focus, as in the prototype. The
+   table scrolls sideways inside its frame (.table-frame), never the page. */
+.editor-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.editor-save {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.editor-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.editor-message {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+}
+
+.editor-message.is-error {
+  border-left: calc(var(--border-width) * 3) solid var(--color-status-pending);
+}
+
+.editor-message h2,
+.editor-problems h2 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+}
+
+.editor-message p {
+  margin: 0 0 var(--space-2);
+}
+
+.editor-message-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.editor-hint {
+  max-width: calc(var(--space-10) * 20);
+  font-size: var(--text-sm);
+}
+
+.editor-problems {
+  padding: var(--space-4);
+}
+
+.editor-problems ul {
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.editor-problems li,
+.editor-ok {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-sm);
+}
+
+.editor-problems .button-link {
+  text-align: left;
+}
+
+.step-grid {
+  /* The row number's width, which is also where the frozen ID column starts. */
+  --grid-num-width: calc(var(--space-10) * 1.5);
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: max-content;
+  font-size: var(--text-sm);
+}
+
+.step-grid thead th {
+  padding: var(--space-2);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
+  text-align: left;
+  white-space: nowrap;
+  background: var(--color-subtle);
+}
+
+.step-grid th,
+.step-grid td {
+  box-sizing: border-box;
+}
+
+.step-grid td {
+  padding: var(--space-1) calc(var(--space-1) / 2);
+  vertical-align: top;
+}
+
+.step-grid tbody tr + tr {
+  border-top: var(--border-width) solid var(--color-border);
+}
+
+.step-grid .grid-num {
+  width: var(--grid-num-width);
+  padding: calc(var(--space-2) + var(--space-1)) var(--space-2) var(--space-2);
+  vertical-align: top;
+  color: var(--color-text-muted);
+  font-weight: var(--weight-regular);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.step-grid .c-id { width: calc(var(--space-10) * 2); }
+.step-grid .c-type { width: calc(var(--space-10) * 3); }
+.step-grid .c-ref { width: calc(var(--space-10) * 4); }
+.step-grid .c-title { width: calc(var(--space-10) * 6); }
+.step-grid .c-desc { width: calc(var(--space-10) * 8); }
+.step-grid .c-tag { width: calc(var(--space-10) * 4); }
+.step-grid .c-dep,
+.step-grid .c-exits { width: calc(var(--space-10) * 4); }
+.step-grid .c-remove { width: var(--space-10); }
+
+.step-grid input,
+.step-grid select,
+.step-grid textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--space-10);
+  padding: var(--space-2);
+  font: inherit;
+  color: var(--color-text);
+  background: transparent;
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius);
+  outline: var(--border-width) solid transparent;
+}
+
+/* A title or a description grows with its text, up to a few lines; then
+   it scrolls. */
+.step-grid textarea {
+  display: block;
+  resize: vertical;
+  field-sizing: content;
+  max-height: calc(var(--space-10) * 4);
+}
+
+.step-grid tr:hover input,
+.step-grid tr:hover select,
+.step-grid tr:hover textarea {
+  border-color: var(--color-border);
+}
+
+.step-grid input:focus,
+.step-grid select:focus,
+.step-grid textarea:focus {
+  background: var(--color-surface);
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-focus);
+}
+
+.step-grid select:disabled {
+  color: var(--color-text-muted);
+}
+
+.step-grid input.locked {
+  color: var(--color-text-muted);
+}
+
+/* A row with problems: a bar at its start and an alert icon by its number,
+   never the colour alone. */
+.step-grid tr.has-error .grid-num {
+  box-shadow: inset calc(var(--border-width) * 3) 0 0 var(--color-status-pending);
+}
+
+.step-grid .grid-alert {
+  margin-right: var(--space-1);
+  vertical-align: middle;
+}
+
+.step-grid .grid-empty {
+  padding: var(--space-6);
+  color: var(--color-text-muted);
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-10);
+  height: var(--space-10);
+  padding: 0;
+  color: var(--color-text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  outline: var(--border-width) solid transparent;
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  color: var(--color-text);
+  background: var(--color-subtle);
+}
+
+.icon-button:focus-visible {
+  box-shadow: var(--shadow-focus);
+}
+
+/* The close icon in the text colour around it (SPEC §9: single-colour icons
+   take currentColor), drawn through the SVG as a mask. */
+.icon-close {
+  width: var(--space-3);
+  height: var(--space-3);
+  background: currentColor;
+  mask: url("/icons/close.svg") center / contain no-repeat;
+}
+
+/* Row number and ID stay in view while the grid scrolls sideways, like
+   frozen panes in Excel: past the description, a row still says which step
+   it is. */
+.step-grid .grid-num,
+.step-grid .c-id,
+.step-grid tbody td:nth-child(2) {
+  position: sticky;
+  z-index: 1;
+  background: var(--color-surface);
+}
+
+.step-grid .grid-num {
+  left: 0;
+}
+
+.step-grid .c-id,
+.step-grid tbody td:nth-child(2) {
+  left: var(--grid-num-width);
+}
+
+.step-grid thead .grid-num,
+.step-grid thead .c-id {
+  background: var(--color-subtle);
 }

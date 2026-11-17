@@ -7,6 +7,9 @@ declare module "hono" {
   }
 }
 
+// JSON inside <script>: "<" is escaped so no text in a step can close it.
+export const scriptJson = (value: unknown) => JSON.stringify(value).replace(/</g, "\\u003c");
+
 // The screens the user's permissions open (phase 4.2). Hiding a link is a
 // courtesy: the server refuses the route anyway (src/access.tsx).
 function Nav() {

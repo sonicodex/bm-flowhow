@@ -99,11 +99,14 @@ export async function saveFlowDetails(db: D1Database, id: number, details: FlowD
   return { ok: true };
 }
 
-// Every flow, for resolving target names (ignoring case and accents) and for
-// validateRefs(): `lib(id)` gives the flow's name and its latest release.
-export async function flowCatalog(db: D1Database): Promise<{ resolve: (name: string) => number | null; lib: FlowLib }> {
+// Every flow with its name and latest release, reduced to what
+// validateRefs() follows (types and refs). The editor sends this list to the
+// browser, so the grid is checked there with the same rules (phase 5.3).
+export type FlowListEntry = { id: number; name: string; key: string; published: Flow | null };
+
+export async function flowEntries(db: D1Database): Promise<FlowListEntry[]> {
   const [flows, latest] = await db.batch<Record<string, unknown>>([
-    db.prepare("SELECT id, name, name_key FROM flows"),
+    db.prepare("SELECT id, name, name_key FROM flows ORDER BY name_key"),
     db.prepare(
       `SELECT flow_id, document FROM (
          SELECT flow_id, document, ROW_NUMBER() OVER (PARTITION BY flow_id ORDER BY major DESC, minor DESC) AS n
@@ -111,20 +114,21 @@ export async function flowCatalog(db: D1Database): Promise<{ resolve: (name: str
     ),
   ]);
   const published = new Map(latest.results.map((r) => [r.flow_id as number, JSON.parse(r.document as string) as FlowDocument]));
-  const byKey = new Map(flows.results.map((f) => [f.name_key as string, f.id as number]));
-  const byId = new Map<number, FlowEntry>(
-    flows.results.map((f) => {
-      const doc = published.get(f.id as number);
-      // validateRefs() only follows types and refs of a published flow.
-      const flow = doc && {
-        name: f.name as string,
-        objective: "",
-        categories: [],
-        steps: doc.steps.map((s) => ({ ...s, tags: {} })),
-      };
-      return [f.id as number, { name: f.name as string, published: flow ?? null }];
-    }),
-  );
+  return flows.results.map((f) => {
+    const doc = published.get(f.id as number);
+    const flow: Flow | null = doc
+      ? { name: f.name as string, objective: "", categories: [], steps: doc.steps.map((s) => ({ ...s, tags: {} })) }
+      : null;
+    return { id: f.id as number, name: f.name as string, key: f.name_key as string, published: flow };
+  });
+}
+
+// Every flow, for resolving target names (ignoring case and accents) and for
+// validateRefs(): `lib(id)` gives the flow's name and its latest release.
+export async function flowCatalog(db: D1Database): Promise<{ resolve: (name: string) => number | null; lib: FlowLib }> {
+  const entries = await flowEntries(db);
+  const byKey = new Map(entries.map((f) => [f.key, f.id]));
+  const byId = new Map<number, FlowEntry>(entries.map((f) => [f.id, { name: f.name, published: f.published }]));
   return {
     resolve: (name) => byKey.get(nameKey(name)) ?? null,
     lib: (id) => byId.get(id) ?? null,

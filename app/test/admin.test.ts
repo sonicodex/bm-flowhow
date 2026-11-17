@@ -44,7 +44,7 @@ describe("administration screens (phase 4.4)", () => {
       ["Instalaciones", "1.0", "No", "Desarrollo", "Ver Editar Importar"],
     ]);
     const { id, colour } = (await env.DB.prepare("SELECT id, colour FROM flows WHERE name = 'Instalaciones'").first<{ id: number; colour: number }>())!;
-    expect(html).toContain(`<a class="admin-name flow-${colour}" href="/flows/${id}/details"><span class="flow-dot" aria-hidden="true"></span>Instalaciones</a>`);
+    expect(html).toContain(`<a class="admin-name flow-${colour}" href="/flows/${id}/edit"><span class="flow-dot" aria-hidden="true"></span>Instalaciones</a>`);
   });
 
   it("creates a flow from its own form, which keeps what was typed when refused", async () => {
@@ -68,13 +68,14 @@ describe("administration screens (phase 4.4)", () => {
       "/users/new": "/users",
       [`/users/${board.id}`]: "/users",
       "/flows/new": "/flows",
-      [`/flows/${flow.id}/details`]: "/flows",
+      // The flow form belongs to the editor (phase 5.3): it goes back there.
+      [`/flows/${flow.id}/details`]: `/flows/${flow.id}/edit`,
     };
     for (const [path, back] of Object.entries(forms)) {
       const html = await (await board.fetch(path)).text();
       const main = html.slice(html.indexOf('<main class="site-main">'));
       // First thing in the page: the way back to its list.
-      expect(main, path).toMatch(new RegExp(`^<main class="site-main"><p class="admin-back"><a href="${back}">← Volver a `));
+      expect(main, path).toMatch(new RegExp(`^<main class="site-main"><p class="admin-back"><a href="${back}">← Volver a`));
       // Last thing in the form: its one save button.
       expect(main, path).toMatch(/<div class="admin-submit"><button type="submit" class="button-primary">[^<]+<\/button><\/div><\/form>/);
     }

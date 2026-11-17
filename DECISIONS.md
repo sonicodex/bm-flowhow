@@ -14,6 +14,77 @@ Entry format:
 
 ---
 
+## 2026-11-17 — The step grid (phase 5.3)
+
+- Decision:
+  - **`/flows/:id/edit`** (`editor`) is the editor. The flows list's name
+    and «Editar» open it; the flow form («Datos del flujo») and the save
+    points go back to it. The import screen is still the provisional one,
+    linked from the editor, until 5.5. Creating a flow still returns to
+    the list (5.9).
+  - **One row per step**, columns: Fila (the spreadsheet's row number, as
+    every message counts rows), ID, Tipo (selector), Flujo (selector of
+    the other flows, enabled only for Enlace and Subflujo), Título,
+    Descripción, one column per category, Depende de, Salidas, and a
+    button to take the step out. Fila and ID stay frozen while the grid
+    scrolls sideways, so a row still says which step it is. Title and
+    description grow with their text; Enter moves down the column, as in a
+    spreadsheet, except in a description, where it starts a line.
+  - The page embeds what the script needs as JSON (`EditorData`): the
+    grid and base of 5.2, the ids any release of the flow holds, every
+    flow with its latest release reduced to types and refs
+    (`flowEntries`, now shared with `flowCatalog`), each category's
+    values, and the type labels. `scriptJson` moved to `layout.tsx`, one
+    copy for the viewer and the editor.
+  - **`public/js/grid-edit.js`** holds the operations, tested in the
+    Workers runtime (`test/grid-edit.test.js`); `editor.js` is the page
+    wiring, checked in the browser:
+    - **The same check as the server**: `checkGrid` runs `gridToDraft`,
+      `compile` and `validate` with the same flows, names compared as
+      `core.js` does. Rows with problems get a bar and an alert icon by
+      their number. Below the grid, the problems in two lists: «Antes de
+      guardar» (what blocks a save) and «Para publicar»; each one with a
+      row is a button that goes to it.
+    - **Depende de** is computed from the exits; editing it rewrites the
+      predecessors' exits on leaving the cell (`applyDependsOn`), an
+      unknown id is said and changes nothing. Editing Salidas refreshes
+      every Depende de as you type.
+    - **IDs** (answer 4): a new step gets `P` and the next number after
+      every `P<n>` in the grid and in any release, so a removed published
+      step never lends its id, and its readers' progress, to a new one.
+      A published id is read-only, with the reason in its tooltip and in
+      the hint under the grid. Renaming any other rewrites the exits that
+      pointed at it; a blank id, a taken one, or one with spaces or the
+      separators `| ; : ,` is refused with the reason.
+    - **Suggestions** (answer 3): one shared `<datalist>`, refilled for
+      the cell in focus. Tag cells offer the category's values; exits and
+      Depende de offer the other steps' ids with their titles. Both
+      complete the last part of the cell and keep what came before,
+      branch labels included («Sí:P1 | No:»).
+    - **Taking a step out** is immediate, with «Deshacer» in the message
+      that says so.
+    - **Saving** (answer 1): «Guardar», or Ctrl/Cmd+S, enabled only with
+      changes; «Cambios sin guardar» meanwhile, «Guardado a las …» after,
+      and the browser's own warning on leaving with changes. A save
+      refused locally for what blocks is not sent. New values (answer 2)
+      open a panel with a checkbox each, checked; «Crear y guardar» drops
+      the unchecked ones from the cells too, so the screen matches what
+      the server keeps. A conflict (answer 5) offers «Recargar» and says
+      that unsaved changes are lost.
+  - **Fixed**: `.table-scroll` is positioned now. Without it, an
+    absolutely placed, visually hidden heading escaped the scroll box's
+    clipping and widened the page on a phone.
+  - The close icon is drawn through its SVG as a CSS mask, so it takes the
+    text colour (§9); an `<img>` cannot.
+  - Browser check: `app/.layout-check/5.3/check.mjs` builds a flow in the
+    grid as a person would (four steps, connections from both sides, an
+    unknown id, a new value rejected, a rename, a removal undone, saving,
+    reloading), on desktop and phone with no horizontal scroll and no
+    page errors. The throwaway flow was deleted from the local D1.
+- Reason: phase 5 plan, slice 5.3, with the owner's answers 1 to 5; SPEC
+  §6 (step grid, connect from either side, ease of use).
+- Spec sections affected: 6.
+
 ## 2026-11-17 — The draft on the server (phase 5.2)
 
 - Decision:

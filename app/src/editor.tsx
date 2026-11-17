@@ -1,13 +1,144 @@
-import { Router } from "./access.tsx";
-import { AdminList, RowActions, yesNo } from "./admin.tsx";
-import { listSavePoints, restoreSavePoint, saveDraft, type SaveAnswer, type SavePoint } from "./draft.ts";
-import { getFlow } from "./flows.ts";
-import type { AppEnv } from "./session.ts";
 import type { Context } from "hono";
+import { raw } from "hono/html";
+import Core from "../public/js/core.js";
+import { Router } from "./access.tsx";
+import { scriptJson } from "./layout.tsx";
+import { AdminList, RowActions, yesNo } from "./admin.tsx";
+import { loadTagIndex } from "./document.ts";
+import { listSavePoints, openDraft, restoreSavePoint, saveDraft, type Opened, type SaveAnswer, type SavePoint } from "./draft.ts";
+import { flowEntries, getFlow, type FlowListEntry, type FlowRow } from "./flows.ts";
+import type { AppEnv } from "./session.ts";
 
-// The editor's routes (SPEC §6, §8; phase 5). Editors only. 5.2: saving the
-// draft, and its save points. The grid screen that uses them is 5.3.
+// The editor (SPEC §6, §8; phase 5). Editors only: the step grid (5.3),
+// saving the draft and its save points (5.2).
 export const editor = new Router();
+
+
+// What public/js/editor.js starts from.
+export type EditorData = {
+  flowId: number;
+  name: string;
+  grid: Opened["grid"];
+  base: string;
+  // Ids that some release of this flow holds: they stay as they are
+  // (phase 5 plan, answer 4), and a new step never reuses one.
+  lockedIds: string[];
+  // Every flow, for the Flujo selector and for checking links as the
+  // server does.
+  flows: Omit<FlowListEntry, "key">[];
+  // Each category's values, for the cells' suggestions.
+  values: Record<string, string[]>;
+  types: { value: string; label: string }[];
+};
+
+async function editorData(db: D1Database, flow: FlowRow): Promise<{ data: EditorData; opened: Opened; version: string | null }> {
+  const [opened, entries, index, ids, latest] = await Promise.all([
+    openDraft(db, flow.id),
+    flowEntries(db),
+    loadTagIndex(db),
+    db
+      .prepare(
+        `SELECT DISTINCT json_extract(s.value, '$.id') AS id
+         FROM releases r, json_each(r.document, '$.steps') s WHERE r.flow_id = ?`,
+      )
+      .bind(flow.id)
+      .all<{ id: string }>(),
+    db
+      .prepare("SELECT major || '.' || minor AS v FROM releases WHERE flow_id = ? ORDER BY major DESC, minor DESC LIMIT 1")
+      .bind(flow.id)
+      .first<string>("v"),
+  ]);
+  const values: Record<string, string[]> = {};
+  for (const c of index.categories) {
+    values[c.name] = index.tags
+      .filter((t) => t.categoryId === c.id)
+      .map((t) => t.name)
+      .sort((a, b) => a.localeCompare(b, "es-CO"));
+  }
+  return {
+    opened,
+    version: latest,
+    data: {
+      flowId: flow.id,
+      name: flow.name,
+      grid: opened.grid,
+      base: opened.base,
+      lockedIds: ids.results.map((r) => r.id).filter((id) => typeof id === "string"),
+      flows: entries.map(({ key: _k, ...f }) => f),
+      values,
+      types: Core.TYPES.map((t: string) => ({ value: t, label: (Core.TYPE_LABELS as Record<string, string>)[t]! })),
+    },
+  };
+}
+
+// One line under the title: what the grid holds and who sees it.
+function sourceLine(source: Opened["source"], version: string | null) {
+  if (!version) return "Este flujo todavía no se ha publicado: nadie lo ve hasta que lo publiques.";
+  if (source === "release") return `Estás viendo la versión publicada ${version}. Al guardar se crea un borrador; nadie lo ve hasta que lo publiques.`;
+  return `Borrador sobre la versión publicada ${version}. Nadie lo ve hasta que lo publiques.`;
+}
+
+function EditorPage({ flow, data, source, version }: { flow: FlowRow; data: EditorData; source: Opened["source"]; version: string | null }) {
+  return (
+    <section class={`editor flow-${flow.colour}`}>
+      <p class="admin-back">
+        <a href="/flows">← Volver a flujos</a>
+      </p>
+      <div class="admin-head">
+        <h1 class="page-title editor-title">
+          <span class="flow-dot" aria-hidden="true"></span>
+          {flow.name}
+        </h1>
+        <div class="editor-save">
+          <span id="save-status" class="muted" role="status"></span>
+          <button type="button" class="button-primary" data-save disabled>
+            Guardar
+          </button>
+        </div>
+      </div>
+      <p class="muted admin-subtitle">{sourceLine(source, version)}</p>
+      <nav class="editor-links" aria-label="Del flujo">
+        <a href={`/flows/${flow.id}/details`}>Datos del flujo</a>
+        <a href={`/flows/${flow.id}/save-points`}>Puntos guardados</a>
+        <a href={`/flows/${flow.id}/import`}>Importar desde Excel</a>
+      </nav>
+      <div id="editor-panel"></div>
+      <div class="editor-toolbar">
+        <button type="button" class="button-secondary" data-add>
+          Agregar paso
+        </button>
+      </div>
+      <div class="table-frame">
+        <div class="table-scroll" data-table-scroll>
+          <table class="step-grid" id="step-grid">
+            <noscript>
+              <caption class="form-error">La tabla de pasos necesita JavaScript.</caption>
+            </noscript>
+          </table>
+        </div>
+      </div>
+      <p class="muted editor-hint">
+        Conecta los pasos por cualquiera de los dos lados: en <strong>Depende de</strong> escribe el ID del paso anterior, o en{" "}
+        <strong>Salidas</strong> el del siguiente; la otra columna se actualiza sola. Con varias, sepáralas con | y, en una decisión,
+        rotúlalas: <code>Sí:P5 | No:P4</code>. En las categorías, separa varios valores con coma. Los pasos ya publicados conservan su ID:
+        el avance de las personas depende de él.
+      </p>
+      <section class="card editor-problems" id="problems" aria-live="polite"></section>
+      <script type="application/json" id="editor-data">
+        {raw(scriptJson(data))}
+      </script>
+      <script type="module" src="/js/editor.js"></script>
+      <script type="module" src="/js/table-scroll.js"></script>
+    </section>
+  );
+}
+
+editor.get("/:id{[0-9]+}/edit", "editor", async (c) => {
+  const flow = await getFlow(c.env.DB, Number(c.req.param("id")));
+  if (!flow) return c.notFound();
+  const { data, opened, version } = await editorData(c.env.DB, flow);
+  return c.render(<EditorPage flow={flow} data={data} source={opened.source} version={version} />, { title: `Editar ${flow.name}` });
+});
 
 const flowOf = async (c: Context<AppEnv>) => getFlow(c.env.DB, Number(c.req.param("id")));
 
@@ -35,7 +166,7 @@ editor.post("/:id{[0-9]+}/draft", "editor", async (c) => {
 function SavePointsPage({ flow, points, notice }: { flow: { id: number; name: string }; points: SavePoint[]; notice?: string }) {
   return (
     <AdminList
-      back={{ href: "/flows", label: "Volver a flujos" }}
+      back={{ href: `/flows/${flow.id}/edit`, label: "Volver al editor" }}
       title={`Puntos guardados: ${flow.name}`}
       note="Volver a un punto pone su contenido en el borrador. Los demás puntos se quedan, también los posteriores. Al publicar se borran todos."
       notice={notice}

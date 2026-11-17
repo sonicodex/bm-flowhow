@@ -3,6 +3,7 @@ import type { Flow } from "../public/js/core.js";
 import type { Action } from "../public/js/tour-log.js";
 import { getFlow, latestRelease, type FlowRow } from "./flows.ts";
 import { Router } from "./access.tsx";
+import { scriptJson } from "./layout.tsx";
 import { userOf } from "./session.ts";
 import { StatusLine } from "./status.tsx";
 import { finishTour, restartTour, reviewStatus, startTour, takeStep, type ReviewStatus } from "./tour.ts";
@@ -13,8 +14,6 @@ import { finishTour, restartTour, reviewStatus, startTour, takeStep, type Review
 // user may not see answers 404 (src/access.tsx).
 export const viewer = new Router();
 
-// JSON inside <script>: "<" is escaped so no text in a step can close it.
-const scriptJson = (value: unknown) => JSON.stringify(value).replace(/</g, "\\u003c");
 
 
 function ViewerPage({ flow, compiled, status }: { flow: FlowRow; compiled: Flow; status: ReviewStatus }) {

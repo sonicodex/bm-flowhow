@@ -1,9 +1,9 @@
-// Checks public/js/core.js, the diagram adapter and the tour log against their JSDoc
+// Checks public/js/core.js, the diagram adapter, the tour log and the grid operations against their JSDoc
 // annotations (checkJs). Not
 // strict: only the functions the server uses carry types; the layout and
 // tour code stay plain JavaScript.
 {
   "extends": "./tsconfig.json",
   "compilerOptions": { "allowJs": true, "checkJs": true, "strict": false },
-  "include": ["public/js/core.js", "public/js/diagram-layout.js", "public/js/tour-log.js", "worker-configuration.d.ts"]
+  "include": ["public/js/core.js", "public/js/diagram-layout.js", "public/js/tour-log.js", "public/js/grid-edit.js", "worker-configuration.d.ts"]
 }

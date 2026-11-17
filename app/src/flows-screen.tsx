@@ -38,7 +38,7 @@ function FlowsPage({ items }: { items: FlowItem[] }) {
       rows={items.map((f) => (
         <tr>
           <td>
-            <a class={`admin-name flow-${f.colour}`} href={`/flows/${f.id}/details`}>
+            <a class={`admin-name flow-${f.colour}`} href={`/flows/${f.id}/edit`}>
               <span class="flow-dot" aria-hidden="true"></span>
               {f.name}
             </a>
@@ -52,7 +52,7 @@ function FlowsPage({ items }: { items: FlowItem[] }) {
                 Ver
               </a>
             )}
-            <a href={`/flows/${f.id}/details`} aria-label={`Editar ${f.name}`}>
+            <a href={`/flows/${f.id}/edit`} aria-label={`Editar ${f.name}`}>
               Editar
             </a>
             <a href={`/flows/${f.id}/import`} aria-label={`Importar a ${f.name}`}>
@@ -72,7 +72,7 @@ function NewFlowPage({ value, error }: { value: string; error?: string }) {
     <AdminForm back={BACK} title="Nuevo flujo" error={error} action="/flows" submit="Crear flujo">
       <label for="flow-name">Nombre</label>
       <input id="flow-name" name="name" value={value} required maxlength={100} />
-      <p class="muted">Nace sin publicar. Después le das objetivo y áreas en «Editar», y sus pasos en «Importar».</p>
+      <p class="muted">Nace sin publicar. En «Editar» le das sus pasos, y desde ahí, en «Datos del flujo», su objetivo, color y áreas.</p>
     </AdminForm>
   );
 }
@@ -264,7 +264,7 @@ function DetailsPage({
 }) {
   return (
     <AdminForm
-      back={BACK}
+      back={{ href: `/flows/${flow.id}/edit`, label: "Volver al editor" }}
       title={flow.name}
       error={error}
       notice={saved ? "Cambios guardados." : undefined}
