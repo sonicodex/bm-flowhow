@@ -1087,7 +1087,7 @@ textarea:focus-visible,
 .step-grid .c-desc { width: calc(var(--space-10) * 8); }
 .step-grid .c-tag { width: calc(var(--space-10) * 4); }
 .step-grid .c-dep,
-.step-grid .c-exits { width: calc(var(--space-10) * 4); }
+.step-grid .c-exits { width: calc(var(--space-10) * 7); }
 .step-grid .c-remove { width: var(--space-10); }
 
 .step-grid input,
@@ -1134,6 +1134,67 @@ textarea:focus-visible,
 
 .step-grid input.locked {
   color: var(--color-text-muted);
+}
+
+/* "Salidas" of a decision and every "Depende de" (SPEC §6; phase 5.10):
+   one line per branch, a label and a step picker, with its remove button. */
+.step-grid .grid-branches {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.step-grid .grid-branch {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.step-grid .grid-branch [data-k="label"] {
+  flex: 0 0 calc(var(--space-10) * 2.5);
+}
+
+.step-grid .grid-branch select {
+  /* From zero, so a long step title never pushes the remove button out. */
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.step-grid .grid-branch .icon-button {
+  flex: 0 0 auto;
+}
+
+.step-grid .grid-branch-add {
+  align-self: flex-start;
+  margin: var(--space-1) var(--space-2) var(--space-2);
+}
+
+/* On a phone the frozen row number and ID take part of the width: a
+   branch takes two lines there, its label above its step picker, so the
+   whole cell fits beside them. */
+@media (max-width: 760px) {
+  .step-grid .c-dep,
+  .step-grid .c-exits { width: calc(var(--space-10) * 5); }
+
+  .step-grid .grid-branch {
+    flex-wrap: wrap;
+  }
+
+  .step-grid .grid-branch [data-k="label"] {
+    flex-basis: 100%;
+  }
+}
+
+/* What is missing is a field anyone can see (an empty label, a branch with
+   no step): its border is drawn, in the colour of problems. Colour is not
+   alone: the field is empty, showing its «p. ej. Sí», it is marked
+   aria-invalid, and the decision's own row carries the bar and the icon. */
+.step-grid [aria-invalid="true"] {
+  border-color: var(--color-status-pending);
+}
+
+.step-grid ::placeholder {
+  color: var(--color-text-dim);
 }
 
 /* A row with problems: a bar at its start and an alert icon by its number,

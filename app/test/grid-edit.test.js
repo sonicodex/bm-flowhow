@@ -2,7 +2,10 @@
 // its functions are tested here, in the Workers runtime. The page wiring
 // (editor.js) is not, as with the other browser modules.
 import { describe, expect, it } from 'vitest';
-import { blankRow, checkGrid, compileGrid, dependsOnText, diagramKey, dropValues, nextStepId, renameStep, setDependsOn, suggestions, toSave } from '../public/js/grid-edit.js';
+import {
+  blankRow, branchesOf, checkGrid, cleanLabel, compileGrid, dependsOnText, diagramKey, dropValues, nextStepId, predecessorsOf, renameStep, setBranches,
+  setDependsOn, setPredecessors, stepOptions, suggestions, toSave,
+} from '../public/js/grid-edit.js';
 
 const row = (id, type, extra = {}) => ({ id, type, ref: '', title: 't' + id, description: '', tags: {}, exits: '', depends_on: '', ...extra });
 const ids = (rows) => rows.map((r) => `${r.id}→${r.exits}`);
@@ -72,6 +75,52 @@ describe('"Depende de" and "Salidas", two views of one connection (SPEC §6)', (
   });
 });
 
+describe('branches as lists: nobody types the syntax (SPEC §6, 5.10)', () => {
+  it('reads a decision\'s exits as lines, whatever separator the cell has', () => {
+    const rows = [row('P1', 'decision', { exits: 'Sí:P2 | P3' })];
+    expect(branchesOf(rows, 0)).toEqual([{ label: 'Sí', to: 'P2' }, { label: '', to: 'P3' }]);
+  });
+
+  it('writes the lines back as the cell, with commas; a line with no step is not written', () => {
+    const rows = [row('P1', 'decision')];
+    setBranches(rows, 0, [{ label: ' Sí ', to: 'P2' }, { label: '', to: 'P3' }, { label: 'No', to: '' }]);
+    expect(rows[0].exits).toBe('Sí:P2, P3');
+    // A label cannot hold what separates exits.
+    setBranches(rows, 0, [{ label: 'Sí, claro', to: 'P2' }]);
+    expect(rows[0].exits).toBe('Sí claro:P2');
+    expect(branchesOf(rows, 0)).toEqual([{ label: 'Sí claro', to: 'P2' }]);
+  });
+
+  it('cleanLabel says when it took separators out', () => {
+    expect(cleanLabel('Sí')).toEqual({ label: 'Sí', cut: false });
+    expect(cleanLabel('A|B;C,D')).toEqual({ label: 'ABCD', cut: true });
+  });
+
+  it('offers every other step with an id, once, with its title and whether it is a decision', () => {
+    const rows = [row('P1', 'decision'), row('P2', 'end'), row('', 'end'), row('P2', 'activity')];
+    expect(stepOptions(rows, 0)).toEqual([{ id: 'P2', title: 'tP2', decision: false }]);
+    expect(stepOptions(rows, 1)).toEqual([{ id: 'P1', title: 'tP1', decision: true }]);
+  });
+
+  it('reads predecessors as lines, a decision\'s two branches to the step as two', () => {
+    const rows = [row('P1', 'decision', { exits: 'Sí:P3, No:P3' }), row('P2', 'activity', { exits: 'P3' }), row('P3', 'end')];
+    expect(predecessorsOf(rows, 2)).toEqual([{ label: 'Sí', to: 'P1' }, { label: 'No', to: 'P1' }, { label: '', to: 'P2' }]);
+  });
+
+  it('writes predecessors exactly: an emptied label is taken away, order and other exits stay', () => {
+    const rows = [row('P1', 'decision', { exits: 'Sí:P2, No:P3, Tal vez:P4' }), row('P2', 'activity', { exits: 'P3' }), row('P3', 'end'), row('P4', 'end')];
+    expect(setPredecessors(rows, 2, [{ label: '', to: 'P1' }, { label: '', to: 'P2' }])).toBe(null);
+    expect(ids(rows)).toEqual(['P1→Sí:P2, P3, Tal vez:P4', 'P2→P3', 'P3→', 'P4→']);
+    // Taking P2 out and adding P4 (not a decision) at the end of its exits.
+    expect(setPredecessors(rows, 2, [{ label: 'No', to: 'P1' }, { label: '', to: 'P4' }, { label: '', to: '' }])).toBe(null);
+    expect(ids(rows)).toEqual(['P1→Sí:P2, No:P3, Tal vez:P4', 'P2→', 'P3→', 'P4→P3']);
+    // The step itself is never its own predecessor; a step with no id says so.
+    expect(setPredecessors(rows, 2, [{ label: '', to: 'P3' }])).toBe(null);
+    expect(rows[2].exits).toBe('');
+    expect(setPredecessors([row('', 'end')], 0, [{ label: '', to: 'P1' }])).toBe('Ponle primero un ID al paso.');
+  });
+});
+
 describe('checkGrid: what the server will say', () => {
   const ctx = { flowId: 1, name: 'Despachos', flows: [{ id: 1, name: 'Despachos', published: null }, { id: 2, name: 'Facturación', published: null }] };
 
@@ -79,11 +128,11 @@ describe('checkGrid: what the server will say', () => {
     let errors = checkGrid({ categories: [], rows: [row('P1', 'decision', { exits: 'P2' }), row('P1', 'end'), row('P3', 'activity')] }, ctx);
     expect(errors.filter((e) => e.blocking).map((e) => e.row)).toEqual([1]);
     const messages = errors.map((e) => e.message).join('\n');
-    expect(messages).toContain('Fila 2 (P1): es una decisión, pero solo tiene una salida, a P2.');
+    expect(messages).toContain('Fila 2 (P1): es una decisión, pero solo tiene una rama, a P2.');
     expect(messages).toContain('no lleva a ningún paso');
     expect(messages).toContain('Ningún paso es de tipo Inicio: cambia a Inicio el paso con el que empieza el proceso.');
     errors = checkGrid({ categories: [], rows: [row('P1', 'start', { exits: 'P2' }), row('P2', 'end'), row('P3', 'end')] }, ctx);
-    expect(errors.map((e) => [e.row, e.message])).toEqual([[2, 'Fila 4 (P3): ningún camino desde el Inicio llega a este paso. Escribe en su Depende de el paso que va antes.']]);
+    expect(errors.map((e) => [e.row, e.message])).toEqual([[2, 'Fila 4 (P3): ningún camino desde el Inicio llega a este paso. Elige en su Depende de el paso que va antes.']]);
   });
 
   it('resolves link targets by name, ignoring case and accents, as the server does', () => {
@@ -103,30 +152,28 @@ describe('the messages say what is wrong with that row, with its own data', () =
       .filter((e) => e.row === 1)
       .map((e) => e.message);
 
-  it('names the decision\'s own exits in its example', () => {
+  it('names each branch with no label, one message per branch, without the syntax (5.10)', () => {
     // The owner's case: a decision P2 going to P3 and P4, with no labels.
-    expect(decision('P3 | P4')).toEqual([
-      'Fila 3 (P2): es una decisión, así que cada salida necesita un rótulo que diga qué significa. Por ejemplo: Sí:P3, No:P4.',
-    ]);
-    // A label already there is kept; the others get the ones still free.
-    expect(decision('No:P3, P4')).toEqual([
-      'Fila 3 (P2): es una decisión, así que cada salida necesita un rótulo que diga qué significa. Por ejemplo: No:P3, Sí:P4.',
-    ]);
-    expect(decision('P3 | P4 | P5')[0]).toMatch(/Por ejemplo: Sí:P3, No:P4, Opción 3:P5\.$/);
+    expect(decision('P3 | P4')).toEqual(['Fila 3 (P2): la rama que va a P3 no tiene rótulo.', 'Fila 3 (P2): la rama que va a P4 no tiene rótulo.']);
+    // A labelled branch says nothing.
+    expect(decision('No:P3, P4')).toEqual(['Fila 3 (P2): la rama que va a P4 no tiene rótulo.']);
+    expect(decision('P3 | P4 | P5')).toHaveLength(3);
+    expect(decision('Sí:P3, No:P4')).toEqual([]);
   });
 
-  it('says how many exits a decision has, and only one message for it', () => {
+  it('says how many branches a decision has, and which one has no label', () => {
     expect(decision('P3')).toEqual([
-      'Fila 3 (P2): es una decisión, pero solo tiene una salida, a P3. Necesita una por cada respuesta, con su rótulo. Por ejemplo: Sí:P3, y No: con el ID del paso al que lleva esa respuesta.',
+      'Fila 3 (P2): es una decisión, pero solo tiene una rama, a P3. Necesita una por cada respuesta posible.',
+      'Fila 3 (P2): la rama que va a P3 no tiene rótulo.',
     ]);
-    // The label it suggests is the one still free.
-    expect(decision('No:P3')).toEqual([
-      'Fila 3 (P2): es una decisión, pero solo tiene una salida, a P3. Necesita una por cada respuesta, con su rótulo. Por ejemplo: No:P3, y Sí: con el ID del paso al que lleva esa respuesta.',
-    ]);
+    expect(decision('No:P3')).toEqual(['Fila 3 (P2): es una decisión, pero solo tiene una rama, a P3. Necesita una por cada respuesta posible.']);
     // P3..P5 are unreachable then; this row has its own message only.
-    expect(decision('')).toEqual([
-      'Fila 3 (P2): es una decisión, pero no tiene salidas. Necesita una por cada respuesta, cada una con su rótulo y el ID del paso al que lleva; por ejemplo, una con Sí: y otra con No:.',
-    ]);
+    expect(decision('')).toEqual(['Fila 3 (P2): es una decisión, pero no tiene ramas. Necesita una por cada respuesta posible.']);
+  });
+
+  it('never states the rule nor shows the label:target syntax', () => {
+    const all = ['', 'P3', 'P3 | P4', 'No:P3, P4'].flatMap(decision).join('\n');
+    expect(all).not.toMatch(/necesita un rótulo|Por ejemplo|Sí:|No:/);
   });
 });
 

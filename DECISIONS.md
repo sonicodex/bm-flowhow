@@ -14,6 +14,99 @@ Entry format:
 
 ---
 
+## 2026-11-17 — Phase 5.10: branches edited as lists, nobody types the syntax (SPEC §6)
+
+- Decision:
+  - **SPEC §6, as changed by the owner:** nobody types `label:target`.
+    The cell keeps it (Excel is text, and the same flow travels both
+    ways). In the app, though, it is edited as lines.
+  - **A decision's Salidas** is a list, one line per branch:
+    - a label field, empty with «p. ej. Sí» as placeholder text, which
+      suggests without stating;
+    - a picker of the flow's steps («P3 — Comprar material»), without the
+      step itself and without steps with no id;
+    - a × to remove it, and «Agregar rama» below.
+    - A decision shows two lines at least, so a missing branch is an
+      empty line anyone can see.
+    - A line with no step yet lives only on screen; the cell holds only
+      complete branches.
+    - A target that does not exist (pasted or imported) is shown selected
+      as «P9 (no existe)», not lost.
+  - **Depende de is a list on every type**, since any step can have several
+    predecessors. Each line has a picker of the step before it, and a
+    label field only when that step is a decision. Inicio starts with no
+    line; other types start with one empty line.
+    - Written by `setPredecessors` (grid-edit.js), exactly as on screen.
+      Unlike typing the old text cell, emptying a label takes it away.
+      A predecessor's other exits and their order stay.
+  - **Every other type keeps a plain Salidas field**, with its
+    suggestions. When a step stops being a decision, its labels stay in
+    that text, so they come back if it becomes a decision again.
+  - **No label is ever filled in by the app.** The owner's reason: a
+    label put by the app can be false («Sí»/«No» on «¿Quién entrega el
+    material?») and would be published without anyone noticing.
+  - **Pasting:** text pasted into a label field that has any of
+    `, | ; :`, a tab or a line break goes straight into the cell, as
+    SPEC §6 says, and the list is drawn again from it. A plain label is
+    pasted into its field. The import box is unchanged.
+  - **A label cannot hold `, | ;`.** They are taken out as typed, and
+    the editor says «Un rótulo no puede llevar coma, | ni ;.».
+  - **Messages** (`core.js`, so the import review says the same):
+    - The rule message «cada salida necesita un rótulo…» no longer
+      exists anywhere.
+    - There is one message per branch with no label: «Fila 3 (P2): la
+      rama que va a P4 no tiene rótulo.»
+    - Fewer than two branches: «…es una decisión, pero solo tiene una
+      rama, a P5. Necesita una por cada respuesta posible.» / «…no tiene
+      ramas…». No syntax and no examples; the `labelled` helper is gone.
+    - «ningún camino desde el Inicio llega…» now says «Elige en su
+      Depende de…», since it is a picker.
+    - Clicking a problem focuses the row's first marked field (an empty
+      label, a missing branch), else its title.
+  - **Marks:** an empty label with a step, and an empty picker on a
+    decision with fewer than two branches, get `aria-invalid` and a
+    border in the colour of problems.
+  - **Layout:**
+    - Depende de and Salidas widen from 4 to 7 × `--space-10`.
+    - At 760px and below they are 5 wide, and each line takes two rows
+      (the label above the picker and its ×), so the whole cell fits
+      beside the frozen Fila and ID columns.
+    - The classes are `grid-branch*`, because `.branch` is the tour's.
+  - **Keyboard:** Enter in a label goes to its line's picker.
+  - **The editor's hint** no longer shows syntax. It says: «en Depende de
+    elige el paso anterior, o en Salidas escribe el ID del siguiente…
+    En una decisión, Salidas es una lista de ramas: a cada una le pones
+    un rótulo con la respuesta que representa y eliges a qué paso
+    lleva.»
+  - **One commit**, not the two proposed: both lists are the same code.
+  - **Tests:** the grid-edit functions have tests, and the test cases of
+    the message tests are kept with the new texts. One more checks that
+    no decision message states the rule or shows `Sí:`/`No:`.
+  - **Browser check:** `app/.layout-check/5.10/check.mjs`, on a throwaway
+    flow deleted afterwards. It covers:
+    - unlabelled branches marked, and clicking a problem focusing the
+      empty label;
+    - Enter going to the picker;
+    - labels clearing the problems;
+    - adding, picking, removing;
+    - a type changed to decision and back;
+    - a decision added and labelled from Depende de;
+    - a comma typed;
+    - pastes of «Almacén:P3 | Proveedor:P4» and «P3, P9»;
+    - a title change renaming the pickers;
+    - saving, desktop and phone, no horizontal page scroll.
+    - Throughout it, the rule message never appeared.
+  - It ran against the owner's own `npm run dev` (a terminal started at
+    16:09, not mine), which reloads on file changes. A dev server I
+    started could not open the locked local database and exited. The
+    owner's server and the «Flujo de prueba fase 5» flow were left
+    untouched.
+- Reason: SPEC §6 as changed by the owner on 2026-11-17; slice 5.10
+  approved as proposed.
+- Spec sections affected: 6.
+
+---
+
 ## 2026-11-17 — Exits separated by a comma (SPEC §5)
 
 - Decision:
@@ -82,6 +175,9 @@ Entry format:
 - *Superseded in part on 2026-11-17 by «Exits separated by a comma»: the
   examples are written with commas, the one-exit and no-exit examples
   are worded without «…», and the list is shown in table order.*
+- *Superseded in part on 2026-11-17 by «Phase 5.10»: the decision
+  messages no longer carry examples. The one about labels is one message
+  per branch.*
 - Decision:
   - **The owner's finding:** «cada salida de una decisión necesita rótulo
     (ej. Sí:P5 | No:P4)» stated the rule, with ids that were not the

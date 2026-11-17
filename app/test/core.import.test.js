@@ -205,7 +205,7 @@ describe('one row numbering: the spreadsheet\'s, with the step ID (1.2.6)', () =
       'Fila 2 (P1): es de tipo Inicio, así que no lleva a otro flujo; se ignoró «Facturación» de la columna Flujo.',
       'Fila 2 (P1): en Depende de dice «ZZ», pero ningún paso tiene ese ID.',
       'Fila 2 (P1): no lleva a ningún paso. Escribe en Salidas cuál sigue o, si aquí termina el proceso, cámbialo a tipo Fin.',
-      'Fila 3 (P2): ningún camino desde el Inicio llega a este paso. Escribe en su Depende de el paso que va antes.',
+      'Fila 3 (P2): ningún camino desde el Inicio llega a este paso. Elige en su Depende de el paso que va antes.',
     ]);
   });
 
@@ -233,7 +233,7 @@ describe('one error shape {row, message, blocking}, each problem once (1.2.6)', 
       'Fila 5 (P2): el ID «P2» ya lo tiene la fila 4; cada paso necesita uno propio.',
     ]);
     // Structure rules are shown but only block publishing.
-    assert.ok(all.some((e) => !e.blocking && e.message === 'Fila 5 (P2): es una decisión, pero solo tiene una salida, a P1. Necesita una por cada respuesta, con su rótulo. Por ejemplo: Sí:P1, y No: con el ID del paso al que lleva esa respuesta.'));
+    assert.ok(all.some((e) => !e.blocking && e.message === 'Fila 5 (P2): es una decisión, pero solo tiene una rama, a P1. Necesita una por cada respuesta posible.'));
   });
 
   it('reports an unknown type exactly once', () => {

@@ -177,18 +177,6 @@ var Core = (function () {
     };
   }
 
-  /* A decision's exits with a label on each, for a message's example:
-     their own labels where they have one, else Sí, No, then «Opción n». */
-  /** @param {Exit[]} exits @returns {Exit[]} */
-  function labelled(exits) {
-    var used = exits.map(function (e) { return e.label; }).filter(Boolean);
-    var spare = ['Sí', 'No'].filter(function (l) { return used.indexOf(l) === -1; });
-    return exits.map(function (e, i) {
-      if (e.label) return e;
-      return { label: spare.length ? /** @type {string} */ (spare.shift()) : 'Opción ' + (i + 1), to: e.to };
-    });
-  }
-
   /* The one structure validation, shared by import, preview and publish.
      `refs` = { selfId, lib } is needed whenever the flow has link or subflow
      steps, so the references are never skipped by mistake; see validateRefs. */
@@ -215,14 +203,15 @@ var Core = (function () {
         if (!ids.has(e.to)) add(i, ref(s, i) + ': una de sus salidas va a «' + e.to + '», pero ningún paso tiene ese ID.');
       });
       if (s.type === 'decision') {
-        // Said with this row's own exits, never a made-up example.
-        if (s.exits.length === 0) add(i, ref(s, i) + ': es una decisión, pero no tiene salidas. Necesita una por cada respuesta, cada una con su rótulo y el ID del paso al que lleva; por ejemplo, una con Sí: y otra con No:.');
-        else if (s.exits.length === 1) {
-          var one = labelled(s.exits)[0];
-          var other = one.label === 'Sí' ? 'No' : 'Sí';
-          add(i, ref(s, i) + ': es una decisión, pero solo tiene una salida, a ' + one.to + '. Necesita una por cada respuesta, con su rótulo. Por ejemplo: ' + formatExits([one]) + ', y ' + other + ': con el ID del paso al que lleva esa respuesta.');
-        }
-        else if (s.exits.some(function (e) { return !e.label; })) add(i, ref(s, i) + ': es una decisión, así que cada salida necesita un rótulo que diga qué significa. Por ejemplo: ' + formatExits(labelled(s.exits)) + '.');
+        // Said about this row and its own branches, never as a rule or with
+        // the label:target syntax: in the editor a branch is a line with a
+        // label field and a step picker (SPEC §6), and a missing label is
+        // that empty field, which the message points at.
+        if (s.exits.length === 0) add(i, ref(s, i) + ': es una decisión, pero no tiene ramas. Necesita una por cada respuesta posible.');
+        else if (s.exits.length === 1) add(i, ref(s, i) + ': es una decisión, pero solo tiene una rama, a ' + s.exits[0].to + '. Necesita una por cada respuesta posible.');
+        s.exits.forEach(function (e) {
+          if (!e.label) add(i, ref(s, i) + ': la rama que va a ' + e.to + ' no tiene rótulo.');
+        });
       }
       if (s.type !== 'end' && s.type !== 'decision' && s.exits.length === 0) add(i, ref(s, i) + ': no lleva a ningún paso. Escribe en Salidas cuál sigue o, si aquí termina el proceso, cámbialo a tipo Fin.');
     });
@@ -238,7 +227,7 @@ var Core = (function () {
     }
     if (starts.length) {
       flow.steps.forEach(function (s, i) {
-        if (s.id && ids.get(s.id) === s && !seen.has(s.id)) add(i, ref(s, i) + ': ningún camino desde el Inicio llega a este paso. Escribe en su Depende de el paso que va antes.');
+        if (s.id && ids.get(s.id) === s && !seen.has(s.id)) add(i, ref(s, i) + ': ningún camino desde el Inicio llega a este paso. Elige en su Depende de el paso que va antes.');
       });
     }
     var pointing = flow.steps.some(function (s) { return s.type === 'subflow' || s.type === 'link'; });

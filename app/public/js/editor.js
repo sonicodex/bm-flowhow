@@ -8,7 +8,8 @@ import { layoutFlow } from './diagram-layout.js';
 import { renderDiagram } from './diagram.js';
 import { exportName, exportXlsx, gridFromText, gridFromXlsx, TEMPLATE_NAME, templateXlsx } from './import-form.js';
 import {
-  blankRow, checkGrid, compileGrid, dependsOnText, diagramKey, dropValues, nextStepId, renameStep, setDependsOn, suggestions, toSave,
+  blankRow, branchesOf, checkGrid, cleanLabel, compileGrid, dependsOnText, diagramKey, dropValues, nextStepId, predecessorsOf, renameStep,
+  setBranches, setDependsOn, setPredecessors, stepOptions, suggestions, toSave,
 } from './grid-edit.js';
 
 const dataEl = document.getElementById('editor-data');
@@ -75,8 +76,8 @@ if (dataEl && table) {
       `<td><textarea data-r="${i}" data-f="title" rows="1" aria-label="Título, fila ${n}">${esc(r.title)}</textarea></td>` +
       `<td><textarea data-r="${i}" data-f="description" rows="1" aria-label="Descripción, fila ${n}">${esc(r.description)}</textarea></td>` +
       grid.categories.map((c) => cell(i, 'tag', r.tags[c], `${c}, fila ${n}`, ` data-c="${esc(c)}" list="cell-suggestions"`)).join('') +
-      cell(i, 'dep', dependsOnText(rows, i), `Depende de, fila ${n}`, ' list="cell-suggestions"') +
-      cell(i, 'exits', r.exits, `Salidas, fila ${n}`, ' list="cell-suggestions"') +
+      `<td data-cell="dep" data-r="${i}" data-key="${esc(cellKey(i, 'dep'))}">${cellInner(i, 'dep')}</td>` +
+      `<td data-cell="exits" data-r="${i}" data-key="${esc(cellKey(i, 'exits'))}">${cellInner(i, 'exits')}</td>` +
       `<td><button type="button" class="icon-button" data-remove="${i}" aria-label="Quitar el paso de la fila ${n}"><span class="icon-close" aria-hidden="true"></span></button></td>` +
       '</tr>'
     );
@@ -98,15 +99,194 @@ if (dataEl && table) {
 
   const field = (i, f) => table.querySelector(`[data-r="${i}"][data-f="${f}"]`);
 
-  // Rewrites the connection cells from the rows, except the one being typed in.
+  // ---- Branches as lists (SPEC §6; phase 5.10). A decision's "Salidas"
+  // and every "Depende de" are lines: a label field and a step picker, with
+  // a way to add and remove one. Nobody types the label:target syntax; the
+  // cell still holds it (grid-edit.js), which is what reaches Excel. A line
+  // with no step yet lives only on screen. ----
+
+  const isList = (i, f) => f === 'dep' || rows[i].type === 'decision';
+  const optionText = (o) => (o.title ? `${o.id} — ${o.title}` : o.id);
+
+  /** What a connection cell shows; when it changes, the cell is drawn again. */
+  function cellKey(i, f) {
+    if (!isList(i, f)) return 'text';
+    const own = rows[i].type === 'start' ? 'start|' : '';
+    const options = stepOptions(rows, i).map((o) => o.id + (o.decision ? '*' : '')).join(' ');
+    return `${own}${f === 'dep' ? dependsOnText(rows, i) : rows[i].exits}|${options}`;
+  }
+
+  /** The stored lines, with the empty ones a cell starts with: a decision
+      shows two branches at least, a step other than Inicio one predecessor. */
+  function storedLines(i, f) {
+    const lines = f === 'dep' ? predecessorsOf(rows, i) : branchesOf(rows, i);
+    const least = f === 'exits' ? 2 : rows[i].type === 'start' ? 0 : 1;
+    while (lines.length < least) lines.push({ label: '', to: '' });
+    return lines;
+  }
+
+  function cellInner(i, f, lines = null) {
+    const n = i + 2;
+    if (!isList(i, f)) return `<input type="text" data-r="${i}" data-f="exits" value="${esc(rows[i].exits)}" aria-label="Salidas, fila ${n}" autocomplete="off" list="cell-suggestions">`;
+    lines = lines || storedLines(i, f);
+    const options = stepOptions(rows, i);
+    const decisions = new Set(options.filter((o) => o.decision).map((o) => o.id));
+    const done = lines.filter((l) => l.to).length;
+    const what = f === 'dep' ? 'el paso anterior' : 'la rama';
+    const items = lines.map((l, b) => {
+      const m = b + 1;
+      // On "Depende de", a label only where the predecessor is a decision.
+      const labelled = f === 'exits' || decisions.has(l.to);
+      const missingLabel = labelled && l.to && !l.label.trim();
+      const missingStep = f === 'exits' && !l.to && done < 2;
+      const known = !l.to || options.some((o) => o.id === l.to);
+      const choices =
+        `<option value="">Elige un paso</option>` +
+        (known ? '' : `<option value="${esc(l.to)}" selected>${esc(l.to)} (no existe)</option>`) +
+        options.map((o) => `<option value="${esc(o.id)}" data-step="${esc(o.id)}"${o.id === l.to ? ' selected' : ''}>${esc(optionText(o))}</option>`).join('');
+      const pickLabel = f === 'dep' ? `Paso anterior ${m}, fila ${n}` : `Paso al que lleva la rama ${m}, fila ${n}`;
+      return (
+        '<div class="grid-branch">' +
+        `<input type="text" data-r="${i}" data-f="${f}" data-k="label" data-b="${b}" value="${esc(l.label)}" placeholder="p. ej. Sí" autocomplete="off"` +
+        ` aria-label="Rótulo de ${what} ${m}, fila ${n}"${labelled ? '' : ' hidden'}${missingLabel ? ' aria-invalid="true"' : ''}>` +
+        `<select data-r="${i}" data-f="${f}" data-k="to" data-b="${b}" aria-label="${pickLabel}"${missingStep ? ' aria-invalid="true"' : ''}>${choices}</select>` +
+        `<button type="button" class="icon-button" data-r="${i}" data-f="${f}" data-k="remove" data-b="${b}" aria-label="Quitar ${what} ${m}, fila ${n}">` +
+        '<span class="icon-close" aria-hidden="true"></span></button>' +
+        '</div>'
+      );
+    });
+    const add = f === 'dep' ? 'Agregar paso anterior' : 'Agregar rama';
+    return (
+      `<div class="grid-branches">${items.join('')}` +
+      `<button type="button" class="button-link grid-branch-add" data-r="${i}" data-f="${f}" data-k="add" aria-label="${add}, fila ${n}">${add}</button></div>`
+    );
+  }
+
+  const cellOf = (i, f) => table.querySelector(`td[data-cell="${f}"][data-r="${i}"]`);
+
+  /** The lines as they are on screen, the empty ones included. */
+  const screenLines = (td) =>
+    [...td.querySelectorAll('.grid-branch')].map((el) => ({ label: el.querySelector('[data-k="label"]').value, to: el.querySelector('[data-k="to"]').value }));
+
+  /** Draws a cell again, from the given lines or the stored ones, keeping focus on the same control. */
+  function drawCell(i, f, lines = null, focus = null) {
+    const td = cellOf(i, f);
+    if (!td) return;
+    td.innerHTML = cellInner(i, f, lines);
+    td.dataset.key = cellKey(i, f);
+    if (focus) td.querySelector(`[data-k="${focus.k}"]${focus.b === undefined ? '' : `[data-b="${focus.b}"]`}`)?.focus();
+  }
+
+  /** Writes a list cell's lines into the rows. @returns {string|null} a message */
+  function writeLines(i, f, lines) {
+    if (f === 'exits') {
+      setBranches(rows, i, lines);
+      return null;
+    }
+    return setPredecessors(rows, i, lines);
+  }
+
+  // Draws again every connection cell whose content changed, except the one
+  // being edited, which keeps what is on screen.
   function syncConnections() {
     rows.forEach((r, i) => {
-      const dep = field(i, 'dep');
-      const exits = field(i, 'exits');
-      if (dep && dep !== document.activeElement) dep.value = dependsOnText(rows, i);
-      if (exits && exits !== document.activeElement) exits.value = r.exits;
+      for (const f of ['dep', 'exits']) {
+        const td = cellOf(i, f);
+        if (!td) continue;
+        const key = cellKey(i, f);
+        if (td.contains(document.activeElement)) {
+          if (key === 'text' && td.dataset.key === 'text') continue;
+          if (key !== 'text' && td.dataset.key !== 'text') {
+            td.dataset.key = key;
+            continue;
+          }
+        }
+        if (key === 'text' && td.dataset.key === 'text') {
+          td.querySelector('input').value = r.exits;
+          continue;
+        }
+        if (td.dataset.key !== key) drawCell(i, f);
+      }
     });
   }
+
+  // A step's title changed: the pickers that name it say the new one.
+  function renameOptions(i) {
+    const id = String(rows[i].id).trim();
+    if (!id) return;
+    const text = optionText({ id, title: String(rows[i].title || '').trim() });
+    table.querySelectorAll(`option[data-step="${CSS.escape(id)}"]`).forEach((o) => {
+      o.textContent = text;
+    });
+  }
+
+  function onLine(t, ev) {
+    const i = Number(t.dataset.r);
+    const f = t.dataset.f;
+    const td = cellOf(i, f);
+    const k = t.dataset.k;
+    const b = Number(t.dataset.b);
+    if (k === 'label' && ev.type === 'input') {
+      const clean = cleanLabel(t.value);
+      if (clean.cut) {
+        t.value = clean.label;
+        say('Un rótulo no puede llevar coma, | ni ;.', 'error');
+      }
+      if (!t.value.trim() && screenLines(td)[b].to) t.setAttribute('aria-invalid', 'true');
+      else t.removeAttribute('aria-invalid');
+    } else if (k === 'to' && ev.type === 'change') {
+      // Writing draws the list again: the label field shows or hides with a
+      // decision as predecessor, and the marks move.
+    } else if (k === 'add' && ev.type === 'click') {
+      const lines = screenLines(td).concat([{ label: '', to: '' }]);
+      drawCell(i, f, lines, { k: f === 'exits' ? 'label' : 'to', b: lines.length - 1 });
+      return;
+    } else if (k === 'remove' && ev.type === 'click') {
+      const lines = screenLines(td);
+      lines.splice(b, 1);
+      const message = writeLines(i, f, lines);
+      say(message ? esc(message) : '', message ? 'error' : 'status');
+      const kept = message ? storedLines(i, f) : lines;
+      drawCell(i, f, kept.length ? kept : null, kept.length ? { k: 'remove', b: Math.min(b, kept.length - 1) } : { k: 'add' });
+      syncConnections();
+      later();
+      return;
+    } else return;
+    const lines = screenLines(td);
+    const message = writeLines(i, f, lines);
+    if (message) {
+      say(esc(message), 'error');
+      drawCell(i, f, null, { k, b });
+    } else {
+      if (k === 'to') {
+        if (panelKind === 'error') say('');
+        drawCell(i, f, lines, { k, b });
+      } else td.dataset.key = cellKey(i, f);
+      syncConnections();
+    }
+    later();
+  }
+
+  // Text pasted into a list (from Excel, say "Sí:P3, No:P4") goes straight
+  // into the cell, as SPEC §6 asks: the list is drawn again from it. A plain
+  // label, with none of the cell's signs, is pasted into its field.
+  table.addEventListener('paste', (ev) => {
+    const t = ev.target;
+    if (t.dataset.k !== 'label') return;
+    const text = (ev.clipboardData?.getData('text/plain') || '').trim();
+    if (!/[,|;:\t\n]/.test(text)) return;
+    ev.preventDefault();
+    const i = Number(t.dataset.r);
+    const f = t.dataset.f;
+    const cellText = text.replace(/\s*[\t\n]+\s*/g, ', ');
+    let message = null;
+    if (f === 'exits') rows[i].exits = cellText;
+    else message = setDependsOn(rows, i, cellText);
+    say(message ? esc(message) : '', message ? 'error' : 'status');
+    drawCell(i, f, null, { k: 'label', b: 0 });
+    syncConnections();
+    later();
+  });
 
   // ---- Checking ----
 
@@ -250,12 +430,16 @@ if (dataEl && table) {
 
   table.addEventListener('input', (ev) => {
     const t = ev.target;
+    if (t.dataset.k) return onLine(t, ev);
     if (panelKind === 'error') say('');
     const i = Number(t.dataset.r);
     const r = rows[i];
     if (!r) return;
     const f = t.dataset.f;
-    if (f === 'title' || f === 'description') r[f] = t.value;
+    if (f === 'title' || f === 'description') {
+      r[f] = t.value;
+      if (f === 'title') renameOptions(i);
+    }
     else if (f === 'tag') r.tags[t.dataset.c] = t.value;
     else if (f === 'exits') {
       r.exits = t.value;
@@ -267,6 +451,7 @@ if (dataEl && table) {
 
   table.addEventListener('change', (ev) => {
     const t = ev.target;
+    if (t.dataset.k) return onLine(t, ev);
     const i = Number(t.dataset.r);
     const r = rows[i];
     if (!r) return;
@@ -279,6 +464,9 @@ if (dataEl && table) {
         r.ref = '';
         ref.value = '';
       }
+      // "Salidas" becomes a list of branches on a decision, a plain field
+      // otherwise; "Depende de" elsewhere shows or hides its label fields.
+      syncConnections();
     } else if (f === 'ref') r.ref = t.value;
     else if (f === 'id') {
       const res = renameStep(rows, i, t.value);
@@ -289,11 +477,6 @@ if (dataEl && table) {
         say('');
         selected = String(r.id).trim();
       }
-      syncConnections();
-    } else if (f === 'dep') {
-      const message = setDependsOn(rows, i, t.value);
-      say(message ? esc(message) : '', message ? 'error' : 'status');
-      t.value = dependsOnText(rows, i);
       syncConnections();
     } else return;
     refresh();
@@ -307,7 +490,7 @@ if (dataEl && table) {
     if (f === 'tag') {
       options = (data.values[t.dataset.c] || []).map((v) => ({ value: v }));
       kind = 'tags';
-    } else if (f === 'exits' || f === 'dep') {
+    } else if (f === 'exits') {
       const own = String(rows[Number(t.dataset.r)].id).trim();
       options = rows.filter((r) => String(r.id).trim() && String(r.id).trim() !== own).map((r) => ({ value: String(r.id).trim(), label: r.title }));
     } else return;
@@ -325,6 +508,12 @@ if (dataEl && table) {
   table.addEventListener('keydown', (ev) => {
     const t = ev.target;
     if (ev.key !== 'Enter' || ev.isComposing || ev.shiftKey) return;
+    if (t.dataset.k === 'label') {
+      ev.preventDefault();
+      t.closest('.grid-branch').querySelector('[data-k="to"]').focus();
+      return;
+    }
+    if (t.dataset.k) return;
     if (!(t.tagName === 'INPUT' || (t.tagName === 'TEXTAREA' && t.dataset.f === 'title'))) return;
     ev.preventDefault();
     t.dispatchEvent(new Event('change', { bubbles: true }));
@@ -334,6 +523,8 @@ if (dataEl && table) {
   });
 
   table.addEventListener('click', (ev) => {
+    const line = ev.target.closest('[data-k="add"], [data-k="remove"]');
+    if (line) return onLine(line, ev);
     const b = ev.target.closest('[data-remove]');
     if (!b) return;
     const i = Number(b.dataset.remove);
@@ -359,7 +550,9 @@ if (dataEl && table) {
   problems.addEventListener('click', (ev) => {
     const b = ev.target.closest('[data-goto]');
     if (!b) return;
-    const el = field(Number(b.dataset.goto), 'title');
+    // The row's first marked field (an empty label, a missing branch), else its title.
+    const tr = table.querySelector(`tr[data-row="${Number(b.dataset.goto)}"]`);
+    const el = tr?.querySelector('[aria-invalid="true"]:not([hidden])') || field(Number(b.dataset.goto), 'title');
     if (el) {
       el.scrollIntoView({ block: 'center', inline: 'nearest' });
       el.focus();

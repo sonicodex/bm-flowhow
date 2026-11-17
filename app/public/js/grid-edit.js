@@ -82,6 +82,101 @@ export function setDependsOn(rows, index, text) {
   return null;
 }
 
+/* ---- Branches as lists (SPEC §6; phase 5.10). Nobody types the
+   label:target syntax: a decision's "Salidas" and every "Depende de" are
+   edited as lines (a label, a step), and these functions turn the lines
+   into the cell's text and back. The cell keeps "Sí:P3, No:P4", which is
+   what reaches Excel. ---- */
+
+/** @typedef {{ label: string, to: string }} Line */
+
+/** The characters that separate exits in the cell, which a label cannot hold (SPEC §5). */
+const SEPARATORS = /[,|;]/g;
+
+/**
+ * A label as typed, without the separators the cell needs.
+ * @param {string} text @returns {{ label: string, cut: boolean }} `cut` when some were taken out
+ */
+export function cleanLabel(text) {
+  const label = String(text).replace(SEPARATORS, '');
+  return { label, cut: label !== String(text) };
+}
+
+/**
+ * The steps a line can point at: every other step with an id, once, with
+ * its title, in table order.
+ * @param {GridRow[]} rows @param {number} index
+ * @returns {{ id: string, title: string, decision: boolean }[]}
+ */
+export function stepOptions(rows, index) {
+  const own = String(rows[index].id).trim();
+  const seen = new Set();
+  return rows.flatMap((r) => {
+    const id = String(r.id).trim();
+    if (!id || id === own || seen.has(id)) return [];
+    seen.add(id);
+    return [{ id, title: String(r.title || '').trim(), decision: r.type === 'decision' }];
+  });
+}
+
+/** A step's exits as lines. @param {GridRow[]} rows @param {number} index @returns {Line[]} */
+export function branchesOf(rows, index) {
+  return Core.parseExits(rows[index].exits);
+}
+
+/**
+ * Writes the lines into the step's exits. A line with no step yet is only
+ * on screen: it is not written.
+ * @param {GridRow[]} rows @param {number} index @param {Line[]} lines
+ */
+export function setBranches(rows, index, lines) {
+  rows[index].exits = Core.formatExits(
+    lines.filter((l) => String(l.to).trim()).map((l) => ({ label: cleanLabel(l.label.trim()).label, to: String(l.to).trim() })),
+  );
+}
+
+/**
+ * A step's predecessors as lines: each step leading to it, with the label
+ * of that branch. A decision with two branches to it gives two lines.
+ * @param {GridRow[]} rows @param {number} index @returns {Line[]}
+ */
+export function predecessorsOf(rows, index) {
+  return Core.parseExits(dependsOnText(rows, index));
+}
+
+/**
+ * Makes exactly the listed lines lead to the step at `index`, rewriting the
+ * predecessors' exits. Unlike typing "Depende de" as text, the label is
+ * written as it is in the line, empty included: emptying a label field
+ * takes the label away. A predecessor's other exits, and their order, stay.
+ * @param {GridRow[]} rows @param {number} index @param {Line[]} lines
+ * @returns {string|null} the message to show, or null when it was applied
+ */
+export function setPredecessors(rows, index, lines) {
+  const id = String(rows[index].id).trim();
+  if (!id) return 'Ponle primero un ID al paso.';
+  /** @type {Map<string, string[]>} predecessor id -> the labels of its branches here */
+  const wanted = new Map();
+  lines.forEach((l) => {
+    const from = String(l.to).trim();
+    if (!from || from === id) return;
+    if (!wanted.has(from)) wanted.set(from, []);
+    wanted.get(from).push(cleanLabel(l.label.trim()).label);
+  });
+  rows.forEach((r) => {
+    const sid = String(r.id).trim();
+    const labels = (sid && wanted.get(sid)) || [];
+    const exits = Core.parseExits(r.exits);
+    const at = exits.findIndex((e) => e.to === id);
+    if (at === -1 && !labels.length) return;
+    const others = exits.filter((e) => e.to !== id);
+    const here = labels.map((label) => ({ label, to: id }));
+    const before = at === -1 ? others.length : exits.slice(0, at).filter((e) => e.to !== id).length;
+    r.exits = Core.formatExits(others.slice(0, before).concat(here, others.slice(before)));
+  });
+  return null;
+}
+
 /**
  * The grid compiled as the server compiles it: target names resolved with
  * the same list of flows, "Depende de" merged into exits. `errors` are what
