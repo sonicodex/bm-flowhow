@@ -107,8 +107,27 @@ Scale: one company, about 50 users, about 8 flows.
   remove it from the last one, or to deactivate them: a lost password is
   recoverable from the command line, a lost permission is not.
 - Accounts are created by an admin. No open sign-up.
-- Passwords are reset by an admin. No email sending.
-- Auth: own login first. Microsoft SSO comes later; do not block it by design.
+- **Not built yet.** Password login is what exists. The two methods below are
+  the target, and nothing in the design may block them, but they come after
+  stage 1: the email one needs a provider and a verified domain, and the
+  Microsoft one needs the app registered in the company's Azure.
+- **Two ways in, set per account.** The account says which one it uses; the
+  login screen asks for the username and then follows that account's method.
+  Both end at the same `createSession`, so everything past the door is
+  identical.
+  - **Microsoft.** For accounts that have a company Microsoft identity.
+  - **Code by email.** The user types their username, receives a six-digit
+    code, and types it in. No password to remember, forget or share — which
+    matters for people who sign in from a phone, once a week, in a warehouse.
+- A code is single use, expires in ten minutes, is stored hashed, and a new
+  one invalidates the previous. Asking for a code for an account that does
+  not exist answers the same as for one that does.
+- An account that signs in with a code needs an email address, and it must be
+  unique. An admin can change it; changing it invalidates any live code.
+- **Password login stays as the way back in.** It is already built, it costs
+  nothing to keep, and without it a failure at the mail provider or at
+  Microsoft locks every single person out, the board included. Admins can
+  give a password to accounts that need one; it is not offered to everyone.
 
 ## 5. Domain model
 
