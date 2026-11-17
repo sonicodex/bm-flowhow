@@ -208,8 +208,15 @@ the step would point nowhere.
     one line per branch: the label as free text, the target as a picker of the
     flow's steps, plus a way to add and remove a branch. The cell stores
     `Sí:P3, No:P4` underneath, which is what reaches Excel.
-  - "Depende de" is edited the same way, and carries the branch label when the
-    predecessor is a decision.
+  - **A branch label belongs to its decision and is edited only there.**
+    "Depende de" stays a plain field on every row: it picks predecessors, and
+    when one of them is a decision it shows that branch's label without
+    letting it be changed. The same label editable in two places means nobody
+    knows which one wins.
+  - **Only decision rows grow.** In a real flow four rows out of thirty-six
+    are decisions. A grid is worth having because thirty-six rows can be
+    scanned at once; turning every row into a little form destroys the one
+    thing it was good at.
   - A branch with no label is an empty field anyone can see, not a rule to be
     learnt from an error message. A target can only be a step that exists.
   - On every other type, "Salidas" stays a plain field: there is normally one.
