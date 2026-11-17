@@ -6,7 +6,7 @@ import { Router } from "./access.tsx";
 import { scriptJson } from "./layout.tsx";
 import { AdminList, RowActions, yesNo } from "./admin.tsx";
 import { loadTagIndex } from "./document.ts";
-import { listSavePoints, openDraft, parseBase, restoreSavePoint, reviewImport, saveDraft, type Opened, type SaveAnswer, type SavePoint } from "./draft.ts";
+import { listSavePoints, listVersions, openDraft, parseBase, restoreRelease, restoreSavePoint, reviewImport, saveDraft, type Opened, type SaveAnswer, type SavePoint, type Version } from "./draft.ts";
 import { flowEntries, getFlow, type FlowListEntry, type FlowRow } from "./flows.ts";
 import { NO_AREAS_WARNING } from "./flows-screen.tsx";
 import { publishFlow, PUBLISH_CONFLICT } from "./publish.ts";
@@ -132,6 +132,7 @@ function EditorPage({
       <nav class="editor-links" aria-label="Del flujo">
         <a href={`/flows/${flow.id}/details`}>Datos del flujo</a>
         <a href={`/flows/${flow.id}/save-points`}>Puntos guardados</a>
+        <a href={`/flows/${flow.id}/versions`}>Versiones</a>
       </nav>
       <div id="editor-panel">
         {notice && (
@@ -231,7 +232,9 @@ editor.get("/:id{[0-9]+}/edit", "editor", async (c) => {
   const flow = await getFlow(c.env.DB, Number(c.req.param("id")));
   if (!flow) return c.notFound();
   const { data, opened, version } = await editorData(c.env.DB, flow);
-  const published = /^\d{1,6}\.\d{1,6}$/.test(c.req.query("publicada") ?? "") ? c.req.query("publicada") : null;
+  const versionIn = (key: string) => (/^\d{1,6}\.\d{1,6}$/.test(c.req.query(key) ?? "") ? c.req.query(key) : null);
+  const published = versionIn("publicada");
+  const restored = versionIn("restaurada");
   const notice = published ? (
     <>
       {/* With no area (removed after the first publication), the flow
@@ -239,6 +242,10 @@ editor.get("/:id{[0-9]+}/edit", "editor", async (c) => {
       Publicada la versión {published}. {data.areas ? "Ya la ven las personas de las áreas del flujo." : NO_AREAS_WARNING}{" "}
       <a href={`/flows/${flow.id}`}>Ver el flujo</a>
     </>
+  ) : restored && restored === data.published ? (
+    `El borrador volvió a la versión ${restored}, la que todos ven. Tus cambios anteriores siguen en los puntos guardados.`
+  ) : restored ? (
+    `El borrador ahora tiene el contenido de la versión ${restored}. Nadie lo ve todavía: publícalo para que vuelva a ser el que todos ven; será una versión nueva.`
   ) : c.req.query("importado") === "1" ? (
     "Importado al borrador. Revísalo aquí; nadie lo ve hasta que lo publiques."
   ) : undefined;
@@ -352,4 +359,57 @@ editor.post("/:id{[0-9]+}/save-points/:point{[0-9]+}/restore", "editor", async (
   const point = Number(c.req.param("point"));
   if (!(await restoreSavePoint(c.env.DB, flow.id, point, c.get("user")!.id))) return c.notFound();
   return c.redirect(`/flows/${flow.id}/save-points?vuelta=${point}`, 303);
+});
+
+// The releases (SPEC §8; phase 5.8): kept forever, any one restorable into
+// the draft.
+function VersionsPage({ flow, versions }: { flow: { id: number; name: string }; versions: Version[] }) {
+  return (
+    <AdminList
+      back={{ href: `/flows/${flow.id}/edit`, label: "Volver al editor" }}
+      title={`Versiones: ${flow.name}`}
+      note="Las versiones publicadas no cambian nunca. Restaurar una pone su contenido en el borrador; para que vuelva a ser la que todos ven, se publica como versión nueva. El borrador que tenías sigue en los puntos guardados."
+      columns={[{ label: "Versión" }, { label: "Publicada" }, { label: "Por" }, { label: "Pasos", numeric: true }, { label: "Es la que todos ven" }]}
+      empty={{
+        purpose: "Cada publicación queda aquí para siempre, y cualquiera se puede restaurar.",
+        howToAdd: "Este flujo todavía no se ha publicado: publícalo desde el editor.",
+      }}
+      rows={versions.map((v) => (
+        <tr>
+          <td>{v.version}</td>
+          <td>{savedAt(v.publishedAt)}</td>
+          <td>{v.by ?? "—"}</td>
+          <td class="num">{v.steps}</td>
+          <td>{yesNo(v.latest)}</td>
+          <RowActions>
+            {v.inDraft ? (
+              <span class="muted">Está en el borrador</span>
+            ) : !v.restorable ? (
+              <span class="muted">Es la que ves en el editor</span>
+            ) : (
+              <form method="post" action={`/flows/${flow.id}/versions/${v.id}/restore`}>
+                <button type="submit" class="button-link" aria-label={`Restaurar la versión ${v.version}`}>
+                  Restaurar
+                </button>
+              </form>
+            )}
+          </RowActions>
+        </tr>
+      ))}
+    />
+  );
+}
+
+editor.get("/:id{[0-9]+}/versions", "editor", async (c) => {
+  const flow = await flowOf(c);
+  if (!flow) return c.notFound();
+  return c.render(<VersionsPage flow={flow} versions={await listVersions(c.env.DB, flow.id)} />, { title: `Versiones: ${flow.name}` });
+});
+
+editor.post("/:id{[0-9]+}/versions/:release{[0-9]+}/restore", "editor", async (c) => {
+  const flow = await flowOf(c);
+  if (!flow) return c.notFound();
+  const version = await restoreRelease(c.env.DB, flow.id, Number(c.req.param("release")), c.get("user")!.id);
+  if (!version) return c.notFound();
+  return c.redirect(`/flows/${flow.id}/edit?restaurada=${version}`, 303);
 });

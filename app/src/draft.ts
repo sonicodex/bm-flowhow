@@ -131,3 +131,58 @@ export async function restoreSavePoint(db: D1Database, flowId: number, pointId: 
     .run();
   return r.meta.changes > 0;
 }
+
+// The releases of a flow (SPEC §8; phase 5.8), newest first. `latest`: the
+// one people see. `inDraft`: the draft holds exactly its document.
+// `restorable`: restoring changes something. With no draft, the editor
+// already shows the latest release, so restoring it would do nothing.
+export type Version = {
+  id: number;
+  version: string;
+  publishedAt: string;
+  by: string | null;
+  steps: number;
+  latest: boolean;
+  inDraft: boolean;
+  restorable: boolean;
+};
+
+export async function listVersions(db: D1Database, flowId: number): Promise<Version[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT r.id, r.major || '.' || r.minor AS version, r.published_at AS publishedAt, u.full_name AS by,
+         json_array_length(r.document, '$.steps') AS steps,
+         r.id = (SELECT id FROM releases WHERE flow_id = r.flow_id ORDER BY major DESC, minor DESC LIMIT 1) AS latest,
+         coalesce(r.document = (SELECT document FROM drafts d WHERE d.flow_id = r.flow_id), 0) AS inDraft,
+         EXISTS (SELECT 1 FROM drafts d WHERE d.flow_id = r.flow_id) AS hasDraft
+       FROM releases r LEFT JOIN users u ON u.id = r.published_by
+       WHERE r.flow_id = ? ORDER BY r.major DESC, r.minor DESC`,
+    )
+    .bind(flowId)
+    .all<Omit<Version, "latest" | "inDraft" | "restorable"> & { latest: number; inDraft: number; hasDraft?: number }>();
+  return results.map(({ hasDraft, ...r }) => ({
+    ...r,
+    latest: r.latest === 1,
+    inDraft: r.inDraft === 1,
+    restorable: r.inDraft !== 1 && (hasDraft === 1 || r.latest !== 1),
+  }));
+}
+
+// "Restaurar" (§8): the release's document becomes the draft, to be
+// published as a new version; releases never change. As "Volver a este
+// punto", it adds no save point and moves the draft's revision, so a save
+// still open from before is refused. The draft it replaces is not lost:
+// every save left a save point. Null when the release is not this flow's.
+export async function restoreRelease(db: D1Database, flowId: number, releaseId: number, userId: number): Promise<string | null> {
+  const r = await db
+    .prepare(
+      `INSERT INTO drafts (flow_id, document, updated_by)
+       SELECT flow_id, document, ? FROM releases WHERE id = ? AND flow_id = ?
+       ON CONFLICT (flow_id) DO UPDATE SET document = excluded.document, updated_by = excluded.updated_by,
+         updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), revision = revision + 1
+       RETURNING (SELECT major || '.' || minor FROM releases WHERE id = ?) AS version`,
+    )
+    .bind(userId, releaseId, flowId, releaseId)
+    .first<string>("version");
+  return r ?? null;
+}

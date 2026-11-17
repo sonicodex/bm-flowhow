@@ -14,6 +14,46 @@ Entry format:
 
 ---
 
+## 2026-11-17 — Versions and «Restaurar» (phase 5.8)
+
+- Decision:
+  - **«Versiones» is a page of its own**, linked from the editor next to
+    «Puntos guardados», with the §9 table pattern. It lists every
+    release, newest first, with:
+    - the version and the date and time published (Bogotá);
+    - who published it and its step count;
+    - whether it is the one everyone sees.
+  - **«Restaurar» copies a release into the draft and publishes
+    nothing** (§8: «copied into the draft and published as a new
+    version»). Releases never change. It works as «Volver a este punto»:
+    - it adds no save point;
+    - it moves the draft's revision, so a save or a publication still
+      open from before is refused as a conflict;
+    - nothing is lost, because every save left a save point.
+    The editor then reloads on the draft and explains what happened.
+  - **Restoring the version everyone sees:**
+    - With no draft, «Restaurar» is not offered on that version: the
+      editor already shows it, so restoring would do nothing. The row
+      says «Es la que ves en el editor».
+    - With a draft, it is offered, and it means «go back to what
+      everyone sees». The editor then says so («El borrador volvió a la
+      versión x.y, la que todos ven…»), not «publícalo para que vuelva a
+      ser el que todos ven».
+    - Found in the browser check, which restored the latest version by
+      mistake.
+  - The row whose content is already in the draft says «Está en el
+    borrador», instead of «Restaurar».
+  - Browser check: `app/.layout-check/5.8/check.mjs` on a throwaway
+    flow, deleted afterwards. It covers:
+    - 1.0 and 2.0 published, then the list;
+    - only 1.0 restorable, and restored;
+    - the grid and the preview on 1.0's content, the line under the
+      title, and the publish panel offering 2.1 or 3.0;
+    - desktop and phone, with no horizontal page scroll (the table
+      scrolls inside its frame, as every admin table does).
+- Reason: phase 5 plan, slice 5.8; SPEC §8.
+- Spec sections affected: 8.
+
 ## 2026-11-17 — Publishing from the editor (phase 5.7)
 
 - Decision:

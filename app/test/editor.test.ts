@@ -196,3 +196,99 @@ describe("publishing from the editor (phase 5.7)", () => {
     expect((await post(`/flows/${id + 100}/publish`, { base, bump: "minor" })).status).toBe(404);
   });
 });
+
+describe("versions and «Restaurar» (phase 5.8)", () => {
+  const steps = (title: string): Grid => ({
+    categories: [],
+    rows: [
+      { id: "P1", type: "start", ref: "", title, description: "", tags: {}, exits: "P2", depends_on: "" },
+      { id: "P2", type: "end", ref: "", title: "Terminar", description: "", tags: {}, exits: "", depends_on: "" },
+    ],
+  });
+  const post = (path: string, body: unknown) =>
+    board.fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const save = async (id: number, base: string, title: string) => ((await (await post(`/flows/${id}/draft`, { grid: steps(title), base })).json()) as { base: string }).base;
+  const publish = async (id: number, base: string, bump = "minor") =>
+    ((await (await post(`/flows/${id}/publish`, { base, bump })).json()) as { version: string }).version;
+  const n = async (sql: string, ...args: unknown[]) => (await env.DB.prepare(sql).bind(...args).first<number>("n"))!;
+  // A flow published as 1.0 ("Uno") and 1.1 ("Dos").
+  const twoVersions = async () => {
+    const r = await createFlow(env.DB, "Despachos");
+    if (!r.ok) throw new Error(r.error);
+    await env.DB.prepare("INSERT OR IGNORE INTO areas (name, name_key) VALUES ('Desarrollo', 'desarrollo')").run();
+    await env.DB.prepare("INSERT INTO flow_areas (flow_id, area_id) SELECT ?, id FROM areas WHERE name_key = 'desarrollo'").bind(r.id).run();
+    await publish(r.id, await save(r.id, "draft:1", "Uno"));
+    await publish(r.id, await save(r.id, (await page(r.id)).data!.base, "Dos"));
+    const ids = (await env.DB.prepare("SELECT id FROM releases WHERE flow_id = ? ORDER BY id").bind(r.id).all<{ id: number }>()).results.map((x) => x.id);
+    return { id: r.id, v10: ids[0]!, v11: ids[1]! };
+  };
+  const titleOfDraft = async (id: number) =>
+    env.DB.prepare("SELECT json_extract(document, '$.steps[0].title') AS t FROM drafts WHERE flow_id = ?").bind(id).first<string>("t");
+
+  it("lists every release, newest first, with the one people see", async () => {
+    const { id, v10 } = await twoVersions();
+    const html = await (await board.fetch(`/flows/${id}/versions`)).text();
+    const rows = [...html.matchAll(/<tr><td>(\d+\.\d+)<\/td><td>[^<]+<\/td><td>([^<]+)<\/td><td class="num">(\d+)<\/td><td>(Sí|No)<\/td>/g)].map((m) => m.slice(1));
+    expect(rows).toEqual([
+      ["1.1", "Nombre de board", "2", "Sí"],
+      ["1.0", "Nombre de board", "2", "No"],
+    ]);
+    expect(html).toContain(`<form method="post" action="/flows/${id}/versions/${v10}/restore">`);
+    expect((await page(id)).html).toContain(`<a href="/flows/${id}/versions">Versiones</a>`);
+    // With no draft, the latest is what the editor shows: nothing to restore.
+    expect(html).toContain('<span class="muted">Es la que ves en el editor</span>');
+    expect(html.match(/action="[^"]*\/restore"/g)).toHaveLength(1);
+    const empty = await createFlow(env.DB, "Nuevo");
+    if (!empty.ok) throw new Error(empty.error);
+    expect(await (await board.fetch(`/flows/${empty.id}/versions`)).text()).toContain("Este flujo todavía no se ha publicado: publícalo desde el editor.");
+  });
+
+  it("restores a release into the draft, to be published as a new version; releases never change", async () => {
+    const { id, v10 } = await twoVersions();
+    const res = await board.fetch(`/flows/${id}/versions/${v10}/restore`, { method: "POST" });
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe(`/flows/${id}/edit?restaurada=1.0`);
+    expect(await titleOfDraft(id)).toBe("Uno");
+    expect(await n("SELECT count(*) AS n FROM save_points WHERE flow_id = ?", id)).toBe(0);
+    const { html, data } = await page(id);
+    expect(data!.base).toMatch(/^draft:/);
+    expect(data!.grid.rows[0]!.title).toBe("Uno");
+    const notice = await (await board.fetch(`/flows/${id}/edit?restaurada=1.0`)).text();
+    expect(notice).toContain("El borrador ahora tiene el contenido de la versión 1.0. Nadie lo ve todavía");
+    expect(html).not.toContain("El borrador ahora tiene");
+    expect(await (await board.fetch(`/flows/${id}/versions`)).text()).toContain('<span class="muted">Está en el borrador</span>');
+    expect(await publish(id, data!.base)).toBe("1.2");
+    const docs = (await env.DB.prepare("SELECT major || '.' || minor AS v, json_extract(document, '$.steps[0].title') AS t FROM releases WHERE flow_id = ? ORDER BY id").bind(id).all()).results;
+    expect(docs).toEqual([{ v: "1.0", t: "Uno" }, { v: "1.1", t: "Dos" }, { v: "1.2", t: "Uno" }]);
+  });
+
+  it("replaces a draft open elsewhere: its next save is refused, and nothing it saved is lost", async () => {
+    const { id, v10 } = await twoVersions();
+    const open = await save(id, (await page(id)).data!.base, "Tres");
+    expect(await n("SELECT count(*) AS n FROM save_points WHERE flow_id = ?", id)).toBe(1);
+    await board.fetch(`/flows/${id}/versions/${v10}/restore`, { method: "POST" });
+    expect(await titleOfDraft(id)).toBe("Uno");
+    expect((await post(`/flows/${id}/draft`, { grid: steps("Cuatro"), base: open })).status).toBe(409);
+    expect((await post(`/flows/${id}/publish`, { base: open, bump: "minor" })).status).toBe(409);
+    // With a draft, the latest can be restored: back to what everyone sees.
+    const latest = await board.fetch(`/flows/${id}/versions`).then((r) => r.text());
+    expect(latest.match(/action="[^"]*\/restore"/g)).toHaveLength(1);
+    await save(id, (await page(id)).data!.base, "Cinco");
+    expect((await board.fetch(`/flows/${id}/versions`).then((r) => r.text())).match(/action="[^"]*\/restore"/g)).toHaveLength(2);
+    expect(await (await board.fetch(`/flows/${id}/edit?restaurada=1.1`)).text()).toContain(
+      "El borrador volvió a la versión 1.1, la que todos ven. Tus cambios anteriores siguen en los puntos guardados.",
+    );
+    const kept = await env.DB.prepare("SELECT json_extract(document, '$.steps[0].title') AS t FROM save_points WHERE flow_id = ? ORDER BY id LIMIT 1").bind(id).first<string>("t");
+    expect(kept).toBe("Tres");
+  });
+
+  it("restores only this flow's releases", async () => {
+    const { id, v10 } = await twoVersions();
+    const other = await createFlow(env.DB, "Otro");
+    if (!other.ok) throw new Error(other.error);
+    expect((await board.fetch(`/flows/${other.id}/versions/${v10}/restore`, { method: "POST" })).status).toBe(404);
+    expect((await board.fetch(`/flows/${id}/versions/99999/restore`, { method: "POST" })).status).toBe(404);
+    expect(await n("SELECT count(*) AS n FROM drafts WHERE flow_id = ?", other.id)).toBe(1);
+    expect(await titleOfDraft(other.id)).toBe(null);
+  });
+});

@@ -81,6 +81,8 @@ describe("route access (phase 4.2)", () => {
       "POST /flows/:id{[0-9]+}/draft": "editor",
       "POST /flows/:id{[0-9]+}/draft/review": "editor",
       "POST /flows/:id{[0-9]+}/publish": "editor",
+      "GET /flows/:id{[0-9]+}/versions": "editor",
+      "POST /flows/:id{[0-9]+}/versions/:release{[0-9]+}/restore": "editor",
       "GET /flows/:id{[0-9]+}/save-points": "editor",
       "POST /flows/:id{[0-9]+}/save-points/:point{[0-9]+}/restore": "editor",
     });
@@ -115,6 +117,8 @@ describe("route access (phase 4.2)", () => {
     const spareCategory = (await env.DB.prepare("INSERT INTO tag_categories (name, name_key) VALUES ('Sobrante', 'sobrante') RETURNING id").first<number>("id"))!;
     const spareValue = (await env.DB.prepare("INSERT INTO tags (category_id, name, name_key) VALUES (?, 'Sobra', 'sobra') RETURNING id").bind(spareCategory).first<number>("id"))!;
     // A save point of the flow, for "Volver a este punto".
+    // A release of the flow, for "Restaurar".
+    const release = (await env.DB.prepare("SELECT id FROM releases WHERE flow_id = ?").bind(flow).first<number>("id"))!;
     const point = (await env.DB.prepare("INSERT INTO save_points (flow_id, document) SELECT flow_id, document FROM releases WHERE flow_id = ? RETURNING id").bind(flow).first<number>("id"))!;
     const idFor = (path: string) =>
       path.startsWith("/users") ? target.id : path.startsWith("/areas") ? spareArea : path.startsWith("/categories") ? spareCategory : flow;
@@ -134,7 +138,7 @@ describe("route access (phase 4.2)", () => {
     const routes = guardedRoutes(app).filter((r) => r.access !== "public");
     for (const { method, path, access } of routes) {
       if (access === "public") continue;
-      const url = path.replace(/:id(\{[^}]*\})?/, String(idFor(path))).replace(/:value(\{[^}]*\})?/, String(spareValue)).replace(/:point(\{[^}]*\})?/, String(point));
+      const url = path.replace(/:id(\{[^}]*\})?/, String(idFor(path))).replace(/:value(\{[^}]*\})?/, String(spareValue)).replace(/:point(\{[^}]*\})?/, String(point)).replace(/:release(\{[^}]*\})?/, String(release));
       const label = `${method} ${url} (${access})`;
       expect(sentToLogin(await send(anonymous, method, url), method), `${label}: sin sesión`).toBe(true);
       const res = await send(pending.fetch, method, url);
