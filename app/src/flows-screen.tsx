@@ -1,12 +1,10 @@
-import type { RowError } from "../public/js/core.js";
 import { Router } from "./access.tsx";
 import { AdminForm, AdminList, RowActions, yesNo } from "./admin.tsx";
 import { COLOURS, createFlow, getFlow, saveFlowDetails, type FlowDetails } from "./flows.ts";
-import { applyGrid, parseGrid, reviewGrid, type NewTag, type Review } from "./import.ts";
 
-// Provisional flows and import screens (phase 1.5): a scaffold to exercise
-// the import contract. Phase 5 replaces them with the editor. Editors
-// only (phase 4.2). They only reuse the existing app.css classes.
+// The flows list, the new flow form and the flow form (phases 1.5, 4.4).
+// Editors only (phase 4.2). Steps are edited, and imported, in the editor
+// (src/editor.tsx).
 export const flowsScreen = new Router();
 
 type FlowItem = { id: number; name: string; colour: number; version: string | null; draft: number; areas: string | null };
@@ -55,9 +53,6 @@ function FlowsPage({ items }: { items: FlowItem[] }) {
             <a href={`/flows/${f.id}/edit`} aria-label={`Editar ${f.name}`}>
               Editar
             </a>
-            <a href={`/flows/${f.id}/import`} aria-label={`Importar a ${f.name}`}>
-              Importar
-            </a>
           </RowActions>
         </tr>
       ))}
@@ -91,151 +86,10 @@ flowsScreen.post("/", "editor", async (c) => {
   return c.redirect("/flows", 303);
 });
 
-function ImportPage({ flow, done }: { flow: { id: number; name: string }; done?: boolean }) {
-  return (
-    <>
-      <p class="admin-back">
-        <a href={BACK.href}>← {BACK.label}</a>
-      </p>
-      <h1 class="page-title">Importar: {flow.name}</h1>
-      {done && <p role="status">Importado al borrador. No se publicó.</p>}
-      <p class="muted">La importación reemplaza todo el borrador y siempre pasa por una revisión antes de guardarse.</p>
-      <form method="post" action={`/flows/${flow.id}/import/review`} data-import>
-        <p>
-          <label for="paste">Pega aquí las celdas copiadas de Excel, con la fila de encabezados:</label>
-          <br />
-          <textarea id="paste" name="paste" rows={10} cols={80}></textarea>
-        </p>
-        <p>
-          <label for="file">O elige un archivo .xlsx (se lee la hoja «Flujo»; si eliges archivo, se ignora lo pegado):</label>
-          <br />
-          <input id="file" name="file" type="file" accept=".xlsx" />
-        </p>
-        <input type="hidden" name="grid" />
-        <ul class="plain-list form-error" role="alert" data-errors hidden></ul>
-        <noscript>
-          <p class="form-error">Esta pantalla necesita JavaScript para leer lo pegado o el archivo.</p>
-        </noscript>
-        <button type="submit" class="button-primary">Revisar</button>
-      </form>
-      <script type="module" src="/js/import-form.js"></script>
-    </>
-  );
-}
-
-function ErrorList({ errors }: { errors: RowError[] }) {
-  return (
-    <ul class="plain-list">
-      {errors.map((e) => (
-        <li class={e.blocking ? "form-error" : undefined}>
-          {e.message} {e.blocking ? "(bloquea la importación)" : "(bloquea solo la publicación)"}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-const tagValue = (t: NewTag) => JSON.stringify([t.category, t.name]);
-
-function ReviewPage({ flow, review, grid }: { flow: { id: number; name: string }; review: Review; grid: string }) {
-  return (
-    <>
-      <p class="admin-back">
-        <a href={`/flows/${flow.id}/import`}>← Volver a importar</a>
-      </p>
-      <h1 class="page-title">Revisión: {flow.name}</h1>
-      <p>
-        {review.flow.steps.length} pasos{review.flow.categories.length ? `; categorías: ${review.flow.categories.join(", ")}` : ""}.
-      </p>
-      {review.errors.length ? <ErrorList errors={review.errors} /> : <p>Sin errores.</p>}
-      {review.blocking ? (
-        <p class="form-error" role="alert">
-          No se puede importar: corrige en Excel las filas marcadas y vuelve a pegarlas.
-        </p>
-      ) : (
-        <form method="post" action={`/flows/${flow.id}/import/apply`}>
-          <input type="hidden" name="grid" value={grid} />
-          {review.newCategories.length > 0 && (
-            <fieldset>
-              <legend>Categorías nuevas (las no marcadas se descartan con su columna)</legend>
-              {review.newCategories.map((cat) => (
-                <label>
-                  <input type="checkbox" name="category" value={cat} checked /> {cat}{" "}
-                </label>
-              ))}
-            </fieldset>
-          )}
-          {review.newTags.length > 0 && (
-            <fieldset>
-              <legend>Etiquetas nuevas (las no marcadas se descartan)</legend>
-              {review.newTags.map((t) => (
-                <label>
-                  <input type="checkbox" name="tag" value={tagValue(t)} checked /> {t.category}: {t.name}{" "}
-                </label>
-              ))}
-            </fieldset>
-          )}
-          <p>
-            <button type="submit" class="button-primary">Importar al borrador</button>
-          </p>
-        </form>
-      )}
-    </>
-  );
-}
-
 async function flowOf(c: { env: Env; req: { param: (k: string) => string | undefined } }) {
   const id = Number(c.req.param("id"));
   return Number.isSafeInteger(id) && id > 0 ? getFlow(c.env.DB, id) : null;
 }
-
-function readGrid(raw: unknown) {
-  try {
-    return parseGrid(JSON.parse(String(raw ?? "")));
-  } catch {
-    return { ok: false as const, error: "El grid no tiene la forma esperada: no es JSON." };
-  }
-}
-
-flowsScreen.get("/:id/import", "editor", async (c) => {
-  const flow = await flowOf(c);
-  if (!flow) return c.notFound();
-  return c.render(<ImportPage flow={flow} done={c.req.query("done") === "1"} />, { title: `Importar ${flow.name}` });
-});
-
-flowsScreen.post("/:id/import/review", "editor", async (c) => {
-  const flow = await flowOf(c);
-  if (!flow) return c.notFound();
-  const parsed = readGrid((await c.req.parseBody()).grid);
-  if (parsed.ok === false) return c.text(parsed.error, 400);
-  const review = await reviewGrid(c.env.DB, flow.id, parsed.grid);
-  if (review.blocking) c.status(422);
-  return c.render(<ReviewPage flow={flow} review={review} grid={JSON.stringify(parsed.grid)} />, { title: `Revisión ${flow.name}` });
-});
-
-flowsScreen.post("/:id/import/apply", "editor", async (c) => {
-  const flow = await flowOf(c);
-  if (!flow) return c.notFound();
-  const form = await c.req.parseBody({ all: true });
-  const parsed = readGrid(form.grid);
-  if (parsed.ok === false) return c.text(parsed.error, 400);
-  const list = (v: unknown) => (v === undefined ? [] : Array.isArray(v) ? v : [v]).map(String);
-  const tags: NewTag[] = [];
-  for (const raw of list(form.tag)) {
-    try {
-      const [category, name] = JSON.parse(raw) as unknown[];
-      if (typeof category === "string" && typeof name === "string") tags.push({ category, name });
-    } catch {
-      // Not ours: an unreadable choice is treated as rejected.
-    }
-  }
-  const result = await applyGrid(c.env.DB, flow.id, parsed.grid, { categories: list(form.category), tags });
-  if (result.ok) return c.redirect(`/flows/${flow.id}/import?done=1`, 303);
-  // Blocked since the review (e.g. a target flow was deleted): review again.
-  c.status(422);
-  const review = await reviewGrid(c.env.DB, flow.id, parsed.grid);
-  return c.render(<ReviewPage flow={flow} review={review} grid={JSON.stringify(parsed.grid)} />, { title: `Revisión ${flow.name}` });
-});
 
 // The flow form (SPEC §6 "Flow form"; phases 4.4 and 5.1): name, objective,
 // colour and the areas whose Empleados see it. Editors only.

@@ -81,6 +81,23 @@ export async function saveDraft(db: D1Database, flowId: number, body: unknown, u
   return { status: "blocked", errors: r.errors };
 }
 
+// The review of an import (SPEC §6 import rules; phase 5.5): read-only,
+// before anything replaces the draft. The browser draws the diagram from
+// the same grid; this says what only the server knows: links resolved
+// against every flow, and which categories and values are new. An import
+// needs at least one row, unlike an editor's save.
+export type ImportReview =
+  | { status: "invalid"; error: string }
+  | { status: "review"; errors: RowError[]; blocking: boolean; newCategories: string[]; newTags: NewTag[] };
+
+export async function reviewImport(db: D1Database, flowId: number, body: unknown): Promise<ImportReview> {
+  const grid = typeof body === "object" && body !== null ? (body as Record<string, unknown>).grid : undefined;
+  const parsed = parseGrid(grid);
+  if (parsed.ok === false) return { status: "invalid", error: parsed.error };
+  const { errors, blocking, newCategories, newTags } = await reviewGrid(db, flowId, parsed.grid);
+  return { status: "review", errors, blocking, newCategories, newTags };
+}
+
 export type SavePoint = { id: number; createdAt: string; by: string | null; steps: number; current: boolean };
 
 // Newest first. `current`: the draft holds exactly this point's document.

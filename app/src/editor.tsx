@@ -5,7 +5,7 @@ import { Router } from "./access.tsx";
 import { scriptJson } from "./layout.tsx";
 import { AdminList, RowActions, yesNo } from "./admin.tsx";
 import { loadTagIndex } from "./document.ts";
-import { listSavePoints, openDraft, restoreSavePoint, saveDraft, type Opened, type SaveAnswer, type SavePoint } from "./draft.ts";
+import { listSavePoints, openDraft, restoreSavePoint, reviewImport, saveDraft, type Opened, type SaveAnswer, type SavePoint } from "./draft.ts";
 import { flowEntries, getFlow, type FlowListEntry, type FlowRow } from "./flows.ts";
 import type { AppEnv } from "./session.ts";
 
@@ -81,7 +81,19 @@ function sourceLine(source: Opened["source"], version: string | null) {
   return `Borrador sobre la versión publicada ${version}. Nadie lo ve hasta que lo publiques.`;
 }
 
-function EditorPage({ flow, data, source, version }: { flow: FlowRow; data: EditorData; source: Opened["source"]; version: string | null }) {
+function EditorPage({
+  flow,
+  data,
+  source,
+  version,
+  notice,
+}: {
+  flow: FlowRow;
+  data: EditorData;
+  source: Opened["source"];
+  version: string | null;
+  notice?: string;
+}) {
   return (
     <section class={`editor flow-${flow.colour}`}>
       <p class="admin-back">
@@ -103,14 +115,27 @@ function EditorPage({ flow, data, source, version }: { flow: FlowRow; data: Edit
       <nav class="editor-links" aria-label="Del flujo">
         <a href={`/flows/${flow.id}/details`}>Datos del flujo</a>
         <a href={`/flows/${flow.id}/save-points`}>Puntos guardados</a>
-        <a href={`/flows/${flow.id}/import`}>Importar desde Excel</a>
       </nav>
-      <div id="editor-panel"></div>
+      <div id="editor-panel">
+        {notice && (
+          <div class="card editor-message" role="status">
+            {notice}
+          </div>
+        )}
+      </div>
+      <ImportBox />
+      {/* Filled by editor.js with the review of an import (phase 5.5): it
+          takes the place of the grid until the import is applied or
+          dropped. */}
+      <section class="editor-review" id="import-review" aria-labelledby="review-title" hidden></section>
       <div class="editor-cols">
         <div class="editor-main">
           <div class="editor-toolbar">
             <button type="button" class="button-secondary" data-add>
               Agregar paso
+            </button>
+            <button type="button" class="button-secondary" data-import aria-expanded="false" aria-controls="import-box">
+              Importar desde Excel
             </button>
           </div>
           <div class="table-frame">
@@ -147,11 +172,42 @@ function EditorPage({ flow, data, source, version }: { flow: FlowRow; data: Edit
   );
 }
 
+// SPEC §6: an import fills the same grid from a paste or an .xlsx, always
+// through a review, and replaces the whole draft (phase 5.5). editor.js
+// reads the paste or the file into a grid (import-form.js), the server
+// reviews it, and applying it is a save.
+function ImportBox() {
+  return (
+    <section class="card editor-import" id="import-box" aria-labelledby="import-title" hidden>
+      <h2 id="import-title">Importar desde Excel</h2>
+      <p>
+        Reemplaza todos los pasos del borrador. Antes de guardar verás una revisión con los problemas y el diagrama que resultaría.
+      </p>
+      <label for="import-file">Un archivo .xlsx (se lee su hoja «Flujo»)</label>
+      <input id="import-file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+      <label for="import-paste">O las celdas copiadas de Excel, con la fila de encabezados</label>
+      <textarea id="import-paste" rows={6} spellcheck={false}></textarea>
+      <ul class="plain-list form-error" role="alert" id="import-errors" hidden></ul>
+      <div class="editor-message-actions">
+        <button type="button" class="button-primary" data-import-review>
+          Revisar
+        </button>
+        <button type="button" class="button-secondary" data-import-cancel>
+          Cancelar
+        </button>
+      </div>
+    </section>
+  );
+}
+
 editor.get("/:id{[0-9]+}/edit", "editor", async (c) => {
   const flow = await getFlow(c.env.DB, Number(c.req.param("id")));
   if (!flow) return c.notFound();
   const { data, opened, version } = await editorData(c.env.DB, flow);
-  return c.render(<EditorPage flow={flow} data={data} source={opened.source} version={version} />, { title: `Editar ${flow.name}` });
+  const notice = c.req.query("importado") === "1" ? "Importado al borrador. Revísalo aquí; nadie lo ve hasta que lo publiques." : undefined;
+  return c.render(<EditorPage flow={flow} data={data} source={opened.source} version={version} notice={notice} />, {
+    title: `Editar ${flow.name}`,
+  });
 });
 
 const flowOf = async (c: Context<AppEnv>) => getFlow(c.env.DB, Number(c.req.param("id")));
@@ -175,6 +231,14 @@ editor.post("/:id{[0-9]+}/draft", "editor", async (c) => {
   }
   const answer = await saveDraft(c.env.DB, flow.id, body, c.get("user")!.id);
   return c.json(answer, STATUS[answer.status]);
+});
+
+// The review of an import, as JSON (src/draft.ts): writes nothing.
+editor.post("/:id{[0-9]+}/draft/review", "editor", async (c) => {
+  const flow = await flowOf(c);
+  if (!flow) return c.notFound();
+  const answer = await reviewImport(c.env.DB, flow.id, await c.req.json().catch(() => null));
+  return c.json(answer, answer.status === "invalid" ? 400 : 200);
 });
 
 function SavePointsPage({ flow, points, notice }: { flow: { id: number; name: string }; points: SavePoint[]; notice?: string }) {

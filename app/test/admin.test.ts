@@ -40,8 +40,8 @@ describe("administration screens (phase 4.4)", () => {
     if (!draft.ok) throw new Error(draft.error);
     const html = await (await (await signIn()).fetch("/flows")).text();
     expect(tableRows(html)).toEqual([
-      ["Borrador nuevo", "Sin publicar", "Sí", "Ninguna", "Editar Importar"],
-      ["Instalaciones", "1.0", "No", "Desarrollo", "Ver Editar Importar"],
+      ["Borrador nuevo", "Sin publicar", "Sí", "Ninguna", "Editar"],
+      ["Instalaciones", "1.0", "No", "Desarrollo", "Ver Editar"],
     ]);
     const { id, colour } = (await env.DB.prepare("SELECT id, colour FROM flows WHERE name = 'Instalaciones'").first<{ id: number; colour: number }>())!;
     expect(html).toContain(`<a class="admin-name flow-${colour}" href="/flows/${id}/edit"><span class="flow-dot" aria-hidden="true"></span>Instalaciones</a>`);

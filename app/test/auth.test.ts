@@ -109,7 +109,7 @@ describe("login screen (phase 4.1)", () => {
 
 describe("routes behind the session (phase 4.1)", () => {
   it("sends pages to the login, and answers the tour's JSON with 401", async () => {
-    for (const path of ["/home", "/flows", "/flows/1", "/flows/1/import", "/areas", "/no-existe"]) {
+    for (const path of ["/home", "/flows", "/flows/1", "/flows/1/edit", "/areas", "/no-existe"]) {
       const res = await anonymous(path);
       expect(res.status, path).toBe(302);
       expect(res.headers.get("location"), path).toBe("/");

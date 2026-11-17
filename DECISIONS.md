@@ -14,6 +14,53 @@ Entry format:
 
 ---
 
+## 2026-11-17 — Import inside the editor (phase 5.5)
+
+- Decision:
+  - **«Importar desde Excel» is a button in the editor's toolbar**, next
+    to «Agregar paso». It opens a box above the grid with a file field
+    (.xlsx, sheet «Flujo») and a paste area. A chosen file wins over the
+    paste, and the review says so. The browser reads both into a grid
+    (`import-form.js`, which keeps only its two readers). The server
+    still receives only the grid (SPEC §9).
+  - **The review takes the place of the grid** until it is applied or
+    dropped. It shows:
+    - the step count and the categories;
+    - the problems;
+    - the diagram the import would give, drawn as the preview draws it;
+    - the new categories and values, all checked, to accept or reject.
+    The review comes from a read-only route,
+    `POST /flows/:id/draft/review`, which writes nothing.
+  - **While something blocks, only the blocking problems are listed.**
+    The others are often the same row seen again (a link to a flow that
+    does not exist is also "a link with no target"), and the next review
+    will show them.
+  - **Applying is a save** (`POST /flows/:id/draft`, with `accepted`).
+    It goes through the same review, the same conflict check against
+    the base, and the same save point. A rejected category goes with
+    its column, and a rejected value leaves its cells. The page reloads
+    on the new draft with «Importado al borrador…».
+  - If the grid holds unsaved edits, the review warns that replacing the
+    draft loses them.
+  - An import needs at least one row (unlike a save from the grid,
+    which may empty the draft).
+  - **The provisional screen is gone:** the `/flows/:id/import`,
+    `/import/review` and `/import/apply` routes, and the «Importar»
+    action in the flows list. Its tests now cover the editor route.
+  - The file field's button text («Choose File») is the browser's own,
+    in the browser's language. It is left as it is: a custom control
+    would be an addition beyond the spec.
+  - Browser check: `app/.layout-check/5.5/check.mjs` on a throwaway
+    flow, deleted afterwards. It covers:
+    - an empty attempt;
+    - a blocked paste, with no apply offered, and going back with the
+      paste kept;
+    - Instalaciones.xlsx over a paste, with 30 nodes drawn, applied;
+    - a paste with a new category, rejected, which created nothing;
+    - desktop and phone, with no horizontal scroll.
+- Reason: phase 5 plan, slice 5.5; SPEC §6 (import rules).
+- Spec sections affected: 6, 9.
+
 ## 2026-11-17 — Live preview beside the grid (phase 5.4)
 
 - Decision:

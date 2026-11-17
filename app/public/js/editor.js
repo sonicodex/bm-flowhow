@@ -6,6 +6,7 @@
 import Core from './core.js';
 import { layoutFlow } from './diagram-layout.js';
 import { renderDiagram } from './diagram.js';
+import { gridFromText, gridFromXlsx } from './import-form.js';
 import {
   blankRow, checkGrid, compileGrid, dependsOnText, diagramKey, dropValues, nextStepId, renameStep, setDependsOn, suggestions, toSave,
 } from './grid-edit.js';
@@ -18,6 +19,10 @@ const statusEl = document.getElementById('save-status');
 const saveButton = document.querySelector('[data-save]');
 const addButton = document.querySelector('[data-add]');
 const preview = document.getElementById('preview');
+const importBox = document.getElementById('import-box');
+const importButton = document.querySelector('[data-import]');
+const reviewEl = document.getElementById('import-review');
+const cols = document.querySelector('.editor-cols');
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const ICON = (name, alt = '') => `<img class="icon" src="/icons/${name}.svg" alt="${esc(alt)}" width="18" height="18">`;
@@ -421,6 +426,140 @@ if (dataEl && table) {
   window.addEventListener('beforeunload', (ev) => {
     if (dirty() && !leaving) ev.preventDefault();
   });
+
+  // ---- Import (SPEC §6 import rules; phase 5.5): a paste or an .xlsx,
+  // read here into a grid, reviewed by the server, shown with the diagram
+  // it would give, and applied as a save that replaces the whole draft. ----
+
+  const importErrors = document.getElementById('import-errors');
+  const importFile = document.getElementById('import-file');
+  const importPaste = document.getElementById('import-paste');
+
+  const listErrors = (el, errors) => {
+    el.innerHTML = errors.map((e) => `<li>${esc(e.message)}</li>`).join('');
+    el.hidden = !errors.length;
+  };
+
+  function openImport(open) {
+    importBox.hidden = !open;
+    importButton.setAttribute('aria-expanded', String(open));
+    if (open) (importFile.files.length ? importFile : importPaste).focus();
+    else importButton.focus();
+  }
+  importButton.addEventListener('click', () => openImport(importBox.hidden));
+  importBox.querySelector('[data-import-cancel]').addEventListener('click', () => openImport(false));
+  // A message about what was chosen goes once the choice changes.
+  importPaste.addEventListener('input', () => listErrors(importErrors, []));
+  importFile.addEventListener('change', () => listErrors(importErrors, []));
+
+  importBox.querySelector('[data-import-review]').addEventListener('click', async () => {
+    // A file, when one is chosen, wins over the paste, and the screen says so.
+    const fromFile = importFile.files.length > 0;
+    if (!fromFile && !importPaste.value.trim()) {
+      listErrors(importErrors, [{ message: 'Elige un archivo .xlsx o pega las celdas copiadas de Excel.' }]);
+      return;
+    }
+    const read = fromFile ? await gridFromXlsx(new Uint8Array(await importFile.files[0].arrayBuffer())) : gridFromText(importPaste.value);
+    if (read.errors.length) {
+      listErrors(importErrors, read.errors);
+      return;
+    }
+    listErrors(importErrors, []);
+    let review;
+    try {
+      const res = await fetch(`/flows/${data.flowId}/draft/review`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ grid: read.grid }),
+      });
+      review = await res.json();
+    } catch {
+      review = { status: 'invalid', error: 'No se pudo revisar: revisa la conexión y vuelve a intentarlo.' };
+    }
+    if (review.status !== 'review') {
+      listErrors(importErrors, [{ message: review.error }]);
+      return;
+    }
+    showReview(read.grid, review, fromFile && importPaste.value.trim() ? 'Se leyó el archivo; lo pegado no se tuvo en cuenta.' : '');
+  });
+
+  function showReview(imported, review, note) {
+    const steps = imported.rows.length;
+    const list = (errors) => `<ul>${errors.map((e) => `<li>${ICON('alert')}<span>${esc(e.message)}</span></li>`).join('')}</ul>`;
+    const blocking = review.errors.filter((e) => e.blocking);
+    const rest = review.errors.filter((e) => !e.blocking);
+    const box = (kind, value, label) =>
+      `<label><input type="checkbox" data-new="${kind}" value="${esc(JSON.stringify(value))}" checked> ${esc(label)}</label>`;
+    const fresh = review.newCategories.length + review.newTags.length;
+    reviewEl.innerHTML =
+      '<h2 id="review-title">Revisión de la importación</h2>' +
+      `<p>${steps === 1 ? '1 paso' : `${steps} pasos`}${imported.categories.length ? ` · categorías: ${esc(imported.categories.join(', '))}` : ' · sin categorías'}.</p>` +
+      (note ? `<p class="muted">${esc(note)}</p>` : '') +
+      (dirty() ? '<p class="form-warning">Los cambios que no has guardado en la tabla se pierden al reemplazarla.</p>' : '') +
+      '<div class="editor-cols"><div class="editor-main">' +
+      '<div class="card editor-problems">' +
+      (blocking.length ? `<h2>No se puede importar: corrige estas filas en Excel y vuelve a traerlas</h2>${list(blocking)}` : '') +
+      // While something blocks, the rest is noise: it can wait for the next review.
+      (!blocking.length && rest.length ? `<h2>Se puede importar; para publicar habrá que corregir ${count(rest.length)}</h2>${list(rest)}` : '') +
+      (!review.errors.length ? `<p class="editor-ok">${ICON('done')}<span>Sin problemas.</span></p>` : '') +
+      '</div>' +
+      (!blocking.length && fresh
+        ? '<fieldset class="choice-list"><legend>Categorías y valores nuevos</legend>' +
+          '<p class="muted">Se crean los marcados. Lo que desmarques se quita: una categoría, con su columna; un valor, de las celdas que lo traen.</p>' +
+          review.newCategories.map((c) => box('category', c, `Categoría nueva: ${c}`)).join('') +
+          review.newTags.map((t) => box('tag', t, `${t.category}: ${t.name}`)).join('') +
+          '</fieldset>'
+        : '') +
+      '<div id="review-message"></div>' +
+      '<div class="editor-message-actions">' +
+      (blocking.length ? '' : '<button type="button" class="button-primary" data-apply>Reemplazar el borrador</button>') +
+      '<button type="button" class="button-secondary" data-back>Volver al editor</button></div>' +
+      '</div><aside class="card editor-preview" aria-label="Diagrama que resultaría"><h2>Así quedaría</h2><div class="diagram-scroll" id="review-diagram"></div></aside></div>';
+    const diagram = reviewEl.querySelector('#review-diagram');
+    try {
+      diagram.innerHTML = renderDiagram(layoutFlow(compileGrid(imported, ctx).flow), { name: data.name, colour: data.colour });
+    } catch {
+      diagram.innerHTML = '<p class="muted">No se puede dibujar hasta corregir las filas marcadas.</p>';
+    }
+    cols.hidden = true;
+    importBox.hidden = true;
+    panel.innerHTML = '';
+    reviewEl.hidden = false;
+    reviewEl.querySelector('h2').setAttribute('tabindex', '-1');
+    reviewEl.querySelector('h2').focus();
+
+    reviewEl.querySelector('[data-back]').addEventListener('click', () => {
+      reviewEl.hidden = true;
+      reviewEl.innerHTML = '';
+      cols.hidden = false;
+      openImport(true);
+    });
+    reviewEl.querySelector('[data-apply]')?.addEventListener('click', async (ev) => {
+      const button = ev.currentTarget;
+      button.disabled = true;
+      const boxes = [...reviewEl.querySelectorAll('input[data-new]')];
+      const pick = (kind) => boxes.filter((b) => b.dataset.new === kind && b.checked).map((b) => JSON.parse(b.value));
+      let answer;
+      try {
+        const res = await fetch(`/flows/${data.flowId}/draft`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ grid: imported, base, accepted: { categories: pick('category'), tags: pick('tag') } }),
+        });
+        answer = await res.json();
+      } catch {
+        answer = { status: 'invalid', error: 'No se pudo guardar: revisa la conexión y vuelve a intentarlo.' };
+      }
+      if (answer.status === 'saved') {
+        leaving = true;
+        location.href = `/flows/${data.flowId}/edit?importado=1`;
+        return;
+      }
+      button.disabled = false;
+      const message = answer.status === 'conflict' ? answer.message : answer.status === 'blocked' ? answer.errors.map((e) => e.message).join(' ') : answer.error;
+      reviewEl.querySelector('#review-message').innerHTML = `<p class="form-error" role="alert">${esc(message || 'No se pudo importar.')}</p>`;
+    });
+  }
 
   render();
 }

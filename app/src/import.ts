@@ -144,8 +144,8 @@ const CONFLICT_PUBLISHED = "Otra persona publicó este flujo mientras editabas; 
 // With a `base`, the write happens only if the draft is still what the
 // editor started from (phase 5 plan, answer 5), checked inside the write
 // itself; and saving what the draft already holds writes nothing, so the
-// save points do not fill with copies. Without one (the dev loader, the
-// provisional import screen) the draft is overwritten.
+// save points do not fill with copies. Without one (the dev loader) the
+// draft is overwritten.
 export async function applyGrid(
   db: D1Database,
   flowId: number,
