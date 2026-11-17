@@ -64,7 +64,7 @@ var Core = (function () {
     steps: [
       { id: 'P1', type: 'start', title: 'Recibir solicitud', description: 'Llega el pedido del cliente.', tags: { Responsable: 'Ventas', Herramienta: 'Correo' }, exits: 'P2' },
       { id: 'P2', type: 'activity', title: 'Revisar inventario', description: 'Se consulta si hay existencias.', tags: { Responsable: 'Almacén', Herramienta: 'ERP' }, exits: 'P3' },
-      { id: 'P3', type: 'decision', title: '¿Hay existencias?', description: 'Define si se compra o se despacha.', tags: { Responsable: 'Almacén', Herramienta: 'ERP' }, exits: 'Sí:P5 | No:P4' },
+      { id: 'P3', type: 'decision', title: '¿Hay existencias?', description: 'Define si se compra o se despacha.', tags: { Responsable: 'Almacén', Herramienta: 'ERP' }, exits: 'Sí:P5, No:P4' },
       { id: 'P4', type: 'activity', title: 'Comprar material', description: 'Se genera la orden de compra.', tags: { Responsable: 'Compras', Herramienta: 'ERP, Correo' }, exits: 'P2' },
       { id: 'P5', type: 'subflow', ref: 2, title: 'Alistar y despachar', description: 'Se alista el pedido y se entrega al transporte. Tiene su propio flujo.', tags: { Responsable: 'Almacén, Ventas', Herramienta: '' }, exits: 'P6' },
       { id: 'P6', type: 'link', ref: 3, title: 'Pasar a facturación', description: 'Continúa en el flujo de facturación.', tags: { Responsable: '', Herramienta: '' }, exits: 'P7' },
@@ -79,7 +79,7 @@ var Core = (function () {
     steps: [
       { id: 'A1', type: 'start', title: 'Recibir orden de despacho', description: 'Llega la orden con los productos a alistar.', tags: { Responsable: 'Almacén', Herramienta: 'ERP' }, exits: 'A2' },
       { id: 'A2', type: 'activity', title: 'Separar productos', description: 'Se toman los productos de su ubicación.', tags: { Responsable: 'Almacén', Herramienta: '' }, exits: 'A3' },
-      { id: 'A3', type: 'decision', title: '¿Requiere embalaje especial?', description: 'Depende del tipo de producto y del destino.', tags: { Responsable: 'Almacén', Herramienta: '' }, exits: 'Sí:A4 | No:A5' },
+      { id: 'A3', type: 'decision', title: '¿Requiere embalaje especial?', description: 'Depende del tipo de producto y del destino.', tags: { Responsable: 'Almacén', Herramienta: '' }, exits: 'Sí:A4, No:A5' },
       { id: 'A4', type: 'activity', title: 'Embalar', description: 'Se protege el producto para el viaje.', tags: { Responsable: 'Almacén', Herramienta: '' }, exits: 'A5' },
       { id: 'A5', type: 'end', title: 'Entregar al transporte', description: 'El pedido sale con su guía.', tags: { Responsable: 'Almacén, Ventas', Herramienta: 'Correo' }, exits: '' }
     ]
@@ -97,9 +97,12 @@ var Core = (function () {
     return 'Fila ' + (i + 2) + (id ? ' (' + id + ')' : '');
   }
 
+  /* Exits are separated by a comma, like every other list in the grid
+     (SPEC §5). Reading also accepts "|" and ";", so files written before
+     keep working; a branch label therefore cannot contain a comma. */
   /** @param {string} [text] @returns {Exit[]} */
   function parseExits(text) {
-    return String(text || '').split(/[|;]/).map(function (p) { return p.trim(); }).filter(Boolean).map(function (p) {
+    return String(text || '').split(/[|;,]/).map(function (p) { return p.trim(); }).filter(Boolean).map(function (p) {
       var i = p.lastIndexOf(':');
       if (i === -1) return { label: '', to: p };
       return { label: p.slice(0, i).trim(), to: p.slice(i + 1).trim() };
@@ -107,7 +110,8 @@ var Core = (function () {
   }
 
   function formatExits(exits) {
-    return exits.map(function (e) { return e.label ? e.label + ':' + e.to : e.to; }).join(' | ');
+    // Writing always uses the comma (SPEC §5).
+    return exits.map(function (e) { return e.label ? e.label + ':' + e.to : e.to; }).join(', ');
   }
 
   /* "Depends on" is the incoming view of the same connections that "exits" stores. */
@@ -212,8 +216,12 @@ var Core = (function () {
       });
       if (s.type === 'decision') {
         // Said with this row's own exits, never a made-up example.
-        if (s.exits.length === 0) add(i, ref(s, i) + ': es una decisión, pero no tiene salidas. Necesita una por cada respuesta, con su rótulo. Por ejemplo: ' + formatExits([{ label: 'Sí', to: '…' }, { label: 'No', to: '…' }]) + '.');
-        else if (s.exits.length === 1) add(i, ref(s, i) + ': es una decisión, pero solo tiene una salida, a ' + s.exits[0].to + '. Necesita una por cada respuesta, con su rótulo. Por ejemplo: ' + formatExits(labelled(s.exits).concat([{ label: 'No', to: '…' }])) + '.');
+        if (s.exits.length === 0) add(i, ref(s, i) + ': es una decisión, pero no tiene salidas. Necesita una por cada respuesta, cada una con su rótulo y el ID del paso al que lleva; por ejemplo, una con Sí: y otra con No:.');
+        else if (s.exits.length === 1) {
+          var one = labelled(s.exits)[0];
+          var other = one.label === 'Sí' ? 'No' : 'Sí';
+          add(i, ref(s, i) + ': es una decisión, pero solo tiene una salida, a ' + one.to + '. Necesita una por cada respuesta, con su rótulo. Por ejemplo: ' + formatExits([one]) + ', y ' + other + ': con el ID del paso al que lleva esa respuesta.');
+        }
         else if (s.exits.some(function (e) { return !e.label; })) add(i, ref(s, i) + ': es una decisión, así que cada salida necesita un rótulo que diga qué significa. Por ejemplo: ' + formatExits(labelled(s.exits)) + '.');
       }
       if (s.type !== 'end' && s.type !== 'decision' && s.exits.length === 0) add(i, ref(s, i) + ': no lleva a ningún paso. Escribe en Salidas cuál sigue o, si aquí termina el proceso, cámbialo a tipo Fin.');
@@ -367,7 +375,7 @@ var Core = (function () {
       var dep = String(g.depends_on || '').trim();
       if (!dep) return;
       // Union with the exits already declared: keep existing predecessors, add the listed ones.
-      var merged = [predecessorsText(tmp, out.steps[r].id), dep].filter(Boolean).join(' | ');
+      var merged = [predecessorsText(tmp, out.steps[r].id), dep].filter(Boolean).join(', ');
       applyDependsOn(tmp, r, merged).unknown.forEach(function (u) {
         out.errors.push({ row: r, message: rowLabel(String(out.steps[r].id || '').trim(), r) + ': en Depende de dice «' + u + '», pero ningún paso tiene ese ID.', blocking: false });
       });
@@ -427,7 +435,7 @@ var Core = (function () {
     var edges = [];
     steps.forEach(function (s) {
       s.exits.forEach(function (e) {
-        // One edge per exit: two branches to the same step (Sí:P35 | No:P35) are
+        // One edge per exit: two branches to the same step (Sí:P35, No:P35) are
         // two paths, so they get two arrows and keep both labels.
         if (seenIds.has(e.to) && e.to !== s.id) {
           edges.push({ from: s.id, to: e.to, label: e.label || '' });

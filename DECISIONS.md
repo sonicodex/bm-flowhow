@@ -14,8 +14,74 @@ Entry format:
 
 ---
 
+## 2026-11-17 — Exits separated by a comma (SPEC §5)
+
+- Decision:
+  - **The owner's change to SPEC §5:** exits are separated by a comma,
+    like every other list in the grid. One grid, one separator. Reading
+    still accepts the pipe (and the semicolon, as before), so files
+    written before keep working. Writing always uses the comma.
+  - **Where it lands:**
+    - `core.js` `parseExits` splits on `,`, `|` or `;`, and
+      `formatExits` joins with `, `. Everything that writes a Salidas or
+      a Depende de cell uses `formatExits`: the grid opened from a draft
+      or a release, Depende de rewriting the predecessors, a rename, and
+      the messages' examples.
+    - The export rewrites each Salidas cell through `parseExits` and
+      `formatExits`, so a cell typed with pipes is written with commas.
+    - The editor's suggestions complete after the last `,`, `|` or `;`.
+    - The editor's hint: «Si son varias, sepáralas con coma, como los
+      valores de las categorías, y en una decisión rotula cada una:
+      Sí:P5, No:P4.»
+    - The examples inside `core.js` (the prototype's flows) are written
+      with commas.
+  - **A branch label cannot contain a comma**, as SPEC §5 says. No
+    stored document had one: checked in the reference grids and in every
+    local draft, save point and release before the change.
+  - **Round trip:** export then import is compared by connections, not
+    by the text of the Salidas cell, as the owner asked. The two
+    `reference/*.xlsx` keep their pipes on purpose, as the test that the
+    old format still comes in, and are not touched. The test checks that
+    they have pipes, that the export has none, and that the connections
+    are the same. Tests whose input has pipes keep them; only the
+    expected output changed to commas. A new test reads comma, pipe,
+    semicolon and a mix.
+  - **The problem messages, read in the browser** (the owner asked: the
+    tests do not see whether a person understands them). Three changes
+    came out of reading them:
+    - The examples with «…» read badly («Por ejemplo: Sí:P5, No:….»).
+      They now say it in words, with no made-up ids: «Por ejemplo:
+      Sí:P5, y No: con el ID del paso al que lleva esa respuesta.» With
+      no exit: «…por ejemplo, una con Sí: y otra con No:.»
+    - With one exit already labelled «No», the example said «No:P5,
+      No:…». The suggested label is now the one still free.
+    - The list was grouped by rule, so one row's problems sat far
+      apart. The editor's list and the import review now show them in
+      table order, the flow's own first (the server's order is
+      unchanged).
+  - Browser check: `app/.layout-check/messages/check.mjs`, on a
+    throwaway flow deleted afterwards, with one case per message. It
+    covers:
+    - the list read on desktop and phone;
+    - a decision fixed by typing «Sí:P3, No:P4»;
+    - Depende de shown with a comma, and «No:P2, P1» written into both
+      predecessors with commas;
+    - suggestions after «Sí:P5, No:»;
+    - the hint;
+    - no horizontal page scroll.
+  - Local state seen, left untouched: a flow «Flujo de prueba fase 5»,
+    the owner's.
+- Reason: SPEC §5 as changed by the owner on 2026-11-17; owner's request
+  to read the messages in the browser.
+- Spec sections affected: 5, 6.
+
+---
+
 ## 2026-11-17 — Problem messages speak about the row, not the rule
 
+- *Superseded in part on 2026-11-17 by «Exits separated by a comma»: the
+  examples are written with commas, the one-exit and no-exit examples
+  are worded without «…», and the list is shown in table order.*
 - Decision:
   - **The owner's finding:** «cada salida de una decisión necesita rótulo
     (ej. Sí:P5 | No:P4)» stated the rule, with ids that were not the

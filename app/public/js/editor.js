@@ -27,6 +27,8 @@ const reviewEl = document.getElementById('import-review');
 const cols = document.querySelector('.editor-cols');
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+/** Problems in table order (a stable sort): the flow's own, with no row, first. */
+const byRow = (errors) => errors.slice().sort((a, b) => (a.row ?? -1) - (b.row ?? -1));
 const ICON = (name, alt = '') => `<img class="icon" src="/icons/${name}.svg" alt="${esc(alt)}" width="18" height="18">`;
 const POINTING = new Set(['link', 'subflow']);
 
@@ -122,8 +124,9 @@ if (dataEl && table) {
     });
     const item = (e) =>
       `<li>${ICON('alert')}${e.row === null ? `<span>${esc(e.message)}</span>` : `<button type="button" class="button-link" data-goto="${e.row}">${esc(e.message)}</button>`}</li>`;
-    const blocking = errors.filter((e) => e.blocking);
-    const rest = errors.filter((e) => !e.blocking);
+    // In table order, so a row's problems sit together; the flow's own first.
+    const blocking = byRow(errors.filter((e) => e.blocking));
+    const rest = byRow(errors.filter((e) => !e.blocking));
     problems.innerHTML = !errors.length
       ? `<p class="editor-ok">${ICON('done')}<span>La tabla no tiene problemas.</span></p>`
       : (blocking.length ? `<h2>Antes de guardar, corrige ${count(blocking.length)}</h2><ul>${blocking.map(item).join('')}</ul>` : '') +
@@ -619,8 +622,8 @@ if (dataEl && table) {
   function showReview(imported, review, note) {
     const steps = imported.rows.length;
     const list = (errors) => `<ul>${errors.map((e) => `<li>${ICON('alert')}<span>${esc(e.message)}</span></li>`).join('')}</ul>`;
-    const blocking = review.errors.filter((e) => e.blocking);
-    const rest = review.errors.filter((e) => !e.blocking);
+    const blocking = byRow(review.errors.filter((e) => e.blocking));
+    const rest = byRow(review.errors.filter((e) => !e.blocking));
     const box = (kind, value, label) =>
       `<label><input type="checkbox" data-new="${kind}" value="${esc(JSON.stringify(value))}" checked> ${esc(label)}</label>`;
     const fresh = review.newCategories.length + review.newTags.length;

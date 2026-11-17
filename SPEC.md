@@ -176,7 +176,7 @@ belongs to, so it can filter and highlight the diagram by category.
 ID  TYPE      FLUJO        TITLE               DESCRIPTION                      RESPONSABLE      HERRAMIENTA  EXITS
 P1  start                  Recibir solicitud   Llega el pedido del cliente.     Ventas           Correo       P2
 P2  activity               Revisar inventario  Se consulta si hay existencias.  Almacén          ERP          P3
-P3  decision               ¿Hay existencias?   Define si se compra o despacha.  Almacén          ERP          Sí:P5 | No:P4
+P3  decision               ¿Hay existencias?   Define si se compra o despacha.  Almacén          ERP          Sí:P5, No:P4
 P4  activity               Comprar material    Se genera la orden de compra.    Compras          ERP, Correo  P2
 P5  activity               Despachar pedido    Se alista y se envía.            Almacén, Ventas               P6
 P6  link      Facturación  Pasar a facturación  Continúa en el flujo de facturación.                          P7
@@ -184,6 +184,12 @@ P7  end                    Pedido cerrado
 ```
 
 "Responsable" and "Herramienta" are example categories. Each category is a column.
+
+**Exits are separated by a comma**, like every other list in the grid. Nobody
+reaches for a pipe, and one grid should have one separator. A branch label
+therefore cannot contain a comma, the same rule tag values already follow.
+Reading still accepts the pipe, so files written before this keep working;
+writing always uses the comma.
 
 `FLUJO` carries the name of the flow a `link` or a `subflow` step points at, and
 is empty for every other type. A `link` or `subflow` without it is an error:

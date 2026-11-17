@@ -124,17 +124,17 @@ export function toSave(grid) {
 
 /**
  * Completions for a cell that holds several values: what was typed before
- * the last separator stays, and the options complete the last part. Tags
- * are separated by commas; exits and "Depende de" by "|", where an exit may
- * carry a label ("Sí:P5"), kept too.
+ * the last separator stays, and the options complete the last part. Every
+ * list is separated by commas (SPEC §5); exits and "Depende de" are still
+ * read with "|" or ";" too, and an exit may carry a label ("Sí:P5"), kept
+ * too.
  * @param {string} text what the cell holds
  * @param {{ value: string, label?: string }[]} options
  * @param {'tags'|'steps'} kind
  * @returns {{ value: string, label?: string }[]}
  */
 export function suggestions(text, options, kind) {
-  const sep = kind === 'tags' ? ',' : '|';
-  const cut = text.lastIndexOf(sep);
+  const cut = kind === 'tags' ? text.lastIndexOf(',') : Math.max(...[',', '|', ';'].map((c) => text.lastIndexOf(c)));
   let head = cut === -1 ? '' : text.slice(0, cut + 1) + ' ';
   let part = (cut === -1 ? text : text.slice(cut + 1)).trim();
   if (kind === 'steps') {

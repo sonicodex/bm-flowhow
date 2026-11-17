@@ -179,8 +179,8 @@ function EditorPage({
           </div>
           <p class="muted editor-hint">
             Conecta los pasos por cualquiera de los dos lados: en <strong>Depende de</strong> escribe el ID del paso anterior, o en{" "}
-            <strong>Salidas</strong> el del siguiente; la otra columna se actualiza sola. Con varias, sepáralas con | y, en una decisión,
-            rotúlalas: <code>Sí:P5 | No:P4</code>. En las categorías, separa varios valores con coma. Los pasos ya publicados conservan su ID:
+            <strong>Salidas</strong> el del siguiente; la otra columna se actualiza sola. Si son varias, sepáralas con coma, como los valores de
+            las categorías, y en una decisión rotula cada una: <code>Sí:P5, No:P4</code>. Los pasos ya publicados conservan su ID:
             el avance de las personas depende de él.
           </p>
           <section class="card editor-problems" id="problems" aria-live="polite"></section>

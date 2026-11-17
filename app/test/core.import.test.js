@@ -233,7 +233,7 @@ describe('one error shape {row, message, blocking}, each problem once (1.2.6)', 
       'Fila 5 (P2): el ID «P2» ya lo tiene la fila 4; cada paso necesita uno propio.',
     ]);
     // Structure rules are shown but only block publishing.
-    assert.ok(all.some((e) => !e.blocking && e.message === 'Fila 5 (P2): es una decisión, pero solo tiene una salida, a P1. Necesita una por cada respuesta, con su rótulo. Por ejemplo: Sí:P1 | No:….'));
+    assert.ok(all.some((e) => !e.blocking && e.message === 'Fila 5 (P2): es una decisión, pero solo tiene una salida, a P1. Necesita una por cada respuesta, con su rótulo. Por ejemplo: Sí:P1, y No: con el ID del paso al que lleva esa respuesta.'));
   });
 
   it('reports an unknown type exactly once', () => {

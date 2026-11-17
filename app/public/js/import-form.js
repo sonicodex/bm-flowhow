@@ -29,7 +29,8 @@ export async function gridFromXlsx(bytes) {
 /**
  * The grid as the import format's table: the fixed columns, every category,
  * and "Salidas" as the one source of the connections (SPEC §6: export
- * writes no "Depende de"). Types by their Spanish name.
+ * writes no "Depende de"), always written with commas (SPEC §5), whatever
+ * separator the cell was typed with. Types by their Spanish name.
  * @param {import('./core.js').Grid} grid
  * @returns {string[][]}
  */
@@ -37,7 +38,7 @@ export function gridToTable(grid) {
   const head = ['ID', 'Tipo', 'Flujo', 'Título', 'Descripción', ...grid.categories, 'Salidas'];
   const labels = /** @type {Record<string, string>} */ (Core.TYPE_LABELS);
   return [head].concat(
-    grid.rows.map((r) => [r.id, labels[r.type] || r.type, r.ref, r.title, r.description, ...grid.categories.map((c) => r.tags[c] || ''), r.exits].map((v) => String(v ?? ''))),
+    grid.rows.map((r) => [r.id, labels[r.type] || r.type, r.ref, r.title, r.description, ...grid.categories.map((c) => r.tags[c] || ''), Core.formatExits(Core.parseExits(r.exits))].map((v) => String(v ?? ''))),
   );
 }
 

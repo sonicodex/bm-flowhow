@@ -26,7 +26,7 @@ describe('renameStep', () => {
   it('rewrites every exit that pointed at the old id, labels kept', () => {
     const rows = [row('P1', 'decision', { exits: 'Sí:P2 | No:P3' }), row('P2', 'activity', { exits: 'P3' }), row('P3', 'end')];
     expect(renameStep(rows, 2, ' P30 ')).toEqual({ ok: true });
-    expect(ids(rows)).toEqual(['P1→Sí:P2 | No:P30', 'P2→P30', 'P30→']);
+    expect(ids(rows)).toEqual(['P1→Sí:P2, No:P30', 'P2→P30', 'P30→']);
   });
 
   it('refuses a blank id, a taken one, or one with separators, changing nothing', () => {
@@ -47,21 +47,21 @@ describe('renameStep', () => {
 describe('"Depende de" and "Salidas", two views of one connection (SPEC §6)', () => {
   it('shows a step\'s predecessors, with the branch label of a decision', () => {
     const rows = [row('P1', 'decision', { exits: 'Sí:P3 | No:P2' }), row('P2', 'activity', { exits: 'P3' }), row('P3', 'end')];
-    expect(dependsOnText(rows, 2)).toBe('Sí:P1 | P2');
+    expect(dependsOnText(rows, 2)).toBe('Sí:P1, P2');
     expect(dependsOnText(rows, 0)).toBe('');
   });
 
   it('a new step filled only in "Depende de" updates its predecessor\'s exits', () => {
     const rows = [row('P1', 'start', { exits: 'P2' }), row('P2', 'end'), row('P3', 'activity', { exits: 'P2' })];
     expect(setDependsOn(rows, 2, 'P1')).toBe(null);
-    expect(ids(rows)).toEqual(['P1→P2 | P3', 'P2→', 'P3→P2']);
+    expect(ids(rows)).toEqual(['P1→P2, P3', 'P2→', 'P3→P2']);
     // Taking a predecessor out of the list removes its exit.
     expect(setDependsOn(rows, 2, '')).toBe(null);
     expect(ids(rows)).toEqual(['P1→P2', 'P2→', 'P3→P2']);
     // A decision's branch carries its label.
     rows[0].type = 'decision';
     expect(setDependsOn(rows, 2, 'No:P1')).toBe(null);
-    expect(rows[0].exits).toBe('P2 | No:P3');
+    expect(rows[0].exits).toBe('P2, No:P3');
   });
 
   it('an unknown id is reported and changes nothing', () => {
@@ -106,22 +106,26 @@ describe('the messages say what is wrong with that row, with its own data', () =
   it('names the decision\'s own exits in its example', () => {
     // The owner's case: a decision P2 going to P3 and P4, with no labels.
     expect(decision('P3 | P4')).toEqual([
-      'Fila 3 (P2): es una decisión, así que cada salida necesita un rótulo que diga qué significa. Por ejemplo: Sí:P3 | No:P4.',
+      'Fila 3 (P2): es una decisión, así que cada salida necesita un rótulo que diga qué significa. Por ejemplo: Sí:P3, No:P4.',
     ]);
     // A label already there is kept; the others get the ones still free.
-    expect(decision('No:P3 | P4')).toEqual([
-      'Fila 3 (P2): es una decisión, así que cada salida necesita un rótulo que diga qué significa. Por ejemplo: No:P3 | Sí:P4.',
+    expect(decision('No:P3, P4')).toEqual([
+      'Fila 3 (P2): es una decisión, así que cada salida necesita un rótulo que diga qué significa. Por ejemplo: No:P3, Sí:P4.',
     ]);
-    expect(decision('P3 | P4 | P5')[0]).toMatch(/Por ejemplo: Sí:P3 \| No:P4 \| Opción 3:P5\.$/);
+    expect(decision('P3 | P4 | P5')[0]).toMatch(/Por ejemplo: Sí:P3, No:P4, Opción 3:P5\.$/);
   });
 
   it('says how many exits a decision has, and only one message for it', () => {
     expect(decision('P3')).toEqual([
-      'Fila 3 (P2): es una decisión, pero solo tiene una salida, a P3. Necesita una por cada respuesta, con su rótulo. Por ejemplo: Sí:P3 | No:….',
+      'Fila 3 (P2): es una decisión, pero solo tiene una salida, a P3. Necesita una por cada respuesta, con su rótulo. Por ejemplo: Sí:P3, y No: con el ID del paso al que lleva esa respuesta.',
+    ]);
+    // The label it suggests is the one still free.
+    expect(decision('No:P3')).toEqual([
+      'Fila 3 (P2): es una decisión, pero solo tiene una salida, a P3. Necesita una por cada respuesta, con su rótulo. Por ejemplo: No:P3, y Sí: con el ID del paso al que lleva esa respuesta.',
     ]);
     // P3..P5 are unreachable then; this row has its own message only.
     expect(decision('')).toEqual([
-      'Fila 3 (P2): es una decisión, pero no tiene salidas. Necesita una por cada respuesta, con su rótulo. Por ejemplo: Sí:… | No:….',
+      'Fila 3 (P2): es una decisión, pero no tiene salidas. Necesita una por cada respuesta, cada una con su rótulo y el ID del paso al que lleva; por ejemplo, una con Sí: y otra con No:.',
     ]);
   });
 });

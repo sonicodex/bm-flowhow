@@ -1,6 +1,7 @@
 // The template and the export (phase 5.6): what xlsx-write.js writes, the
 // reader (xlsx.js) reads back as the same grid.
 import { describe, expect, it } from 'vitest';
+import Core from '../public/js/core.js';
 import { exportName, exportXlsx, gridFromXlsx, gridToTable, SHEET, templateXlsx } from '../public/js/import-form.js';
 import { readSheet } from '../public/js/xlsx.js';
 import { writeWorkbook } from '../public/js/xlsx-write.js';
@@ -8,6 +9,10 @@ import instalaciones from '../../reference/Flujo_Instalaciones.grid.json';
 import apertura from '../../reference/Flujo_Apertura_OT.grid.json';
 
 const row = (id, type, extra = {}) => ({ id, type, ref: '', title: 't' + id, description: '', tags: {}, exits: '', depends_on: '', ...extra });
+// The round trip keeps the connections; the Salidas cell comes back written
+// with commas (SPEC §5), whatever separator it had. The reference files keep
+// their pipes on purpose: the old format still comes in.
+const connections = (grid) => ({ ...grid, rows: grid.rows.map((r) => ({ ...r, exits: Core.parseExits(r.exits) })) });
 const back = async (grid) => {
   const read = await gridFromXlsx(exportXlsx(grid));
   expect(read.errors).toEqual([]);
@@ -25,7 +30,12 @@ describe('export → import, round trip', () => {
   it('gives back both reference flows exactly', async () => {
     for (const grid of [instalaciones, apertura]) {
       expect(grid.rows.every((r) => r.depends_on === '')).toBe(true);
-      expect(await back(grid)).toEqual(grid);
+      expect(grid.rows.some((r) => r.exits.includes('|'))).toBe(true);
+      const read = await back(grid);
+      expect(connections(read)).toEqual(connections(grid));
+      // Written with commas only.
+      expect(read.rows.some((r) => /[|;]/.test(r.exits))).toBe(false);
+      expect(read.rows.find((r) => r.exits.includes(':'))?.exits).toMatch(/^[^,]+:[^,]+, [^,]+:[^,]+$/);
     }
   });
 
@@ -36,7 +46,7 @@ describe('export → import, round trip', () => {
       categories,
       rows: [
         row('P1', 'start', { title: '1.10', description: 'Línea uno\nLínea dos — 1-2 & <b>"x"</b> 🚚', tags, exits: 'P2' }),
-        row('P2', 'decision', { title: '=SUMA(A1)', exits: 'Sí:P3 | No:P4', tags: { ...tags, 'Categoría 1': '' } }),
+        row('P2', 'decision', { title: '=SUMA(A1)', exits: 'Sí:P3, No:P4', tags: { ...tags, 'Categoría 1': '' } }),
         row('P3', 'link', { ref: 'Apertura de OT', tags: Object.fromEntries(categories.map((c) => [c, ''])) }),
         row('P4', 'end', { title: 'Fin', tags: Object.fromEntries(categories.map((c) => [c, ''])) }),
       ],

@@ -68,11 +68,18 @@ console.log(C.wrapTitle('Coordinación de transporte y elementos adicionales req
 });
 it("depends on: predecessors text and applyDependsOn", () => {
 // depends on
-{const d=JSON.parse(JSON.stringify(C.EXAMPLE));assert.strictEqual(C.predecessorsText(d,'P2'),'P1 | P4');assert.strictEqual(C.predecessorsText(d,'P5'),'Sí:P3');
+{const d=JSON.parse(JSON.stringify(C.EXAMPLE));assert.strictEqual(C.predecessorsText(d,'P2'),'P1, P4');assert.strictEqual(C.predecessorsText(d,'P5'),'Sí:P3');
  d.steps.push({id:'P8',type:'end',title:'Nuevo',description:'',tags:{},exits:''});let r=C.applyDependsOn(d,7,'P5 | Tal vez:P3 | ZZ');assert.deepStrictEqual(r.unknown,['ZZ']);assert.strictEqual(d.steps[4].exits,'P6');r=C.applyDependsOn(d,7,'P5 | Tal vez:P3');
- assert.strictEqual(d.steps[4].exits,'P6 | P8');assert.strictEqual(d.steps[2].exits,'Sí:P5 | No:P4 | Tal vez:P8');assert.strictEqual(C.predecessorsText(d,'P8'),'Tal vez:P3 | P5');
- C.applyDependsOn(d,7,'P5');assert.strictEqual(d.steps[2].exits,'Sí:P5 | No:P4');C.applyDependsOn(d,7,'');assert.strictEqual(d.steps[4].exits,'P6');
- const p2=C.parseTable('ID\tTipo\tTítulo\tDepende de\tSalidas\nA\tInicio\tUno\t\t\nB\tDecisión\tDos\tA\t\nC\tFin\tTres\tSí:B\t\nD\tFin\tCuatro\tNo:B\t');assert.deepStrictEqual(p2.errors,[]);assert.strictEqual(p2.steps[0].exits,'B');assert.strictEqual(p2.steps[1].exits,'Sí:C | No:D');assert.deepStrictEqual(C.validate(C.compile({name:'x',categories:[],steps:p2.steps})),[]);}
+ assert.strictEqual(d.steps[4].exits,'P6, P8');assert.strictEqual(d.steps[2].exits,'Sí:P5, No:P4, Tal vez:P8');assert.strictEqual(C.predecessorsText(d,'P8'),'Tal vez:P3, P5');
+ C.applyDependsOn(d,7,'P5');assert.strictEqual(d.steps[2].exits,'Sí:P5, No:P4');C.applyDependsOn(d,7,'');assert.strictEqual(d.steps[4].exits,'P6');
+ const p2=C.parseTable('ID\tTipo\tTítulo\tDepende de\tSalidas\nA\tInicio\tUno\t\t\nB\tDecisión\tDos\tA\t\nC\tFin\tTres\tSí:B\t\nD\tFin\tCuatro\tNo:B\t');assert.deepStrictEqual(p2.errors,[]);assert.strictEqual(p2.steps[0].exits,'B');assert.strictEqual(p2.steps[1].exits,'Sí:C, No:D');assert.deepStrictEqual(C.validate(C.compile({name:'x',categories:[],steps:p2.steps})),[]);}
+});
+it("exits: written with a comma, read with a comma, a pipe or a semicolon (SPEC §5)", () => {
+  const two = [{ label: 'Sí', to: 'P5' }, { label: 'No', to: 'P4' }];
+  for (const text of ['Sí:P5, No:P4', 'Sí:P5 | No:P4', 'Sí:P5; No:P4', 'Sí:P5,No:P4', ' Sí : P5 | No:P4 , ']) assert.deepStrictEqual(C.parseExits(text), two, text);
+  assert.deepStrictEqual(C.parseExits('P2 | P3, P4'), [{ label: '', to: 'P2' }, { label: '', to: 'P3' }, { label: '', to: 'P4' }]);
+  assert.strictEqual(C.formatExits(two), 'Sí:P5, No:P4');
+  assert.strictEqual(C.formatExits(C.parseExits('P2 | P3')), 'P2, P3');
 });
 it("subflow refs", () => {
 // subflow refs
