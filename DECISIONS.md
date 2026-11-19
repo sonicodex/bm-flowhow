@@ -14,6 +14,30 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.2: the contact in the editor's grid
+
+- Decision:
+  - **The column:** «Contacto» is a column of its own, right after Flujo,
+    as wide as Flujo (4 × `--space-10`). This is the owner's answer 1.
+  - **Where it is edited:**
+    - On Enlace and Subflujo rows it is a plain text field, with the
+      placeholder «p. ej. Jefe de instalación».
+    - On every other row it is empty and disabled, as Flujo is.
+  - **Changing the type:** a row that stops being Enlace or Subflujo
+    loses its contact along with its flow (SPEC §6: a row that points
+    nowhere has nobody to point to). Back to Enlace, the field opens
+    empty.
+  - **Width:** the grid is 160px wider. At 1280px, Salidas still starts in
+    view, cut at its right edge; the rest is reached with the grid's own
+    horizontal scroll.
+  - **Checked in Chrome on Apertura de OT:**
+    - P13 takes «Jefe de instalación», saves to the draft and is still
+      there after a reload.
+    - P1 shows the field disabled.
+    - P13 turned into Actividad clears and disables it.
+- Reason: phase 6 plan (plan_iteration_3), slice 6.2; SPEC §6.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.1: the contact of links and subflows in the data, import and export
 
 - Decision:

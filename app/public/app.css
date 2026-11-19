@@ -1160,6 +1160,7 @@ textarea:focus-visible,
 .step-grid .c-id { width: calc(var(--space-10) * 2); }
 .step-grid .c-type { width: calc(var(--space-10) * 3); }
 .step-grid .c-ref { width: calc(var(--space-10) * 4); }
+.step-grid .c-contact { width: calc(var(--space-10) * 4); }
 .step-grid .c-title { width: calc(var(--space-10) * 8.5); }
 .step-grid .c-desc { width: calc(var(--space-10) * 8); }
 .step-grid .c-tag { width: calc(var(--space-10) * 4); }
@@ -1228,7 +1229,8 @@ textarea:focus-visible,
   box-shadow: var(--shadow-focus);
 }
 
-.step-grid select:disabled {
+.step-grid select:disabled,
+.step-grid input:disabled {
   color: var(--color-text-muted);
 }
 

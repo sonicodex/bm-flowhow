@@ -73,6 +73,10 @@ if (dataEl && table) {
       cell(i, 'id', r.id, `ID, fila ${n}`, isLocked ? ' readonly class="locked" title="Este paso ya está publicado: su ID no cambia."' : '') +
       `<td><select data-r="${i}" data-f="type" aria-label="Tipo, fila ${n}">${typeOptions}</select></td>` +
       `<td><select data-r="${i}" data-f="ref" aria-label="Flujo de destino, fila ${n}"${POINTING.has(r.type) ? '' : ' disabled'}>${refOptions}</select></td>` +
+      // SPEC §6: the contact only on Enlace and Subflujo rows, beside the
+      // flow it belongs to; on every other row it is empty and shut, as
+      // Flujo is.
+      cell(i, 'contact', POINTING.has(r.type) ? r.contact || '' : '', `Contacto, fila ${n}`, POINTING.has(r.type) ? ' placeholder="p. ej. Jefe de instalación"' : ' disabled') +
       `<td><textarea data-r="${i}" data-f="title" rows="1" aria-label="Título, fila ${n}">${esc(r.title)}</textarea></td>` +
       cell(i, 'dep', dependsOnView(rows, i), `Depende de, fila ${n}`, ' list="cell-suggestions"') +
       `<td data-cell="exits" data-r="${i}" data-key="${esc(cellKey(i))}">${cellInner(i)}</td>` +
@@ -89,11 +93,11 @@ if (dataEl && table) {
       // Depende de and Salidas right after the title: connecting steps from
       // either side is what the editor is for, so it stays in view on a
       // laptop (SPEC §6). The export keeps the Excel order (import-form.js).
-      '<th scope="col" class="c-ref">Flujo</th><th scope="col" class="c-title">Título</th>' +
+      '<th scope="col" class="c-ref">Flujo</th><th scope="col" class="c-contact">Contacto</th><th scope="col" class="c-title">Título</th>' +
       '<th scope="col" class="c-dep">Depende de</th><th scope="col" class="c-exits">Salidas</th><th scope="col" class="c-desc">Descripción</th>' +
       grid.categories.map((c) => `<th scope="col" class="c-tag">${esc(c)}</th>`).join('') +
       '<th scope="col" class="c-remove"><span class="visually-hidden">Quitar</span></th></tr></thead>';
-    const span = grid.categories.length + 9;
+    const span = grid.categories.length + 10;
     const body = rows.length
       ? rows.map(rowHtml).join('')
       : `<tr><td colspan="${span}" class="grid-empty">Este flujo todavía no tiene pasos. Agrega el primero con «Agregar paso», o impórtalos desde Excel.</td></tr>`;
@@ -421,6 +425,7 @@ if (dataEl && table) {
       if (f === 'title') renameOptions(i);
     }
     else if (f === 'tag') r.tags[t.dataset.c] = t.value;
+    else if (f === 'contact') r.contact = t.value;
     else if (f === 'exits') {
       r.exits = t.value;
       syncConnections();
@@ -439,11 +444,16 @@ if (dataEl && table) {
     if (f === 'type') {
       r.type = t.value;
       const ref = field(i, 'ref');
-      ref.disabled = !POINTING.has(r.type);
+      const contact = field(i, 'contact');
+      ref.disabled = contact.disabled = !POINTING.has(r.type);
       if (ref.disabled) {
         r.ref = '';
         ref.value = '';
-      }
+        // A row that points nowhere has nobody to point to (SPEC §6).
+        r.contact = '';
+        contact.value = '';
+        contact.removeAttribute('placeholder');
+      } else contact.placeholder = 'p. ej. Jefe de instalación';
       // "Salidas" becomes a list of branches on a decision, a plain field
       // otherwise; "Depende de" elsewhere shows or drops its labels.
       syncConnections();
