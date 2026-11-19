@@ -401,9 +401,13 @@ Tour rules:
   sentence to walk the whole path again.
 - Progress bar: visited steps over total.
 - **When the tour goes back to a decision** because a branch ended, a notice
-  stays on the diagram — not a passing message — saying there are branches
-  left to walk. Being moved somewhere without being told why is the moment
-  people decide the app is broken.
+  stays until a branch is chosen — not a passing message — saying there are
+  branches left to walk. Being moved somewhere without being told why is the
+  moment people decide the app is broken. It is a **tooltip anchored to that
+  decision's node**, dark with light text, the same shape as every other
+  tooltip: a band at the top of the card explains nothing, because the thing
+  it explains is somewhere else on the screen. It names the branch still
+  pending.
 - The active step (current step in the tour, selected step in free review)
   shows its tags as badges on the diagram itself, next to the node, in
   addition to the side panel. A badge never falls outside the diagram's
