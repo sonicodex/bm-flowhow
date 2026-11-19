@@ -493,7 +493,9 @@ Designed for desktop, usable on mobile.
 - Mobile: the step panel goes **above** the diagram, in a minimal form built
   for phones: step type, title, description, tag values as small chips and
   branch choices. Secondary information (the "next step" hint, subflow
-  summary, category names) is hidden. The action buttons stay in the bottom
+  summary, category names) is hidden. **On a decision the panel does not list
+  the branches at all**: the choice is made on the diagram, and a list that
+  pushes the diagram off the screen turns every decision into a scroll. The action buttons stay in the bottom
   right corner of the diagram card, side by side. The same order applies to
   the overview and the free review.
 - **Parallel branches are drawn as parallel.** When every branch of a
@@ -506,8 +508,12 @@ Designed for desktop, usable on mobile.
 - Tour zoom, on every screen size: during the tour the diagram zooms in on the
   current step, framed together with a couple of steps behind it and a couple
   ahead — the branches, when the current step is a decision — so the labels
-  stay readable. A "Ver todo" / "Acercar" toggle switches between this view
-  and the whole diagram. **Zoomed is the default everywhere**, not only on a
+  stay readable. **Readable is the point, so the frame never stretches past a
+  minimum legible zoom**: when a branch target sits too far away to fit at
+  that size, it stays outside the frame, marked by an arrow in its direction,
+  and the view follows once the branch is taken. A frame that fits everything
+  at a size nobody can read has framed nothing. A "Ver todo" / "Acercar"
+  toggle switches between this view and the whole diagram. **Zoomed is the default everywhere**, not only on a
   phone: the tour is about one step at a time, and opening on the whole map
   makes the reader find the step before reading it.
   It is not a mobile feature. A small laptop, a low resolution, a projector
