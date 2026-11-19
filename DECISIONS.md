@@ -39,6 +39,9 @@ Entry format:
       graphs. It follows SPEC's «does not count as one of the branches
       that meet». In the reference flows nothing changes: no parallel
       decision has a retry.
+    - The owner approved this rule and the retry definition the same day,
+      and wrote both into SPEC §7. They are no longer a decision beyond
+      the SPEC.
   - **C. A held branch is not taken** (P9 and P17, where waiting makes
     sense):
     - `Tour.holdsBack(i)` gives the branches to walk before branch i can
