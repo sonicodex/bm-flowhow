@@ -324,7 +324,9 @@ Publishing is blocked if:
 
 Pattern: whole → parts → whole.
 
-1. **Overview:** full diagram plus the objective, read-only.
+1. **Overview:** full diagram plus the objective, read-only. A `link` step is
+   clickable here too when the user has access to the target flow, with a
+   tooltip saying where it leads.
 2. **Tour:** one step at a time. Current step highlighted, the rest dimmed.
    Side panel with title, description and tags. "Anterior" / "Siguiente".
 3. **Free review:** full diagram, click any step, highlight the steps that
@@ -343,19 +345,20 @@ Tour rules:
   paths out of a decision rejoin at a common step, the tour walks each
   remaining branch up to that meeting point and only then continues once along
   the shared path.
-- **Going back to the decision in between is for choices that matter.** If
-  every branch still pending reaches the meeting point in a single step, the
-  tour walks them one after another without returning — there is nothing to
-  decide, only alternatives to be shown — and says which is which ("2 de 3").
-  It returns to the decision when a pending branch is a path of its own,
-  because entering a different road should be a deliberate act. The user still
-  picks the first branch themselves: the labels carry meaning.
-  This makes the same decision behave differently depending on the order the
-  user picks, and that is correct: what decides is what is left to walk. Say it the way a
-  person would explain it out loud: "here there are three ways the material
-  arrives — this one, this one and this one — and after that they all go the
-  same way." Walking the whole tail of the flow once per branch teaches
-  nothing and feels like a bug.
+- **Going back to the decision in between is for choices that matter.** The
+  tour walks the branches one after another without returning only when
+  **every** branch of that decision reaches the meeting point in a single
+  step: then there is nothing to decide, only alternatives to be shown, and
+  the tour says which is which ("2 de 3"). Say it the way a person would
+  explain it out loud: "here there are three ways the material arrives — this
+  one, this one and this one — and after that they all go the same way."
+- In every other case the tour returns to the decision, because entering a
+  different road should be a deliberate act and the labels carry meaning. A
+  decision with one long branch and one short one returns: coming out of a
+  long path to be dropped into another branch without being asked reads as
+  the app taking the wheel.
+- The rule looks only at the shape of the decision, never at the order the
+  user picked. The same decision behaves the same way every time.
 - The tour returns to a decision only when a branch reaches a dead end: an end
   step or a step with no next step. It then goes back to the nearest decision
   that still has a branch not yet taken, explains why ("Esa rama terminó en
@@ -395,9 +398,14 @@ Tour rules:
   so progress never goes backwards. Picking the wrong branch is a slip, not a
   sentence to walk the whole path again.
 - Progress bar: visited steps over total.
+- **When the tour goes back to a decision** because a branch ended, a notice
+  stays on the diagram — not a passing message — saying there are branches
+  left to walk. Being moved somewhere without being told why is the moment
+  people decide the app is broken.
 - The active step (current step in the tour, selected step in free review)
   shows its tags as badges on the diagram itself, next to the node, in
-  addition to the side panel. Each category has its own visual convention,
+  addition to the side panel. A badge never falls outside the diagram's
+  bounds: the canvas makes room for it. Each category has its own visual convention,
   and a legend ("Convenciones") above the diagram names them. Conventions are
   theme tokens per category slot, like every other colour.
 - **Reviewed** = tour complete (100 % of steps visited and every branch
@@ -453,6 +461,12 @@ Designed for desktop, usable on mobile.
   summary, category names) is hidden. The action buttons stay in the bottom
   right corner of the diagram card, side by side. The same order applies to
   the overview and the free review.
+- **Parallel branches are drawn as parallel.** When every branch of a
+  decision reaches the same meeting point in a single step, those steps are
+  joined to each other by a double-headed connector: they are alternatives,
+  not a sequence. The mark is part of the diagram and shows everywhere it is
+  drawn, not only while the tour walks them — the same condition that makes
+  the tour walk them together.
 - Tour zoom, on every screen size: during the tour the diagram zooms in on the
   current step, framed together with the step the user came from and the next
   step or branches, so the labels stay readable. A "Ver todo" / "Acercar"
