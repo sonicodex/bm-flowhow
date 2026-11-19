@@ -108,6 +108,27 @@ describe('renderDiagram', () => {
     for (const r of rects('P3')) assert.strictEqual(r.y, centre - r.h / 2);
   });
 
+  // Phase 6.15 (SPEC §7): link steps name where they lead; with access, in the overview, they are links.
+  it('gives link steps a tooltip naming the other flow, and makes them links only with an address', () => {
+    const L = layoutFlow(APERTURA);
+    const p13 = (svg) => svg.match(/(<a [^>]*>)?<g class="node t-link[^"]*" data-id="P13"[^>]*><title>([^<]*)<\/title>/);
+    // Without access: the tooltip, no link, and the diagram stays a picture.
+    let svg = renderDiagram(L, { name: APERTURA.name, colour: 2 }, undefined, { P13: { name: 'Instalaciones' } });
+    assert.deepStrictEqual([p13(svg)[1], unesc(p13(svg)[2])], [undefined, 'Lleva al flujo «Instalaciones»']);
+    assert.match(svg, /role="img"/);
+    // With access: a real link to the other flow's overview, named for assistive technology.
+    svg = renderDiagram(L, { name: APERTURA.name, colour: 2 }, undefined, { P13: { name: 'Instalaciones', href: '/flows/1' } });
+    assert.strictEqual(unesc(p13(svg)[1]), '<a class="node-link" href="/flows/1" aria-label="Enlace: Instalaciones. Lleva al flujo «Instalaciones»">');
+    assert.match(svg, /role="group"/);
+    assert.strictEqual(svg.match(/<a /g).length, 1);
+    // Where every step is a button (free review), never a link inside one.
+    svg = renderDiagram(L, { name: APERTURA.name, colour: 2 }, { state: () => '', walked: () => true, clickable: true }, { P13: { name: 'Instalaciones', href: '/flows/1' } });
+    assert.doesNotMatch(svg, /<a /);
+    assert.strictEqual(unesc(p13(svg)[2]), 'Lleva al flujo «Instalaciones»');
+    // Other steps keep their title as tooltip.
+    assert.match(draw(APERTURA, 2), /data-id="P3"[^>]*><title>[^<]+<\/title>/);
+  });
+
   // Phase 6.12 (SPEC §7, Layout).
   it('joins the steps of parallel branches with a double-headed connector, everywhere', () => {
     const L = layoutFlow(APERTURA);

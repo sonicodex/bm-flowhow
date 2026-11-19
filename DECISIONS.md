@@ -14,6 +14,37 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.15: link steps lead to the other flow from the overview
+
+- Decision:
+  - **The tooltip:** a link step's tooltip (its SVG `<title>`) is «Lleva
+    al flujo «X»», with or without access, in the overview, the tour and
+    the free review (owner's answer). The name comes from the page's
+    `links` (6.4), which the server sends for every link.
+  - **The link:** in the overview, with access, the step is a real SVG
+    `<a href="/flows/X">`.
+    - It leads to X's overview, not into its tour (owner's answer,
+      SPEC §7).
+    - It is reached with Tab, opened with Enter or a click, and shows the
+      active step's shadow on keyboard focus, no ring.
+    - Its accessible name is «Enlace: título. Lleva al flujo «X»».
+  - **Where it is not a link:**
+    - In the tour, the side panel's «Ir a «X»» (6.4) is the way, and it
+      continues X's tour.
+    - In the free review every step is already a button that selects
+      it, and a link inside a button would be two controls in one.
+  - **The renderer** takes a fourth argument, `links` (step id → name,
+    and `href` when it may be opened). The diagram is `role="group"`
+    whenever it holds links or buttons; otherwise it stays a picture.
+  - **Checked in Chrome:**
+    - Apertura de OT's overview, P13: tooltip «Lleva al flujo
+      «Instalaciones»».
+    - Clicking it opened `/flows/1` on its overview, with no tour.
+    - With Tab the shadow shows, and Enter follows.
+- Reason: SPEC §7 (owner's change and answer); plan_iteration_5, slice
+  6.15.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Badges clear of the parallel connector
 
 - Decision:

@@ -159,13 +159,21 @@ let seq = 0;
  */
 
 /**
+ * Where link steps lead (SPEC §7; phase 6.15), by step id: the target
+ * flow's name, always shown as the step's tooltip, and `href` when the user
+ * may open it, which makes the step a link.
+ * @typedef {Record<string, { name: string, href?: string }>} LinkMarks
+ */
+
+/**
  * The diagram as SVG markup.
  * @param {DiagramLayout} layout
  * @param {{ name: string, colour: number }} flow  colour: palette slot 1-12
  * @param {TourMarks} [tour]  only during the tour
+ * @param {LinkMarks} [links]
  * @returns {string}
  */
-export function renderDiagram(layout, flow, tour) {
+export function renderDiagram(layout, flow, tour, links = {}) {
   const slot = Number.isInteger(flow.colour) && flow.colour >= 1 && flow.colour <= FLOW_COLOURS ? flow.colour : 1;
   const name = `Diagrama del flujo ${flow.name}`;
   if (!layout.nodes.length) return `<p class="muted">Este flujo todavía no tiene pasos.</p>`;
@@ -174,6 +182,9 @@ export function renderDiagram(layout, flow, tour) {
   const walked = (e) => !tour || tour.walked(e.from, e.to);
   const kind = (e) => (walked(e) ? '' : 'soft');
   const clickable = !!(tour && tour.clickable);
+  // Steps that are links (never when every step is a button already).
+  const href = (id) => (!clickable && links[id] && links[id].href) || '';
+  const interactive = clickable || layout.nodes.some((n) => href(n.id));
   // The active step's badges, drawn last; the canvas grows to hold them,
   // so none is cut by the edge (SPEC §7; phase 6.14).
   const active = tour && tour.badges && layout.nodes.find((n) => n.id === tour.badges.id);
@@ -188,7 +199,7 @@ export function renderDiagram(layout, flow, tour) {
   const vh = (tags ? Math.max(layout.height, Math.ceil(tags.box.y1 + MARGIN)) : layout.height) - vy;
   // A picture, unless its steps are buttons: inside role="img" they would
   // be hidden from assistive technology.
-  let out = `<svg xmlns="http://www.w3.org/2000/svg" class="diagram flow-${slot}${tour ? ' touring' : ''}" viewBox="${vx} ${vy} ${vw} ${vh}" width="${vw}" height="${vh}" role="${clickable ? 'group' : 'img'}" aria-label="${esc(name)}">`;
+  let out = `<svg xmlns="http://www.w3.org/2000/svg" class="diagram flow-${slot}${tour ? ' touring' : ''}" viewBox="${vx} ${vy} ${vw} ${vh}" width="${vw}" height="${vh}" role="${interactive ? 'group' : 'img'}" aria-label="${esc(name)}">`;
   out += `<defs>${marker('')}${tour ? marker('soft') : ''}${parallelMarkers(id, !!tour)}</defs>`;
   for (const e of layout.edges) out += `<path class="edge${walked(e) ? '' : ' soft'}" d="${edgePath(e.points)}" marker-end="url(#arrow-${kind(e)}${id})"/>`;
   for (const e of layout.edges) {
@@ -200,8 +211,13 @@ export function renderDiagram(layout, flow, tour) {
     const button = clickable
       ? ` tabindex="0" role="button" aria-label="${esc(`${Core.TYPE_LABELS[n.type] || n.type}: ${n.title || '(sin título)'}`)}"${/\bselected\b/.test(state) ? ' aria-pressed="true"' : ' aria-pressed="false"'}`
       : '';
+    const target = links[n.id];
+    const tip = target ? `Lleva al flujo «${target.name}»` : n.title;
+    const to = href(n.id);
+    if (to) out += `<a class="node-link" href="${esc(to)}" aria-label="${esc(`Enlace: ${n.title || '(sin título)'}. ${tip}`)}">`;
     out += `<g class="node t-${esc(n.type)}${state ? ` ${esc(state)}` : ''}${clickable ? ' clickable' : ''}" data-id="${esc(n.id)}" transform="translate(${num(n.x - n.w / 2)} ${num(n.y - n.h / 2)})"${button}>`;
-    out += `<title>${esc(n.title)}</title>${shape(n)}${icon(n)}${label(n)}</g>`;
+    out += `<title>${esc(tip)}</title>${shape(n)}${icon(n)}${label(n)}</g>`;
+    if (to) out += '</a>';
   }
   if (tags) out += tags.svg;
   return out + '</svg>';

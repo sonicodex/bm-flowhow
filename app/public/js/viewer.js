@@ -72,9 +72,18 @@ if (data && cols) {
   // buttons, and "Empezar de nuevo" shows whenever a run is open.
   let status = initial;
   const overview = cols.innerHTML;
+  // Link steps on the diagram (SPEC §7; phase 6.15): the tooltip names the
+  // flow they lead to, with or without access; in the overview, with
+  // access, the step opens that flow's overview, not its tour.
+  const linkMarks = (shown, open) =>
+    Object.fromEntries(
+      shown.steps
+        .filter((s) => s.type === 'link' && s.ref != null && links[s.ref])
+        .map((s) => [s.id, { name: links[s.ref].name, ...(open && links[s.ref].open ? { href: `/flows/${encodeURIComponent(s.ref)}` } : {}) }]),
+    );
   const drawOverview = () => {
     const box = document.getElementById('diagram');
-    if (box) box.innerHTML = renderDiagram(layoutFlow(flow), { name, colour });
+    if (box) box.innerHTML = renderDiagram(layoutFlow(flow), { name, colour }, undefined, linkMarks(flow, true));
   };
   drawOverview();
 
@@ -272,7 +281,7 @@ if (data && cols) {
       `${zoomToggle()}<button type="button" class="button-link" data-overview>Ver el flujo completo</button></div>` +
       returnNotice(tour) +
       legend(toured.categories) +
-      `<div class="diagram-scroll" id="diagram">${renderDiagram(layout, { name, colour }, marks(tour, toured.categories))}</div>` +
+      `<div class="diagram-scroll" id="diagram">${renderDiagram(layout, { name, colour }, marks(tour, toured.categories), linkMarks(toured, false))}</div>` +
       `<div class="diagram-actions"><p class="tour-message" role="status">${esc(state.message)}</p>` +
       `<button type="button" class="button-secondary" data-prev${tour.pos === 0 ? ' disabled' : ''}>Anterior</button>${primary}</div></div>` +
       `<aside class="card viewer-side">${tour.atEnd() ? noteFor(tour.current().note) : ''}${details(step, toured.categories)}${linkPanel(step)}${exitsPanel(tour)}</aside>`;
@@ -429,7 +438,7 @@ if (data && cols) {
       '<p class="eyebrow">REPASO LIBRE</p><h2 class="step-title">Explora con libertad</h2>' +
       `<p>Toca cualquier paso para ver su detalle${flow.categories.length ? ', o resalta los pasos que llevan una etiqueta' : ''}.</p>`;
     cols.innerHTML =
-      `<div class="card diagram-card">${filter}${legend(flow.categories)}<div class="diagram-scroll" id="diagram">${renderDiagram(laidOut, { name, colour }, marks)}</div></div>` +
+      `<div class="card diagram-card">${filter}${legend(flow.categories)}<div class="diagram-scroll" id="diagram">${renderDiagram(laidOut, { name, colour }, marks, linkMarks(flow, false))}</div></div>` +
       `<aside class="card viewer-side">${notes.length ? `<p class="note">${DONE_ICON}<span>${notes.map(esc).join(' ')}</span></p>` : ''}` +
       `${step ? details(step, flow.categories) + linkPanel(step) : intro}</aside>`;
     const box = document.getElementById('diagram');

@@ -299,6 +299,21 @@ textarea:focus-visible,
   dominant-baseline: central;
 }
 
+/* A link step that opens the other flow (phase 6.15). Focus is the active
+   step's shadow, never a ring. */
+.diagram .node-link {
+  cursor: pointer;
+  outline: var(--border-width) solid transparent;
+}
+
+.diagram .node-link:hover .node-shape {
+  stroke-width: calc(var(--border-width) * 2.5);
+}
+
+.diagram .node-link:focus-visible .node {
+  filter: var(--shadow-focus-svg);
+}
+
 /* Parallel branches (phase 6.12): a straight double-headed connector
    between alternative steps, in the colour of the edges. */
 .diagram .parallel {
