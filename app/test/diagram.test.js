@@ -67,6 +67,27 @@ describe('renderDiagram', () => {
     assert.match(svg, /c &lt;&amp;&gt; &quot;d&quot;/);
   });
 
+  // Phase 6.14 (SPEC §7): a badge never falls outside the diagram.
+  it('grows the canvas so the badges of a step at the edge are never cut', () => {
+    const L = layoutFlow(APERTURA);
+    const p8 = L.nodes.find((n) => n.id === 'P8');
+    const box = (svg) => svg.match(/viewBox="(-?[\d.]+) (-?[\d.]+) ([\d.]+) ([\d.]+)" width="([\d.]+)" height="([\d.]+)"/).slice(1).map(Number);
+    // Without badges, the layout's own size.
+    assert.deepStrictEqual(box(draw(APERTURA, 2)), [0, 0, L.width, L.height, L.width, L.height]);
+    // A long value on the left of P8, the leftmost column: the canvas starts before it.
+    const svg = renderDiagram(L, { name: APERTURA.name, colour: 2 }, {
+      state: () => '', walked: () => true,
+      badges: { id: 'P8', items: [{ category: 'Responsable', index: 0, value: 'Dirección comercial y ventas' }] },
+    });
+    const [x, y, w, h, width, height] = box(svg);
+    const rect = svg.match(/<g class="badge c1">.*?<rect x="(-?[\d.]+)" y="(-?[\d.]+)" width="(\d+)"/);
+    const left = p8.x - p8.w / 2 + Number(rect[1]);
+    assert(left < 0, 'the badge would be cut without room');
+    assert(x <= left && x + w >= L.width && y === 0 && h === L.height);
+    assert.strictEqual(width, w);
+    assert.strictEqual(height, h);
+  });
+
   // Phase 6.12 (SPEC §7, Layout).
   it('joins the steps of parallel branches with a double-headed connector, everywhere', () => {
     const L = layoutFlow(APERTURA);

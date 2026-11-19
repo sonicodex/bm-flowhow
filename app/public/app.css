@@ -623,6 +623,46 @@ textarea:focus-visible,
   font-size: var(--text-sm);
 }
 
+/* «Convenciones» (phase 6.14): one swatch per category, drawn like its
+   badge on the diagram (theme.css --color-cat-N; slot 3 is the dashed one). */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-6);
+  border-bottom: var(--border-width) solid var(--color-border);
+  font-size: var(--text-sm);
+}
+
+.legend-title {
+  font-weight: var(--weight-medium);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.legend-swatch {
+  width: calc(var(--space-6) + var(--space-1));
+  height: var(--space-4);
+  border: calc(var(--border-width) * 1.5) solid;
+  border-radius: calc(var(--radius) / 2);
+}
+
+.legend-swatch.c1 { background: var(--color-cat-1-bg); border-color: var(--color-cat-1-border); }
+.legend-swatch.c2 { background: var(--color-cat-2-bg); border-color: var(--color-cat-2-border); }
+.legend-swatch.c3 { background: var(--color-cat-3-bg); border-color: var(--color-cat-3-border); border-style: dashed; }
+.legend-swatch.c4 { background: var(--color-cat-4-bg); border-color: var(--color-cat-4-border); }
+
+@media (max-width: 760px) {
+  .legend {
+    padding: var(--space-2) var(--space-4);
+  }
+}
+
 /* The notice when the tour went back to a decision (phase 6.13): a band
    across the top of the diagram that stays until a branch is chosen,
    marked like every warning, with the alert icon and a yellow edge. */

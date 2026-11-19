@@ -14,6 +14,39 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.14: «Convenciones» and badges inside the canvas
+
+- Decision:
+  - **«Convenciones»** (SPEC §7):
+    - A band above the diagram in the tour and in the free review, where
+      badges show. The overview has no badges, so it has no legend.
+    - One swatch per category, drawn like its badge from the same theme
+      tokens (`--color-cat-N`; slot 3 dashed), with the category's name.
+    - Slots repeat from the fifth category on, as the badges do.
+    - A flow without categories has no legend.
+    - On a phone the band keeps the category names: they are the legend
+      itself, not the panel's secondary information that §9 hides.
+  - **Badges inside the canvas** (SPEC §7):
+    - The renderer measures where the active step's badges reach. It
+      widens the SVG's `viewBox`, and its size, to hold them with a 4 px
+      margin, including towards negative coordinates.
+    - Without badges, or with badges inside, the canvas is the layout's
+      own size.
+    - In the real flows this happens on Instalaciones P18, P19 and P20,
+      whose «Responsable» badges went 16 px past the left edge.
+  - **The viewer** now converts diagram coordinates to pixels through
+    the SVG's `viewBox`, not the layout's width. Centring on the current
+    step and bringing highlighted steps into view stay right when the
+    canvas has grown.
+  - **Known overlap:** a badge drawn on the side of a parallel step covers
+    the 6.12 connector while that step is the active one (Apertura P8's
+    «WP» over P8↔P9). The connector shows again on the next step.
+  - **Checked in Chrome:** free review of Apertura de OT, legend
+    «Responsable · Herramienta» above the diagram; P8 (leftmost column)
+    chosen, its badges inside the canvas.
+- Reason: SPEC §7 (owner's change); plan_iteration_5, slice 6.14.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.13: a notice on the diagram when the tour goes back to a decision
 
 - Decision:

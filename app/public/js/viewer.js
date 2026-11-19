@@ -12,7 +12,7 @@
 // (phase 3.6).
 import Core from './core.js';
 import { layoutFlow } from './diagram-layout.js';
-import { renderDiagram } from './diagram.js';
+import { CATEGORY_SLOTS, renderDiagram } from './diagram.js';
 import { apply, replay } from './tour-log.js';
 
 const data = document.getElementById('flow-data');
@@ -165,12 +165,19 @@ if (data && cols) {
     };
   };
 
+  // From the diagram's coordinates to pixels in the drawn SVG. Read from its
+  // viewBox, not from the layout: the canvas grows to hold badges (6.14).
+  const frame = (svg) => {
+    const vb = svg.viewBox.baseVal;
+    const k = svg.getBoundingClientRect().width / vb.width || 1;
+    return { x: (v) => (v - vb.x) * k, y: (v) => (v - vb.y) * k };
+  };
+
   const scrollToCurrent = (box, layout, current) => {
     const node = layout.nodes.find((n) => n.id === current);
     const svg = box.querySelector('svg');
     if (!node || !svg) return;
-    const k = svg.getBoundingClientRect().width / layout.width || 1;
-    box.scrollTop = Math.max(0, node.y * k - box.clientHeight / 2);
+    box.scrollTop = Math.max(0, frame(svg).y(node.y) - box.clientHeight / 2);
   };
 
   // ---- Tour zoom (SPEC §9, Layout; phase 6.8): on every screen, the
@@ -232,6 +239,14 @@ if (data && cols) {
   // whatever reason, a notice stays on the diagram until a branch is
   // chosen. The side panel says why; this says what is left. Being moved
   // without being told is when people decide the app is broken.
+  // «Convenciones» (SPEC §7; phase 6.14): what each badge style stands for,
+  // above the diagram wherever badges show (the tour and the free review).
+  // Category slots repeat from the fifth on, as the badges do.
+  const legend = (categories) =>
+    categories.length
+      ? `<div class="legend"><span class="legend-title">Convenciones</span>${categories.map((c, i) => `<span class="legend-item"><span class="legend-swatch c${(i % CATEGORY_SLOTS) + 1}" aria-hidden="true"></span>${esc(c)}</span>`).join('')}</div>`
+      : '';
+
   const RETURN_NOTICE = 'Faltan ramas por recorrer en esta decisión. Elige una para seguir.';
   const returnNotice = (tour) => {
     const note = tour.current().note;
@@ -256,6 +271,7 @@ if (data && cols) {
       // Back to the overview; the run stays open (phase 3.5).
       `${zoomToggle()}<button type="button" class="button-link" data-overview>Ver el flujo completo</button></div>` +
       returnNotice(tour) +
+      legend(toured.categories) +
       `<div class="diagram-scroll" id="diagram">${renderDiagram(layout, { name, colour }, marks(tour, toured.categories))}</div>` +
       `<div class="diagram-actions"><p class="tour-message" role="status">${esc(state.message)}</p>` +
       `<button type="button" class="button-secondary" data-prev${tour.pos === 0 ? ' disabled' : ''}>Anterior</button>${primary}</div></div>` +
@@ -376,11 +392,11 @@ if (data && cols) {
     const nodes = layout.nodes.filter((n) => ids.includes(n.id));
     const svg = box.querySelector('svg');
     if (!nodes.length || !svg) return;
-    const k = svg.getBoundingClientRect().width / layout.width || 1;
-    const top = Math.min(...nodes.map((n) => n.y - n.h / 2)) * k;
-    const bottom = Math.max(...nodes.map((n) => n.y + n.h / 2)) * k;
-    const left = Math.min(...nodes.map((n) => n.x - n.w / 2)) * k;
-    const right = Math.max(...nodes.map((n) => n.x + n.w / 2)) * k;
+    const f = frame(svg);
+    const top = f.y(Math.min(...nodes.map((n) => n.y - n.h / 2)));
+    const bottom = f.y(Math.max(...nodes.map((n) => n.y + n.h / 2)));
+    const left = f.x(Math.min(...nodes.map((n) => n.x - n.w / 2)));
+    const right = f.x(Math.max(...nodes.map((n) => n.x + n.w / 2)));
     const margin = box.clientHeight / 8;
     box.scrollTop = Math.max(0, bottom - top <= box.clientHeight - 2 * margin ? (top + bottom - box.clientHeight) / 2 : top - margin);
     box.scrollLeft = Math.max(0, right - left <= box.clientWidth ? (left + right - box.clientWidth) / 2 : left);
@@ -413,7 +429,7 @@ if (data && cols) {
       '<p class="eyebrow">REPASO LIBRE</p><h2 class="step-title">Explora con libertad</h2>' +
       `<p>Toca cualquier paso para ver su detalle${flow.categories.length ? ', o resalta los pasos que llevan una etiqueta' : ''}.</p>`;
     cols.innerHTML =
-      `<div class="card diagram-card">${filter}<div class="diagram-scroll" id="diagram">${renderDiagram(laidOut, { name, colour }, marks)}</div></div>` +
+      `<div class="card diagram-card">${filter}${legend(flow.categories)}<div class="diagram-scroll" id="diagram">${renderDiagram(laidOut, { name, colour }, marks)}</div></div>` +
       `<aside class="card viewer-side">${notes.length ? `<p class="note">${DONE_ICON}<span>${notes.map(esc).join(' ')}</span></p>` : ''}` +
       `${step ? details(step, flow.categories) + linkPanel(step) : intro}</aside>`;
     const box = document.getElementById('diagram');

@@ -80,19 +80,27 @@ const BADGE = { h: 24, gap: 4, overlap: 10, maxChars: 16, charW: 7.4, padX: 22 }
 function badges(n, items) {
   const sides = [[], []];
   for (const b of items) sides[b.index % 2].push(b);
-  let out = `<g class="badges" transform="translate(${num(n.x - n.w / 2)} ${num(n.y - n.h / 2)})">`;
+  const left = n.x - n.w / 2, top = n.y - n.h / 2;
+  // Where the badges reach, in the diagram's coordinates, so the canvas can
+  // make room for them (SPEC §7; phase 6.14).
+  const box = { x0: left, y0: top, x1: left + n.w, y1: top + n.h };
+  let out = `<g class="badges" transform="translate(${num(left)} ${num(top)})">`;
   sides.forEach((list, side) => {
     list.forEach((b, i) => {
       const text = b.value.length > BADGE.maxChars ? `${b.value.slice(0, BADGE.maxChars - 1)}…` : b.value;
       const w = Math.round(text.length * BADGE.charW + BADGE.padX);
       const x = side === 0 ? -w + BADGE.overlap : n.w - BADGE.overlap;
       const y = n.h / 2 + (i - (list.length - 1) / 2) * (BADGE.h + BADGE.gap) - BADGE.h / 2;
+      box.x0 = Math.min(box.x0, left + x);
+      box.x1 = Math.max(box.x1, left + x + w);
+      box.y0 = Math.min(box.y0, top + y);
+      box.y1 = Math.max(box.y1, top + y + BADGE.h);
       out += `<g class="badge c${(b.index % CATEGORY_SLOTS) + 1}"><title>${esc(`${b.category}: ${b.value}`)}</title>`;
       out += `<rect x="${num(x)}" y="${num(y)}" width="${w}" height="${BADGE.h}"/>`;
       out += `<text x="${num(x + w / 2)}" y="${num(y + BADGE.h / 2)}">${esc(text)}</text></g>`;
     });
   });
-  return out + '</g>';
+  return { svg: out + '</g>', box };
 }
 
 // Parallel branches (SPEC §7, Layout; phase 6.12): neighbouring steps of a
@@ -157,9 +165,18 @@ export function renderDiagram(layout, flow, tour) {
   const walked = (e) => !tour || tour.walked(e.from, e.to);
   const kind = (e) => (walked(e) ? '' : 'soft');
   const clickable = !!(tour && tour.clickable);
+  // The active step's badges, drawn last; the canvas grows to hold them,
+  // so none is cut by the edge (SPEC §7; phase 6.14).
+  const active = tour && tour.badges && layout.nodes.find((n) => n.id === tour.badges.id);
+  const tags = active && tour.badges.items.length ? badges(active, tour.badges.items) : null;
+  const MARGIN = 4;
+  const vx = tags ? Math.min(0, Math.floor(tags.box.x0 - MARGIN)) : 0;
+  const vy = tags ? Math.min(0, Math.floor(tags.box.y0 - MARGIN)) : 0;
+  const vw = (tags ? Math.max(layout.width, Math.ceil(tags.box.x1 + MARGIN)) : layout.width) - vx;
+  const vh = (tags ? Math.max(layout.height, Math.ceil(tags.box.y1 + MARGIN)) : layout.height) - vy;
   // A picture, unless its steps are buttons: inside role="img" they would
   // be hidden from assistive technology.
-  let out = `<svg xmlns="http://www.w3.org/2000/svg" class="diagram flow-${slot}${tour ? ' touring' : ''}" viewBox="0 0 ${layout.width} ${layout.height}" width="${layout.width}" height="${layout.height}" role="${clickable ? 'group' : 'img'}" aria-label="${esc(name)}">`;
+  let out = `<svg xmlns="http://www.w3.org/2000/svg" class="diagram flow-${slot}${tour ? ' touring' : ''}" viewBox="${vx} ${vy} ${vw} ${vh}" width="${vw}" height="${vh}" role="${clickable ? 'group' : 'img'}" aria-label="${esc(name)}">`;
   out += `<defs>${marker('')}${tour ? marker('soft') : ''}${parallelMarkers(id, !!tour)}</defs>`;
   for (const e of layout.edges) out += `<path class="edge${walked(e) ? '' : ' soft'}" d="${edgePath(e.points)}" marker-end="url(#arrow-${kind(e)}${id})"/>`;
   for (const e of layout.edges) {
@@ -174,7 +191,6 @@ export function renderDiagram(layout, flow, tour) {
     out += `<g class="node t-${esc(n.type)}${state ? ` ${esc(state)}` : ''}${clickable ? ' clickable' : ''}" data-id="${esc(n.id)}" transform="translate(${num(n.x - n.w / 2)} ${num(n.y - n.h / 2)})"${button}>`;
     out += `<title>${esc(n.title)}</title>${shape(n)}${icon(n)}${label(n)}</g>`;
   }
-  const active = tour && tour.badges && layout.nodes.find((n) => n.id === tour.badges.id);
-  if (active && tour.badges.items.length) out += badges(active, tour.badges.items);
+  if (tags) out += tags.svg;
   return out + '</svg>';
 }
