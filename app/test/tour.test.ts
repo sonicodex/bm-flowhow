@@ -431,5 +431,16 @@ describe("tour routes", () => {
     const restarted = await post(`/flows/${s.flowId}/tour/restart`);
     expect(restarted.status).toBe(200);
     expect(await restarted.json()).toMatchObject({ log: [], notice: null, status: { state: "in_progress" } });
+    // The free review is locked until the flow is reviewed (SPEC §7; phase 6.6).
+    const free = '<button type="button" class="button-secondary" data-review="true"';
+    expect(await page()).toContain(`${free} hidden="">Repaso libre</button>`);
+    const release = (await db().prepare("SELECT id FROM releases WHERE flow_id = ?").bind(s.flowId).first<number>("id"))!;
+    await db().prepare("UPDATE tour_runs SET finished_at = ? WHERE abandoned_at IS NULL").bind(new Date().toISOString()).run();
+    await db()
+      .prepare("INSERT INTO review_records (user_id, release_id, completed_at, duration_seconds) SELECT user_id, ?, ?, 60 FROM tour_runs LIMIT 1")
+      .bind(release, new Date().toISOString())
+      .run();
+    expect(await page()).toContain('data-state="reviewed"');
+    expect(await page()).toContain(`${free}>Repaso libre</button>`);
   });
 });

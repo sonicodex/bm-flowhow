@@ -35,8 +35,11 @@ const showStatus = (status) => {
 if (data && cols) {
   const { id, name, colour, flow, status: initial, links: initialLinks } = JSON.parse(data.textContent);
   // Where each link leads, by target flow id: its name, and whether this
-  // user can open it (phase 6.4). The tour's own release replaces it.
-  let links = initialLinks || {};
+  // user can open it (phase 6.4). `links` follows what is shown: the tour's
+  // own release replaces it, and the overview and the free review use the
+  // page's.
+  const pageLinks = initialLinks || {};
+  let links = pageLinks;
   // The review status, as the server last gave it: it labels the overview's
   // buttons, and "Empezar de nuevo" shows whenever a run is open.
   let status = initial;
@@ -171,12 +174,16 @@ if (data && cols) {
   // finish, or "Iniciar recorrido" if a major release came out meanwhile.
   const showOverview = (lines) => {
     state = null;
+    review = null;
+    links = pageLinks;
     cols.innerHTML = overview;
     drawOverview();
     const button = cols.querySelector('[data-start]');
     if (button) button.textContent = status.action;
     const restart = cols.querySelector('[data-restart]');
     if (restart) restart.hidden = !status.open;
+    const free = cols.querySelector('[data-review]');
+    if (free) free.hidden = status.state !== 'reviewed';
     const side = cols.querySelector('.viewer-side');
     if (side && lines.length) side.insertAdjacentHTML('afterbegin', `<p class="note">${DONE_ICON}<span>${lines.map(esc).join(' ')}</span></p>`);
   };
@@ -203,7 +210,8 @@ if (data && cols) {
     if (res.ok) {
       status = res.json.status;
       showStatus(status);
-      return showOverview(['Flujo revisado.', res.json.newer].filter(Boolean));
+      // Finishing unlocks the free review, and it opens (SPEC §7).
+      return showReview(['Flujo revisado.', res.json.newer].filter(Boolean));
     }
     state.message = res.json.error || 'No se pudo terminar el recorrido. Revisa la conexión e inténtalo de nuevo.';
     renderTour('[data-finish]');
@@ -247,10 +255,91 @@ if (data && cols) {
     cols.querySelector('[data-restart]')?.focus();
   };
 
+  // ---- Free review (SPEC §7; phase 6.6): the whole diagram, any step
+  // chosen to see its panel, and the steps that carry a tag highlighted.
+  // Unlocked once the flow is reviewed. It reads the page's release, the
+  // latest, as the overview does; nothing of it reaches the server. ----
+
+  /** @type {{ selected: string, cat: string, val: string, notes: string[] } | null} */
+  let review = null;
+  const reviewLayout = () => layoutFlow(flow);
+  let laidOut = null;
+
+  const showReview = (notes = []) => {
+    state = null;
+    links = pageLinks;
+    review = { selected: '', cat: '', val: '', notes };
+    renderReview();
+  };
+
+  const renderReview = (focus) => {
+    const { selected, cat, val, notes } = review;
+    laidOut = laidOut || reviewLayout();
+    const step = flow.steps.find((s) => s.id === selected) || null;
+    const values = cat ? [...new Set(flow.steps.flatMap((s) => s.tags[cat] || []))].sort((a, b) => a.localeCompare(b, 'es-CO')) : [];
+    const carries = (id) => (flow.steps.find((s) => s.id === id)?.tags[cat] || []).includes(val);
+    const marks = {
+      clickable: true,
+      walked: () => true,
+      state: (id) => [id === selected ? 'selected' : '', cat && val ? (carries(id) ? 'hit' : 'dim') : ''].filter(Boolean).join(' '),
+      badges: step ? { id: step.id, items: flow.categories.flatMap((category, index) => (step.tags[category] || []).map((value) => ({ category, index, value }))) } : undefined,
+    };
+    const filter =
+      '<div class="review-filter">' +
+      (flow.categories.length
+        ? `<label for="hl-cat">Resaltar por</label><select id="hl-cat"><option value="">Nada</option>${flow.categories.map((c) => `<option value="${esc(c)}"${c === cat ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select>` +
+          (values.length ? `<div class="review-values">${values.map((v) => `<button type="button" class="chip-button" data-hl="${esc(v)}" aria-pressed="${v === val}">${esc(v)}</button>`).join('')}</div>` : '')
+        : '') +
+      '<button type="button" class="button-link" data-overview>Ver el panorama</button></div>';
+    const intro =
+      '<p class="eyebrow">REPASO LIBRE</p><h2 class="step-title">Explora con libertad</h2>' +
+      `<p>Toca cualquier paso para ver su detalle${flow.categories.length ? ', o resalta los pasos que llevan una etiqueta' : ''}.</p>`;
+    cols.innerHTML =
+      `<div class="card diagram-card">${filter}<div class="diagram-scroll" id="diagram">${renderDiagram(laidOut, { name, colour }, marks)}</div></div>` +
+      `<aside class="card viewer-side">${notes.length ? `<p class="note">${DONE_ICON}<span>${notes.map(esc).join(' ')}</span></p>` : ''}` +
+      `${step ? details(step, flow.categories) + linkPanel(step) : intro}</aside>`;
+    const target = focus && cols.querySelector(focus);
+    if (target) target.focus({ preventScroll: true });
+  };
+
+  const selectNode = (node) => {
+    review.selected = node.getAttribute('data-id');
+    review.notes = [];
+    renderReview(`.node[data-id="${CSS.escape(review.selected)}"]`);
+  };
+
+  cols.addEventListener('change', (ev) => {
+    if (!review || !(ev.target instanceof HTMLSelectElement) || ev.target.id !== 'hl-cat') return;
+    review.cat = ev.target.value;
+    review.val = '';
+    renderReview('#hl-cat');
+  });
+
+  cols.addEventListener('keydown', (ev) => {
+    if (!review || (ev.key !== 'Enter' && ev.key !== ' ')) return;
+    const node = ev.target instanceof Element ? ev.target.closest('.node.clickable') : null;
+    if (!node) return;
+    ev.preventDefault();
+    selectNode(node);
+  });
+
   cols.addEventListener('click', (ev) => {
+    if (review) {
+      const node = ev.target instanceof Element ? ev.target.closest('.node.clickable') : null;
+      if (node) return selectNode(node);
+      const chip = ev.target instanceof Element ? ev.target.closest('[data-hl]') : null;
+      if (chip) {
+        const v = chip.getAttribute('data-hl');
+        review.val = review.val === v ? '' : v;
+        return renderReview(`[data-hl="${CSS.escape(v)}"]`);
+      }
+      if (ev.target instanceof Element && ev.target.closest('[data-overview]')) showOverview([]);
+      return;
+    }
     const b = ev.target instanceof Element ? ev.target.closest('button') : null;
     if (!b || b.disabled) return;
     if (!state) {
+      if (b.hasAttribute('data-review')) return showReview();
       if (b.hasAttribute('data-start')) start(b, '');
       else if (b.hasAttribute('data-restart')) confirmRestart();
       else if (b.hasAttribute('data-cancel')) cancelRestart();

@@ -59,6 +59,10 @@ function ViewerPage({ flow, compiled, status, links }: { flow: FlowRow; compiled
             <button type="button" class="button-secondary" data-restart hidden={!status.open}>
               Empezar de nuevo
             </button>
+            {/* The free review, unlocked once the flow is reviewed (§7). */}
+            <button type="button" class="button-secondary" data-review hidden={status.state !== "reviewed"}>
+              Repaso libre
+            </button>
             <button type="button" class="button-primary" data-start>
               {status.action}
             </button>

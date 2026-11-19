@@ -348,6 +348,91 @@ textarea:focus-visible,
   font-weight: var(--weight-medium);
 }
 
+/* ---- Free review (phase 6.6) ----
+   Every step is a button. The chosen one carries the active step's shadow
+   from the moment it is chosen (SPEC §9); the steps that carry the
+   highlighted tag are filled with the flow colour, as the tour's current
+   step is, and the rest are dimmed. Focus is the same shadow, never a ring. */
+.diagram .node.clickable {
+  cursor: pointer;
+  outline: var(--border-width) solid transparent;
+}
+
+.diagram .node.clickable:hover .node-shape {
+  stroke-width: calc(var(--border-width) * 2.5);
+}
+
+.diagram .node.selected,
+.diagram .node.clickable:focus-visible {
+  filter: var(--shadow-focus-svg);
+}
+
+.diagram .node.hit {
+  color: var(--flow-on);
+}
+
+.diagram .node.hit .node-shape {
+  fill: var(--flow);
+  stroke: var(--flow);
+  stroke-dasharray: none;
+}
+
+.diagram .node.hit .node-text {
+  fill: var(--flow-on);
+  font-weight: var(--weight-medium);
+}
+
+.review-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--border-width) solid var(--color-border);
+  font-size: var(--text-sm);
+}
+
+.review-filter select {
+  font: inherit;
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.review-filter .button-link {
+  margin-left: auto;
+}
+
+.review-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chip-button {
+  padding: var(--space-1) var(--space-3);
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  outline: var(--border-width) solid transparent;
+  cursor: pointer;
+}
+
+.chip-button[aria-pressed="true"] {
+  color: var(--flow-on);
+  background: var(--flow);
+  border-color: var(--flow);
+}
+
+.chip-button:focus-visible,
+.review-filter select:focus-visible {
+  box-shadow: var(--shadow-focus);
+}
+
 /* Tag badges beside the active step, one convention per category slot
    (theme.css --color-cat-N). Slot 3 is the dashed one. */
 .diagram .badge rect {

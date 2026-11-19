@@ -14,6 +14,36 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.6: free review in the viewer
+
+- Decision:
+  - **Where it opens:**
+    - Once the flow is reviewed, the overview offers «Repaso libre» beside
+      the tour's buttons. Before that the button is in the page, hidden,
+      like «Empezar de nuevo».
+    - Finishing the tour opens the free review straight away, with the
+      «Flujo revisado.» note, as the prototype does.
+    - «Ver el panorama» goes back to the overview.
+  - **What it shows:** the whole diagram of the page's release (the
+    latest), as the overview does. Nothing of it reaches the server.
+    - Every step is a button (focusable, Enter or Space, `aria-pressed`).
+      The diagram becomes `role="group"`, since buttons inside
+      `role="img"` would be hidden from assistive technology.
+    - The chosen step carries the active step's shadow and its badges
+      (SPEC §7, §9). The side panel shows its details, the same as in the
+      tour. On a link step it adds the 6.4 panel: Flujo, Contacto and
+      «Ir a «X»».
+  - **«Resaltar por»:** a category select, then one chip per value it
+    takes in this flow (sorted, es-CO). The steps carrying the pressed
+    value are filled with the flow colour, as the tour's current step is,
+    and the rest are dimmed. Pressing the chip again clears it.
+    - A flow without categories shows no select.
+    - The view does not scroll to the highlighted steps.
+  - **Not here:** «Abrir subflujo» (SPEC §7). Subflows are out of stage 1
+    (PLAN.md).
+- Reason: phase 6 plan (plan_iteration_3), slice 6.6; SPEC §7, §9.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.5: the home screen says where an open tour was left
 
 - Decision:

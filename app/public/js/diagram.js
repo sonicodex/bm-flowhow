@@ -98,11 +98,14 @@ function badges(n, items) {
 let seq = 0;
 
 /**
- * The tour's marks on the diagram (phase 3.3). `state` gives each step a
- * class: `current`, `visited` or `dim`. `walked` tells the edges already
- * walked from the rest. `badges` are the tags of the active step.
+ * The tour's marks on the diagram (phase 3.3), and the free review's (phase
+ * 6.6). `state` gives each step its classes: `current`, `visited` or `dim`
+ * in the tour; `selected`, `hit` or `dim` in the review. `walked` tells the
+ * edges already walked from the rest. `badges` are the tags of the active
+ * step. `clickable`: every step is a button that selects it (free review).
  * @typedef {{ state: (id: string) => string, walked: (from: string, to: string) => boolean,
- *   badges?: { id: string, items: { category: string, index: number, value: string }[] } }} TourMarks
+ *   badges?: { id: string, items: { category: string, index: number, value: string }[] },
+ *   clickable?: boolean }} TourMarks
  */
 
 /**
@@ -120,7 +123,10 @@ export function renderDiagram(layout, flow, tour) {
   const marker = (kind) => `<marker id="arrow-${kind}${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="edge-arrow${kind ? ` ${kind}` : ''}" d="M0 0L10 5L0 10z"/></marker>`;
   const walked = (e) => !tour || tour.walked(e.from, e.to);
   const kind = (e) => (walked(e) ? '' : 'soft');
-  let out = `<svg xmlns="http://www.w3.org/2000/svg" class="diagram flow-${slot}${tour ? ' touring' : ''}" viewBox="0 0 ${layout.width} ${layout.height}" width="${layout.width}" height="${layout.height}" role="img" aria-label="${esc(name)}">`;
+  const clickable = !!(tour && tour.clickable);
+  // A picture, unless its steps are buttons: inside role="img" they would
+  // be hidden from assistive technology.
+  let out = `<svg xmlns="http://www.w3.org/2000/svg" class="diagram flow-${slot}${tour ? ' touring' : ''}" viewBox="0 0 ${layout.width} ${layout.height}" width="${layout.width}" height="${layout.height}" role="${clickable ? 'group' : 'img'}" aria-label="${esc(name)}">`;
   out += `<defs>${marker('')}${tour ? marker('soft') : ''}</defs>`;
   for (const e of layout.edges) out += `<path class="edge${walked(e) ? '' : ' soft'}" d="${edgePath(e.points)}" marker-end="url(#arrow-${kind(e)}${id})"/>`;
   for (const e of layout.edges) {
@@ -128,7 +134,10 @@ export function renderDiagram(layout, flow, tour) {
   }
   for (const n of layout.nodes) {
     const state = tour ? tour.state(n.id) : '';
-    out += `<g class="node t-${esc(n.type)}${state ? ` ${esc(state)}` : ''}" data-id="${esc(n.id)}" transform="translate(${num(n.x - n.w / 2)} ${num(n.y - n.h / 2)})">`;
+    const button = clickable
+      ? ` tabindex="0" role="button" aria-label="${esc(`${Core.TYPE_LABELS[n.type] || n.type}: ${n.title || '(sin título)'}`)}"${/\bselected\b/.test(state) ? ' aria-pressed="true"' : ' aria-pressed="false"'}`
+      : '';
+    out += `<g class="node t-${esc(n.type)}${state ? ` ${esc(state)}` : ''}${clickable ? ' clickable' : ''}" data-id="${esc(n.id)}" transform="translate(${num(n.x - n.w / 2)} ${num(n.y - n.h / 2)})"${button}>`;
     out += `<title>${esc(n.title)}</title>${shape(n)}${icon(n)}${label(n)}</g>`;
   }
   const active = tour && tour.badges && layout.nodes.find((n) => n.id === tour.badges.id);
