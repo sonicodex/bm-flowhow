@@ -14,6 +14,43 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.11: the branch rule looks at the decision's shape
+
+- Decision:
+  - **The rule** (SPEC §7, owner's change): a decision is **parallel** when
+    all of these hold:
+    - every branch meets at the same step;
+    - each branch is one step long (a step that is not a decision and leads
+      only to the meeting point) or goes straight there.
+  - **What the tour does:**
+    - On a parallel decision it walks the branches one after another
+      («2 de 3»), as before.
+    - On any other decision with a meeting point it always goes back to
+      the decision.
+    - The order the user picks no longer changes anything.
+  - **In the engine,** `Tour.parallel` (decision → meeting point) is
+    computed once, from the meeting points and branch lengths the engine
+    already had. `_hold` reads it instead of the branches still pending.
+    Slice 6.12 draws the same map.
+  - **In the real flows:**
+    - Apertura P31, Instalaciones P9 and P17 (one branch straight there,
+      one long) now go back whichever branch is picked first.
+    - Apertura P7, P26, P34 and Instalaciones P11 stay parallel.
+  - **Tests:**
+    - Three cases that pinned the order-dependent behaviour were rewritten
+      (see the header of `test/core.test.js`).
+    - New random test: 2000 graphs biased towards one-step branches,
+      walked in random orders with rewinds. Every «walked together» note
+      must come from a parallel decision, and no return at a meeting point
+      may come from one. Both cases occur over a hundred times each.
+  - **Tours already open:** the server replays each run's log under the
+    current rules. A run that no longer replays restarts, with the notice
+    that already exists for it («Las reglas del recorrido cambiaron…»).
+    No migration.
+- Reason: owner's change to SPEC §7 (`63e82bc`, `df6620b`);
+  plan_iteration_5, slice 6.11.
+- Spec sections affected: none (the owner wrote them).
+
 ## 2026-11-19 — Provisional app icon
 
 - Decision:

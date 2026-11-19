@@ -679,12 +679,12 @@ var Core = (function () {
        a branch that meets there is still to take: it goes back to the decision instead, and enters the
        meeting point once, after the last of them. A branch that only shares the end with the others has
        no meeting point and ends at its dead end, as above.
-     - Going back to the decision in between is for choices that matter (SPEC §7). When every branch still
-       to take that meets there is one step long (its step's only exit is the meeting point) or goes
-       straight to it, they are walked one after another without going back ("2 de 3"), and those that go
-       straight there are taken on entering it. A branch still to take that is a path of its own sends the
-       tour back to the decision. So the same decision behaves differently depending on the order the user
-       picks: what decides is what is left to walk.
+     - Going back to the decision in between is for choices that matter (SPEC §7). When every branch of
+       the decision meets at the same step and is one step long (its step's only exit is the meeting point)
+       or goes straight to it, the branches are parallel: they are walked one after another without going
+       back ("2 de 3"), and those that go straight there are taken on entering it. In every other case the
+       tour goes back to the decision. The rule looks at the shape of the decision only, never at the order
+       the user picks: the same decision behaves the same way every time (owner's change, phase 6.11).
      - "Anterior" can undo a choice: on a decision already left behind, choosing a different branch drops
        the trail after it and goes on from there. Steps seen and branches taken stay counted. Each trail
        entry keeps the state the tour had there (path, pending starts, cycle counter) to go back to. */
@@ -711,6 +711,12 @@ var Core = (function () {
         return on.length === 1 && on[0].to === m[k] ? 'short' : 'long';
       }));
     });
+    // decision id -> its meeting point, for the decisions whose branches are parallel (see above).
+    this.parallel = new Map();
+    this.meet.forEach(function (m, d) {
+      var r = self.reach.get(d);
+      if (m[0] && m.every(function (x) { return x === m[0]; }) && r.every(function (x) { return x === 'short' || x === 'direct'; })) self.parallel.set(d, m[0]);
+    });
     this._goto(first[0], null);
     this._save();
   }
@@ -724,10 +730,10 @@ var Core = (function () {
     return m.map(function (x, k) { return x === to && !self.taken.has(d + '#' + k) ? k : -1; }).filter(function (k) { return k >= 0; });
   };
   /* Instead of entering `to` (a meeting point of the decision at path index i): back to the decision, or,
-     when every branch still to take there is one step or none, on to the next of them. */
+     when its branches are parallel, on to the next of them. */
   Tour.prototype._hold = function (i, to, note) {
     var d = this.path[i], pending = this._pendingAt(d, to), reach = this.reach.get(d) || [];
-    if (!pending.length || pending.some(function (k) { return reach[k] === 'long'; })) return this._back(i, note);
+    if (!pending.length || this.parallel.get(d) !== to) return this._back(i, note);
     var total = (this.meet.get(d) || []).filter(function (x) { return x === to; }).length;
     var step = pending.filter(function (k) { return reach[k] === 'short'; })[0];
     this.path.length = i + 1;

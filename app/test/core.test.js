@@ -11,7 +11,9 @@
 // branch must be taken" (see DECISIONS.md). The case the second guarded
 // (every step visited, a branch not taken) has a flow of its own. Phase 3.6
 // (one-step branches are walked one after another) changed the subflow case
-// again.
+// again. Phase 6.11 (the rule looks at the decision's shape, not at the order
+// picked) rewrote three cases: "nested decisions", "a one-step branch and a
+// path of its own" and "Instalaciones P17".
 import assert from 'node:assert';
 import { afterAll, it } from 'vitest';
 import C from '../public/js/core.js';
@@ -166,15 +168,15 @@ it("nested decisions: the inner one closes at its meeting point, then the outer 
   assert.deepStrictEqual([w.meet.get('D1'), w.meet.get('D2')], [['M', 'M'], ['R', 'R']]);
   assert.deepStrictEqual([w.reach.get('D1'), w.reach.get('D2')], [['long', 'long'], ['long', 'short']]);
   w.next(); w.choose(0); w.choose(0); w.next();
-  // Only Q (one step) is left at D2: on to it, without going back.
+  // D2 has a long branch and a short one: not parallel, so back to D2 even though only Q is left.
   let r = w.next();
-  assert(!r.returned && w.current().id === 'Q' && w.current().note.alt === 'D2' && w.current().note.n === 2 && w.current().note.total === 2);
-  w.next();
+  assert(r.returned && w.current().id === 'D2' && w.current().note.joinAt === 'R');
+  w.choose(1); w.next();
   r = w.next();
   assert(r.returned && w.current().id === 'D1' && w.current().note.joinAt === 'M');
   w.choose(1); w.next(); w.next(); w.next();
   assert(w.current().id === 'E' && w.canFinish());
-  assert.strictEqual(ids(w), 'S D1 D2 P P2 Q R D1 Y Y2 M E');
+  assert.strictEqual(ids(w), 'S D1 D2 P P2 D2 Q R D1 Y Y2 M E');
 });
 
 // Phase 3.6: one-step branches are walked one after another (SPEC §7).
@@ -194,7 +196,7 @@ it("one-step branches are walked one after another, the user picking the first (
   assert.strictEqual(ids(w), 'S D B A C M E');
 });
 
-it("a one-step branch and a path of its own: the order picked decides whether the tour goes back", () => {
+it("a one-step branch and a path of its own: back to the decision, whichever is picked first", () => {
   const rows = [['S', 'start', 'D'], ['D', 'decision', 'corta:A | larga:L1'], ['A', 'activity', 'M'], ['L1', 'activity', 'L2'], ['L2', 'activity', 'M'], ['M', 'end', '']];
   // The short one first: the long one is left, a road of its own, so back to D.
   let w = new C.Tour(flowOf(rows));
@@ -203,13 +205,15 @@ it("a one-step branch and a path of its own: the order picked decides whether th
   assert(r.returned && w.current().id === 'D' && w.current().note.joinAt === 'M');
   w.choose(1); w.next(); w.next();
   assert.strictEqual(ids(w), 'S D A D L1 L2 M');
-  // The long one first: only the short one is left, walked right after.
+  // The long one first: back to D as well. The order picked never changes it (SPEC §7, phase 6.11).
   w = new C.Tour(flowOf(rows));
-  w.next(); w.choose(1); w.next(); w.next();
-  assert.deepStrictEqual([w.current().id, w.current().note], ['A', { alt: 'D', exit: 0, n: 2, total: 2 }]);
-  w.next();
+  w.next(); w.choose(1); w.next();
+  r = w.next();
+  assert(r.returned && w.current().id === 'D' && w.current().note.joinAt === 'M');
+  w.choose(0); w.next();
   assert(w.current().id === 'M' && w.canFinish());
-  assert.strictEqual(ids(w), 'S D L1 L2 A M');
+  assert.strictEqual(ids(w), 'S D L1 L2 D A M');
+  assert(!w.parallel.has('D'));
 });
 
 it("a one-step branch is short only if its step is not a decision and leads to the meeting point", () => {
@@ -218,15 +222,18 @@ it("a one-step branch is short only if its step is not a decision and leads to t
   assert.deepStrictEqual(w.reach.get('D'), ['long', 'long', 'short']);
 });
 
-it("Instalaciones P17: «No» straight there first goes back; «Sí» first walks on and takes «No» on entering", () => {
+it("Instalaciones P17: back to the decision whichever is picked first; P11 (straight there and one step) is parallel", () => {
   const rows = [['S', 'start', 'D'], ['D', 'decision', 'Sí:A | No:M'], ['A', 'activity', 'B'], ['B', 'activity', 'C'], ['C', 'activity', 'M'], ['M', 'activity', 'E'], ['E', 'end', '']];
   let w = new C.Tour(flowOf(rows));
   w.next(); w.choose(1);
   assert(w.current().id === 'D' && w.current().note.direct === 'M');
+  // «Sí» first: a path of its own, so back to D before M too, and «No» is chosen there.
   w = new C.Tour(flowOf(rows));
-  w.next(); w.choose(0); w.next(); w.next(); w.next();
-  assert.deepStrictEqual([w.current().id, w.current().note], ['M', { alsoDirect: 'D', exits: [1] }]);
-  assert(w.taken.has('D#1'));
+  w.next(); w.choose(0); w.next(); w.next();
+  const r = w.next();
+  assert(r.returned && w.current().id === 'D' && w.current().note.joinAt === 'M');
+  w.choose(1);
+  assert(w.current().id === 'M' && once(w, 'M'));
   w.next();
   assert(w.current().id === 'E' && w.canFinish());
   // Instalaciones P11: «Sí» straight there, «No» one step. Picking «Sí» walks «No» right away.
@@ -316,6 +323,39 @@ it("random graphs with rewinds: tours still complete, progress never goes backwa
     const t = walkWithRewinds(C.compile({ name: 'r', categories: [], steps }), rnd);
     assert(t.complete() && t.canFinish(), 'incomplete ' + k);
   }
+});
+
+// Phase 6.11 (SPEC §7): whether the tour goes back to a decision depends on the decision's shape alone.
+// A parallel decision (every branch one step or none to the same meeting point) is walked without going
+// back; any other decision with a meeting point always goes back to it. Checked on random graphs walked
+// in random orders, rewinds included.
+it("random graphs: the decision's shape alone decides whether the tour goes back to it", () => {
+  let seed = 23; const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  let parallel = 0, held = 0;
+  for (let k = 0; k < 2000; k++) {
+    const n = 3 + Math.floor(rnd() * 12); const steps = [];
+    for (let i = 0; i < n; i++) {
+      const ex = []; const m = Math.floor(rnd() * 4);
+      // More one-step branches to a common step than chance alone would give.
+      const target = 'S' + Math.floor(rnd() * n);
+      for (let j = 0; j < m; j++) ex.push('L' + j + ':' + (rnd() < 0.4 ? target : 'S' + Math.floor(rnd() * n)));
+      steps.push({ id: 'S' + i, type: i === 0 ? 'start' : 'activity', title: 'Paso ' + i, exits: ex.join('|'), tags: {} });
+    }
+    const t = walkWithRewinds(C.compile({ name: 'r', categories: [], steps }), rnd);
+    for (const e of t.trail) {
+      const note = e.note || {};
+      if (note.alt || note.alsoDirect) { parallel++; assert(t.parallel.has(note.alt || note.alsoDirect), 'walked together, not parallel ' + k); }
+      if ((note.joinAt || note.direct) && note.returned) {
+        const d = e.id;
+        // Held at a meeting point of d: never a parallel decision of that meeting point.
+        if (t.parallel.get(d) === (note.joinAt || note.direct)) assert.fail('went back to a parallel decision ' + k);
+        held++;
+      }
+    }
+    assert(t.complete() && t.canFinish(), 'incomplete ' + k);
+  }
+  // Both cases happened, often.
+  assert(parallel > 100 && held > 100, `parallel ${parallel}, held ${held}`);
 });
 
 afterAll(() => {
