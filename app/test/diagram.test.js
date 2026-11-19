@@ -88,6 +88,26 @@ describe('renderDiagram', () => {
     assert.strictEqual(height, h);
   });
 
+  // Owner's decision after 6.14: a badge never covers a parallel connector.
+  it('raises the badges on the side of a parallel connector above it', () => {
+    const L = layoutFlow(APERTURA);
+    const items = [{ category: 'Responsable', index: 0, value: 'SAC' }, { category: 'Herramienta', index: 1, value: 'WP' }];
+    const rects = (id) => {
+      const svg = renderDiagram(L, { name: APERTURA.name, colour: 2 }, { state: () => '', walked: () => true, badges: { id, items } });
+      return [...svg.matchAll(/<g class="badge (c\d)">.*?<rect x="(-?[\d.]+)" y="(-?[\d.]+)" width="\d+" height="(\d+)"/g)].map((m) => ({ slot: m[1], x: Number(m[2]), y: Number(m[3]), h: Number(m[4]) }));
+    };
+    const node = (id) => L.nodes.find((n) => n.id === id);
+    const centre = node('P8').h / 2;
+    // P8: connector on the right only. «WP» (right) sits above the line; «SAC» (left) stays centred.
+    const [sac, wp] = rects('P8');
+    assert(wp.x > 0 && wp.y + wp.h <= centre - 6, 'right badge above the connector');
+    assert.strictEqual(sac.y, centre - sac.h / 2);
+    // P28, between two: both sides raised.
+    for (const r of rects('P28')) assert(r.y + r.h <= centre - 6);
+    // A step that is not parallel: centred, as before.
+    for (const r of rects('P3')) assert.strictEqual(r.y, centre - r.h / 2);
+  });
+
   // Phase 6.12 (SPEC §7, Layout).
   it('joins the steps of parallel branches with a double-headed connector, everywhere', () => {
     const L = layoutFlow(APERTURA);

@@ -73,11 +73,17 @@ function label(n) {
 export const CATEGORY_SLOTS = 4;
 const BADGE = { h: 24, gap: 4, overlap: 10, maxChars: 16, charW: 7.4, padX: 22 };
 
+// Clear space between a parallel connector and the badges raised above it.
+const CONNECTOR_CLEAR = 6;
+
 /**
+ * `blocked`: the sides where a parallel connector leaves the step (6.12).
+ * Badges on such a side are stacked above the connector, not across it.
  * @param {LayoutNode} n
  * @param {{ category: string, index: number, value: string }[]} items
+ * @param {[boolean, boolean]} [blocked]  left, right
  */
-function badges(n, items) {
+function badges(n, items, blocked = [false, false]) {
   const sides = [[], []];
   for (const b of items) sides[b.index % 2].push(b);
   const left = n.x - n.w / 2, top = n.y - n.h / 2;
@@ -90,7 +96,10 @@ function badges(n, items) {
       const text = b.value.length > BADGE.maxChars ? `${b.value.slice(0, BADGE.maxChars - 1)}…` : b.value;
       const w = Math.round(text.length * BADGE.charW + BADGE.padX);
       const x = side === 0 ? -w + BADGE.overlap : n.w - BADGE.overlap;
-      const y = n.h / 2 + (i - (list.length - 1) / 2) * (BADGE.h + BADGE.gap) - BADGE.h / 2;
+      const m = list.length;
+      const y = blocked[side]
+        ? n.h / 2 - CONNECTOR_CLEAR - (m - i) * BADGE.h - (m - 1 - i) * BADGE.gap
+        : n.h / 2 + (i - (m - 1) / 2) * (BADGE.h + BADGE.gap) - BADGE.h / 2;
       box.x0 = Math.min(box.x0, left + x);
       box.x1 = Math.max(box.x1, left + x + w);
       box.y0 = Math.min(box.y0, top + y);
@@ -168,7 +177,10 @@ export function renderDiagram(layout, flow, tour) {
   // The active step's badges, drawn last; the canvas grows to hold them,
   // so none is cut by the edge (SPEC §7; phase 6.14).
   const active = tour && tour.badges && layout.nodes.find((n) => n.id === tour.badges.id);
-  const tags = active && tour.badges.items.length ? badges(active, tour.badges.items) : null;
+  // A parallel step's badges stay clear of its connectors (owner's decision after 6.14).
+  const group = active ? (layout.parallel || []).find((g) => g.includes(active.id)) : null;
+  const blocked = /** @type {[boolean, boolean]} */ (group ? [group.indexOf(active.id) > 0, group.indexOf(active.id) < group.length - 1] : [false, false]);
+  const tags = active && tour.badges.items.length ? badges(active, tour.badges.items, blocked) : null;
   const MARGIN = 4;
   const vx = tags ? Math.min(0, Math.floor(tags.box.x0 - MARGIN)) : 0;
   const vy = tags ? Math.min(0, Math.floor(tags.box.y0 - MARGIN)) : 0;

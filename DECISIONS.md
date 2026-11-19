@@ -14,6 +14,23 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Badges clear of the parallel connector
+
+- Decision:
+  - **Owner's decision after 6.14:** a badge never covers a parallel
+    connector.
+  - **The rule:** when the active step belongs to a parallel group (6.12),
+    the sides where a connector leaves it are blocked. Badges on a blocked
+    side are stacked above the connector line, their bottom 6 px clear of
+    it, instead of centred across it. Badges on a free side do not move.
+    - Apertura P8: «WP» (right, towards P9) goes up, «SAC» (left) stays.
+    - P28 (between P27 and P29): both sides go up.
+  - The canvas still grows to hold them (6.14).
+  - **Checked in Chrome:** free review of Apertura de OT, P8 chosen: the
+    P8↔P9 connector shows whole, «WP» above it.
+- Reason: owner's decision; plan_iteration_5, between 6.14 and 6.15.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.14: «Convenciones» and badges inside the canvas
 
 - Decision:
@@ -38,9 +55,11 @@ Entry format:
     the SVG's `viewBox`, not the layout's width. Centring on the current
     step and bringing highlighted steps into view stay right when the
     canvas has grown.
-  - **Known overlap:** a badge drawn on the side of a parallel step covers
+  - ~~**Known overlap:** a badge drawn on the side of a parallel step covers
     the 6.12 connector while that step is the active one (Apertura P8's
-    «WP» over P8↔P9). The connector shows again on the next step.
+    «WP» over P8↔P9). The connector shows again on the next step.~~
+    Superseded by the owner, same day: see «Badges clear of the parallel
+    connector».
   - **Checked in Chrome:** free review of Apertura de OT, legend
     «Responsable · Herramienta» above the diagram; P8 (leftmost column)
     chosen, its badges inside the canvas.
