@@ -14,6 +14,40 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.16: the report's filters apply as they change
+
+- Decision:
+  - **Live, from the server:** `public/js/report.js` listens for changes
+    on the filter form. It asks the server for `/report` with the new
+    address and swaps in three parts of the answer: the count, the
+    results (table or «Ninguna fila cumple esos filtros.») and «Quitar
+    filtros».
+    - Nothing is filtered in the browser: the server still decides
+      which rows a user may see (SPEC §4).
+    - The address is updated with `history.replaceState`, so a reload
+      or a shared link shows the same filters, and the sort headings
+      come back with them.
+    - The page does not reload, so the focus stays on the filter just
+      changed. The count keeps its node (`role="status"`), so screen
+      readers announce it.
+    - A slower, older answer never overwrites a newer one.
+    - If the request fails, the count says «No se pudo filtrar. Revisa
+      tu conexión y vuelve a intentarlo.»
+  - **Without JavaScript** (SPEC §9): «Filtrar» is inside `<noscript>`,
+    so the form works as before.
+  - `table-scroll.js` exports `watchTables` so a swapped-in table gets
+    its edge shade. The other screens load it as before.
+  - `report.js` joined the service worker's shell list.
+  - **Checked in Chrome** (as junta, owner's local data):
+    - «Revisado: No» and then «Flujo: Apertura de OT» left 3 of 11
+      rows, with no reload (a marker on `window` survived). The focus
+      stayed on each select, and the address and the sort links carried
+      the filters.
+    - «Quitar filtros» went back to 11.
+    - With scripts disabled, the «Filtrar» button shows and filters.
+- Reason: SPEC §9 (owner's change); plan_iteration_5, slice 6.16.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.15: link steps lead to the other flow from the overview
 
 - Decision:

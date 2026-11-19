@@ -257,10 +257,16 @@ function Filters({ q, rows }: { q: ReportQuery; rows: ReportRow[] }) {
       </label>
       {q.sort !== "empleado" && <input type="hidden" name="orden" value={q.sort} />}
       {q.desc && <input type="hidden" name="dir" value="desc" />}
-      <button type="submit" class="button-secondary">
-        Filtrar
-      </button>
-      {(q.area !== null || q.flow !== null || q.reviewed !== null) && <a href={href(q, { area: null, flow: null, reviewed: null })}>Quitar filtros</a>}
+      {/* The filters apply as they change (public/js/report.js; SPEC §9).
+          Without JavaScript, the button. */}
+      <noscript>
+        <button type="submit" class="button-secondary">
+          Filtrar
+        </button>
+      </noscript>
+      <span id="report-clear">
+        {(q.area !== null || q.flow !== null || q.reviewed !== null) && <a href={href(q, { area: null, flow: null, reviewed: null })}>Quitar filtros</a>}
+      </span>
     </form>
   );
 }
@@ -294,10 +300,11 @@ function ReportPage({ q, all, shown, message }: { q: ReportQuery; all: ReportRow
       ) : (
         <>
           <Filters q={q} rows={all} />
-          <p class="muted report-count" role="status">
+          <p class="muted report-count" id="report-count" role="status">
             {shown.length === 1 ? "1 fila" : `${shown.length} filas`}
             {shown.length !== all.length && ` de ${all.length}`}
           </p>
+          <div id="report-results">
           {shown.length ? (
             <div class="table-frame">
               <div class="table-scroll" data-table-scroll>
@@ -333,6 +340,8 @@ function ReportPage({ q, all, shown, message }: { q: ReportQuery; all: ReportRow
               <p>{NO_MATCH}</p>
             </div>
           )}
+          </div>
+          <script type="module" src="/js/report.js"></script>
         </>
       )}
     </>

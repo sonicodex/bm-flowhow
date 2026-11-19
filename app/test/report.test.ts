@@ -144,6 +144,20 @@ describe("progress report (phase 6.9)", () => {
     expect(await names("?area=x&flujo=-1&revisado=quizas&orden=nada&dir=up")).toHaveLength(6);
   });
 
+  // Phase 6.16 (SPEC §9): live filters, and the button back without JavaScript.
+  it("filters live with its script, and keeps «Filtrar» for a browser without JavaScript", async () => {
+    const { board, ventas } = await setup();
+    const html = await page(board, `?area=${ventas}`);
+    expect(html).toContain('<script type="module" src="/js/report.js"></script>');
+    expect(html).toMatch(/<noscript><button type="submit" class="button-secondary">Filtrar<\/button><\/noscript>/);
+    // The parts the script swaps from the server's answer.
+    expect(html).toContain('<p class="muted report-count" id="report-count" role="status">3 filas de 6</p>');
+    expect(html).toMatch(/<div id="report-results"><div class="table-frame"><div class="table-scroll"[^>]*><table/);
+    expect(html).toMatch(/<span id="report-clear"><a href="\/report">Quitar filtros<\/a><\/span>/);
+    // Unfiltered: «Quitar filtros» is gone, its place kept.
+    expect(await page(board)).toContain('<span id="report-clear"></span>');
+  });
+
   it("is in the menu of the Board and Leaders only", async () => {
     const { board, lia, ana } = await setup();
     expect(await page(board)).toContain('<a href="/report">Reporte</a>');

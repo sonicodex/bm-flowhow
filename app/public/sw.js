@@ -41,6 +41,7 @@ const SHELL = [
   '/js/import-form.js',
   '/js/table-scroll.js',
   '/js/tour-log.js',
+  '/js/report.js',
   '/js/sw-register.js',
   '/js/viewer.js',
   '/js/xlsx-write.js',
