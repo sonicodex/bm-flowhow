@@ -14,6 +14,24 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.5: the home screen says where an open tour was left
+
+- Decision:
+  - **The line:** a flow's card says «Quedaste en «título».» under its
+    status line whenever the user has a tour open on it. That includes a
+    repeat of a flow already reviewed and a tour left by following a link
+    (SPEC §7).
+  - **What it names:** the step's title, not its ID. People know a step
+    by its title; IDs are the editor's.
+  - **How it is read:** the step is the one the run's log replays to
+    (`openRunStep`, the server's own `replay`), on the run's own release,
+    which may be older than the latest.
+    - A run that no longer replays under the current rules gets no line.
+      It restarts when opened.
+  - **No line** with no open run, and none once the tour is finished.
+- Reason: phase 6 plan (plan_iteration_3), slice 6.5; SPEC §7.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.4: link steps lead to the other flow in the viewer
 
 - Decision:

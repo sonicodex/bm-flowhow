@@ -687,6 +687,11 @@ textarea:focus-visible,
   font-size: var(--text-lg);
 }
 
+/* Where an open tour was left (phase 6.5). */
+.home-flow-step {
+  font-size: var(--text-sm);
+}
+
 .home-flow .button-primary {
   margin-top: auto;
 }

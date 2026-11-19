@@ -50,6 +50,18 @@ async function openRun(db: D1Database, userId: number, flowId: number): Promise<
   return { id: run.id, startedAt: run.started_at, release, log };
 }
 
+// The step an open run is on, for the home screen (SPEC §7; phase 6.5): a
+// tour left unfinished, for instance by following a link, is listed with
+// the step it was on. Read from the run's own release. Null with no open
+// run, or one that no longer replays (it restarts when opened).
+export async function openRunStep(db: D1Database, userId: number, flowId: number): Promise<{ id: string; title: string } | null> {
+  const run = await openRun(db, userId, flowId);
+  const tour = run && replay(run.release.flow, run.log);
+  if (!tour) return null;
+  const id: string = tour.current().id;
+  return { id, title: tour.byId.get(id).title };
+}
+
 export type Started = { runId: number; version: string; flow: Flow; log: LogRow[]; notice: string | null };
 
 // "Iniciar recorrido" and "Continuar recorrido": resumes the open run, on

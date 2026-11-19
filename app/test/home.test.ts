@@ -6,7 +6,7 @@ import apertura from "../../reference/Flujo_Apertura_OT.grid.json";
 import { loadDevFlows } from "../src/devload.ts";
 import { createFlow } from "../src/flows.ts";
 import { NO_FLOWS, NO_FLOWS_IN_AREAS } from "../src/home.tsx";
-import { startTour } from "../src/tour.ts";
+import { startTour, takeStep } from "../src/tour.ts";
 import { signIn } from "./session.ts";
 
 const load = () =>
@@ -91,5 +91,30 @@ describe("home screen (phase 4.3)", () => {
     // Someone else's progress is theirs.
     const leader = await signIn({ username: "lia", role: "leader" });
     expect(cards(await home(leader))[0]).toContain("<strong>Pendiente de revisión</strong>");
+  });
+
+  // SPEC §7: a tour left unfinished, by following a link or otherwise, stays
+  // listed with the step it was on (phase 6.5).
+  it("says which step an open tour was left on", async () => {
+    await load();
+    const board = await signIn();
+    const id = await idOf("Apertura de OT");
+    const t0 = Date.parse("2026-11-19T15:00:00.000Z");
+    await startTour(env.DB, board.id, id, new Date(t0));
+    let card = cards(await home(board))[0]!;
+    // Just started: on the first step.
+    expect(card).toContain('<p class="muted home-flow-step">Quedaste en «Apertura de OT».</p>');
+    // Four steps on, at P5; then the decision P6, its «Interna» branch, P13.
+    for (const [k, at] of ["P1", "P2", "P3", "P4", "P5"].entries()) {
+      expect((await takeStep(env.DB, board.id, id, { at, action: "next" }, new Date(t0 + (k + 1) * 10_000))).ok).toBe(true);
+    }
+    expect((await takeStep(env.DB, board.id, id, { at: "P6", action: "choose", exit: 1 }, new Date(t0 + 70_000))).ok).toBe(true);
+    card = cards(await home(board))[0]!;
+    expect(card).toContain("Quedaste en «Instalaciones».");
+    // The other card has no open tour, and says nothing of the kind.
+    expect(cards(await home(board))[1]).not.toContain("home-flow-step");
+    // Finished, the line goes.
+    await env.DB.prepare("UPDATE tour_runs SET finished_at = ? WHERE user_id = ?").bind(new Date().toISOString(), board.id).run();
+    expect(cards(await home(board))[0]).not.toContain("home-flow-step");
   });
 });
