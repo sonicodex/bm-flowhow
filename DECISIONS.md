@@ -14,6 +14,23 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Flow selector: the keyboard waits for Enter
+
+- Decision:
+  - **Mouse or touch:** choosing a flow opens it at once.
+  - **Keyboard:** the arrows only move the choice, even where they change
+    a closed select (Windows). The flow opens on Enter, or when the select
+    loses focus with another flow chosen. Tabbing through without changing
+    it opens nothing.
+  - No «Abrir» button.
+  - The last input decides: a key press marks the select as keyboard-driven
+    until the next pointer press on it.
+  - Checked in Chrome: an arrow left the page in place, then Enter opened
+    the flow; an arrow and Tab opened it; a mouse choice opened it at
+    once; tabbing through stayed.
+- Reason: owner's decision after reviewing slice 6.7.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.7: the flow selector in the viewer
 
 - Decision:
@@ -25,8 +42,10 @@ Entry format:
     chosen. Subflows are out of stage 1, so none can appear.
   - **Where:** a «Flujo» select above the flow's title, as in the
     prototype.
-  - **How it opens a flow:** choosing one opens its viewer at once. A tour
-    open on the flow left behind stays open, as when following a link.
+  - ~~**How it opens a flow:** choosing one opens its viewer at once.~~
+    Superseded by the owner, same day: see «Flow selector: the keyboard
+    waits for Enter». A tour open on the flow left behind stays open, as
+    when following a link.
     - With no JavaScript the select does nothing; the viewer needs it
       anyway.
 - Reason: phase 6 plan (plan_iteration_3), slice 6.7; SPEC §7.

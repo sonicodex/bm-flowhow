@@ -32,14 +32,32 @@ const showStatus = (status) => {
   line.innerHTML = `<img class="icon" src="/icons/${STATUS_ICONS[status.state]}.svg" alt="" width="18" height="18"><strong>${esc(status.label)}</strong>${status.detail ? `<span class="muted">${esc(status.detail)}</span>` : ''}`;
 };
 
-// The flow selector (phase 6.7): choosing a flow opens it. A tour open
-// here stays open, as when following a link.
+// The flow selector (phase 6.7). Chosen with the mouse or by touch, a
+// flow opens at once. From the keyboard the arrows only move the choice
+// (on some systems they change a closed select): it opens on Enter or
+// when the select loses focus. A tour open here stays open, as when
+// following a link.
 const picker = document.querySelector('[data-flow-select]');
 if (picker instanceof HTMLSelectElement) {
   const here = picker.value;
-  picker.addEventListener('change', () => {
+  let keyboard = false;
+  const open = () => {
     if (picker.value !== here) location.assign(`/flows/${encodeURIComponent(picker.value)}`);
+  };
+  picker.addEventListener('pointerdown', () => {
+    keyboard = false;
   });
+  picker.addEventListener('keydown', (ev) => {
+    keyboard = true;
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      open();
+    }
+  });
+  picker.addEventListener('change', () => {
+    if (!keyboard) open();
+  });
+  picker.addEventListener('blur', open);
 }
 
 if (data && cols) {
