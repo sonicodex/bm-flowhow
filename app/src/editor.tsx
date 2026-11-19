@@ -7,7 +7,7 @@ import { scriptJson } from "./layout.tsx";
 import { AdminList, RowActions, yesNo } from "./admin.tsx";
 import { loadTagIndex } from "./document.ts";
 import { listSavePoints, listVersions, openDraft, parseBase, restoreRelease, restoreSavePoint, reviewImport, saveDraft, type Opened, type SaveAnswer, type SavePoint, type Version } from "./draft.ts";
-import { flowEntries, getFlow, type FlowListEntry, type FlowRow } from "./flows.ts";
+import { COLOURS, flowEntries, getFlow, type FlowListEntry, type FlowRow } from "./flows.ts";
 import { listAreaOptions, NO_AREAS_WARNING } from "./flows-screen.tsx";
 import { publishFlow, PUBLISH_CONFLICT } from "./publish.ts";
 import type { AppEnv } from "./session.ts";
@@ -121,7 +121,7 @@ function EditorPage({
       <div class="admin-head">
         <h1 class="page-title editor-title">
           <span class="flow-dot" aria-hidden="true"></span>
-          {flow.name}
+          <span id="flow-name-title">{flow.name}</span>
         </h1>
         <div class="editor-save">
           <span id="save-status" class="muted" role="status"></span>
@@ -137,7 +137,9 @@ function EditorPage({
         {sourceLine(source, version)}
       </p>
       <nav class="editor-links" aria-label="Del flujo">
-        <a href={`/flows/${flow.id}/details`}>Datos del flujo</a>
+        <button type="button" class="button-link" data-flow-data aria-expanded="false" aria-controls="flow-data">
+          Datos del flujo
+        </button>
         <a href={`/flows/${flow.id}/save-points`}>Puntos guardados</a>
         <a href={`/flows/${flow.id}/versions`}>Versiones</a>
       </nav>
@@ -148,6 +150,7 @@ function EditorPage({
           </div>
         )}
       </div>
+      <FlowDataBox flow={flow} data={data} />
       <ImportBox />
       {/* Filled by editor.js with the review of an import (phase 5.5): it
           takes the place of the grid until the import is applied or
@@ -158,7 +161,6 @@ function EditorPage({
           device. */}
       <div class="editor-cols is-folded">
         <div class="editor-main">
-          <AreaPicker data={data} />
           <div class="editor-toolbar">
             <button type="button" class="button-secondary" data-add>
               Agregar paso
@@ -207,9 +209,37 @@ function EditorPage({
   );
 }
 
-// The flow's areas, above the grid (DECISIONS, 2026-11-19): a drop-down of
-// checkboxes, the same data as in «Datos del flujo». editor.js saves each
-// change at once.
+// SPEC §6: the flow's data, in a panel above the grid that starts folded,
+// as the import box does. None of it is part of the draft: editor.js saves
+// each change at once, with no Guardar and no version.
+function FlowDataBox({ flow, data }: { flow: FlowRow; data: EditorData }) {
+  return (
+    <section class="card editor-import editor-data" id="flow-data" aria-labelledby="flow-data-title" hidden>
+      <h2 id="flow-data-title">Datos del flujo</h2>
+      <p class="muted">Cada cambio se guarda al momento, sin «Guardar» y sin crear una versión nueva.</p>
+      <label for="flow-name">Nombre</label>
+      <input id="flow-name" name="name" value={flow.name} required maxlength={100} autocomplete="off" />
+      <label for="flow-objective">Objetivo</label>
+      <textarea id="flow-objective" name="objective" rows={3}>
+        {flow.objective}
+      </textarea>
+      <fieldset class="choice-list">
+        <legend>Color</legend>
+        <p class="muted">Pinta el flujo en el diagrama y en el recorrido.</p>
+        <div class="swatches">
+          {Array.from({ length: COLOURS }, (_, i) => i + 1).map((n) => (
+            <input type="radio" name="colour" value={String(n)} class={`swatch flow-${n}`} aria-label={`Color ${n}`} checked={flow.colour === n} />
+          ))}
+        </div>
+      </fieldset>
+      <AreaPicker data={data} />
+      <p class="muted" id="flow-data-status" role="status"></p>
+    </section>
+  );
+}
+
+// The flow's areas (DECISIONS, 2026-11-19): a drop-down of checkboxes inside
+// the flow data panel. editor.js saves each change at once.
 function AreaPicker({ data }: { data: EditorData }) {
   const chosen = data.areaOptions.filter((a) => data.areaIds.includes(a.id)).map((a) => a.name);
   return (

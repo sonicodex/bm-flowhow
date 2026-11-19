@@ -1,10 +1,10 @@
 import { Router } from "./access.tsx";
 import { AdminForm, AdminList, RowActions, yesNo } from "./admin.tsx";
-import { COLOURS, createFlow, getFlow, saveFlowAreas, saveFlowDetails, type FlowDetails } from "./flows.ts";
+import { createFlow, getFlow, saveFlowAreas, saveFlowField, type FlowField } from "./flows.ts";
 
-// The flows list, the new flow form and the flow form (phases 1.5, 4.4).
-// Editors only (phase 4.2). Steps are edited, and imported, in the editor
-// (src/editor.tsx).
+// The flows list, the new flow form, and what the editor's flow data panel
+// saves (phases 1.5, 4.4; SPEC §6). Editors only (phase 4.2). Steps are
+// edited, and imported, in the editor (src/editor.tsx).
 export const flowsScreen = new Router();
 
 type FlowItem = { id: number; name: string; colour: number; version: string | null; draft: number; areas: string | null };
@@ -67,7 +67,7 @@ function NewFlowPage({ value, error }: { value: string; error?: string }) {
     <AdminForm back={BACK} title="Nuevo flujo" error={error} action="/flows" submit="Crear flujo">
       <label for="flow-name">Nombre</label>
       <input id="flow-name" name="name" value={value} required maxlength={100} />
-      <p class="muted">Nace sin publicar. Al crearlo pasas a su editor, donde le das sus pasos y sus áreas; su objetivo y color van en «Datos del flujo».</p>
+      <p class="muted">Nace sin publicar. Al crearlo pasas a su editor, donde le das sus pasos; su objetivo, color y áreas están ahí mismo, en «Datos del flujo».</p>
     </AdminForm>
   );
 }
@@ -93,115 +93,45 @@ async function flowOf(c: { env: Env; req: { param: (k: string) => string | undef
   return Number.isSafeInteger(id) && id > 0 ? getFlow(c.env.DB, id) : null;
 }
 
-// The flow form (SPEC §6 "Flow form"; phases 4.4 and 5.1): name, objective,
-// colour and the areas whose Empleados see it. Editors only.
-type AreaOption = { id: number; name: string };
+// The flow data panel above the editor's grid (SPEC §6) saves here: name,
+// objective, colour and areas. Editors only. None of it is part of the
+// draft, so each change is saved at once and makes no version.
+export type AreaOption = { id: number; name: string };
 
 // Saving a published flow with no area is allowed (DECISIONS, phase 4.4), but
-// it leaves every Empleado without it, so the page says so. A draft is left
+// it leaves every Empleado without it, so the editor says so. A draft is left
 // out: publishing it asks for an area anyway.
 export const NO_AREAS_WARNING =
   "Este flujo publicado quedó sin áreas, así que ningún Empleado lo verá. Solo lo verán los Líderes y la Junta directiva.";
 
-function DetailsPage({
-  flow,
-  values,
-  areas,
-  error,
-  saved,
-  warning,
-}: {
-  flow: { id: number; name: string };
-  values: FlowDetails;
-  areas: AreaOption[];
-  error?: string;
-  saved?: boolean;
-  warning?: string | null;
-}) {
-  return (
-    <AdminForm
-      back={{ href: `/flows/${flow.id}/edit`, label: "Volver al editor" }}
-      title={flow.name}
-      error={error}
-      notice={saved ? "Cambios guardados." : undefined}
-      warning={warning}
-      action={`/flows/${flow.id}/details`}
-      submit="Guardar"
-    >
-      <label for="flow-name">Nombre</label>
-      <input id="flow-name" name="name" value={values.name} required maxlength={100} />
-      <label for="flow-objective">Objetivo</label>
-      <textarea id="flow-objective" name="objective" rows={3}>
-        {values.objective}
-      </textarea>
-      <fieldset class="choice-list">
-        <legend>Color</legend>
-        <p class="muted">Pinta el flujo en el diagrama y en el recorrido. Cambiarlo no crea una versión nueva.</p>
-        <div class="swatches">
-          {Array.from({ length: COLOURS }, (_, i) => i + 1).map((n) => (
-            <input type="radio" name="colour" value={String(n)} class={`swatch flow-${n}`} aria-label={`Color ${n}`} checked={values.colour === n} />
-          ))}
-        </div>
-      </fieldset>
-      <fieldset class="choice-list">
-        <legend>Áreas</legend>
-        <p class="muted">Los Empleados de estas áreas verán el flujo publicado. Hace falta al menos una para publicarlo por primera vez.</p>
-        {areas.length ? (
-          areas.map((a) => (
-            <label>
-              <input type="checkbox" name="area" value={String(a.id)} checked={values.areaIds.includes(a.id)} /> {a.name}
-            </label>
-          ))
-        ) : (
-          <p class="muted">
-            Todavía no hay áreas. <a href="/areas/new">Crea una</a>.
-          </p>
-        )}
-      </fieldset>
-    </AdminForm>
-  );
-}
-
 export const listAreaOptions = async (db: D1Database) => (await db.prepare("SELECT id, name FROM areas ORDER BY name_key").all<AreaOption>()).results;
 
-flowsScreen.get("/:id{[0-9]+}/details", "editor", async (c) => {
-  const db = c.env.DB;
-  const flow = await flowOf(c);
-  if (!flow) return c.notFound();
-  const { results } = await db.prepare("SELECT area_id FROM flow_areas WHERE flow_id = ?").bind(flow.id).all<{ area_id: number }>();
-  const values = { name: flow.name, objective: flow.objective, colour: flow.colour, areaIds: results.map((r) => r.area_id) };
-  const saved = c.req.query("guardado") === "1";
-  const published = saved && !!(await db.prepare("SELECT 1 FROM releases WHERE flow_id = ?").bind(flow.id).first());
-  const warning = published && values.areaIds.length === 0 ? NO_AREAS_WARNING : null;
-  return c.render(<DetailsPage flow={flow} values={values} areas={await listAreaOptions(db)} saved={saved} warning={warning} />, {
-    title: flow.name,
-  });
-});
-
+// One field per request, as JSON: `{name}`, `{objective}` or `{colour}`.
+// The answer carries the value as saved (trimmed), for the page to show.
 flowsScreen.post("/:id{[0-9]+}/details", "editor", async (c) => {
-  const db = c.env.DB;
   const flow = await flowOf(c);
   if (!flow) return c.notFound();
-  const form = await c.req.parseBody({ all: true });
-  const one = (v: unknown) => String((Array.isArray(v) ? v[0] : v) ?? "");
-  const list = (v: unknown) => (v === undefined ? [] : Array.isArray(v) ? v : [v]);
-  const values: FlowDetails = {
-    name: one(form.name),
-    objective: one(form.objective),
-    colour: Number(one(form.colour)),
-    areaIds: list(form.area).map(Number).filter((n) => Number.isSafeInteger(n) && n > 0),
-  };
-  const result = await saveFlowDetails(db, flow.id, values);
-  if (result.ok === false) {
-    c.status(422);
-    return c.render(<DetailsPage flow={flow} values={values} areas={await listAreaOptions(db)} error={result.error} />, { title: flow.name });
-  }
-  return c.redirect(`/flows/${flow.id}/details?guardado=1`, 303);
+  const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
+  const keys = body && typeof body === "object" ? Object.keys(body) : [];
+  const field: FlowField | null =
+    keys.length !== 1
+      ? null
+      : typeof body!.name === "string"
+        ? { name: body!.name }
+        : typeof body!.objective === "string"
+          ? { objective: body!.objective }
+          : typeof body!.colour === "number"
+            ? { colour: body!.colour }
+            : null;
+  if (!field) return c.json({ status: "invalid", error: "No se pudo guardar." }, 400);
+  const result = await saveFlowField(c.env.DB, flow.id, field);
+  if (result.ok === false) return c.json({ status: "invalid", error: result.error }, 422);
+  return c.json({ status: "saved", value: result.value });
 });
 
-// The selector above the editor's grid (DECISIONS, 2026-11-19), as JSON:
-// `{areaIds}`, the whole set. Saved at once; the answer carries the same
-// warning as the flow form when a published flow is left with no area.
+// The areas, from the selector in the same panel (DECISIONS, 2026-11-19),
+// as JSON: `{areaIds}`, the whole set. The answer carries the warning when a
+// published flow is left with no area.
 flowsScreen.post("/:id{[0-9]+}/areas", "editor", async (c) => {
   const db = c.env.DB;
   const flow = await flowOf(c);

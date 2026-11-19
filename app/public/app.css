@@ -976,8 +976,8 @@ textarea:focus-visible,
   font-size: var(--text-sm);
 }
 
-/* The flow's areas, above the grid (DECISIONS, 2026-11-19): a drop-down of
-   checkboxes that saves each change at once. */
+/* The flow's areas, in the flow data panel (DECISIONS, 2026-11-19): a
+   drop-down of checkboxes that saves each change at once. */
 .editor-areas {
   display: flex;
   flex-wrap: wrap;
@@ -1494,6 +1494,32 @@ textarea:focus-visible,
 }
 
 .editor-import ul {
+  margin: 0;
+}
+
+/* The flow data panel (SPEC §6): the import box's layout, with the flow
+   form's fields. */
+.editor-data input[name="name"] {
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius);
+  outline: var(--border-width) solid transparent;
+}
+
+.editor-data input[name="name"]:focus-visible {
+  box-shadow: var(--shadow-focus);
+}
+
+.editor-data .area-picker label {
+  font-weight: var(--weight-regular);
+}
+
+.editor-data .choice-list,
+.editor-data .editor-areas,
+.editor-data #flow-data-status {
   margin: 0;
 }
 

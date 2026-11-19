@@ -33,7 +33,7 @@ describe("the editor page (phase 5.3)", () => {
     expect(html).toContain("<title>Editar Apertura de OT · FlowHow</title>");
     expect(html).toContain("Estás viendo la versión publicada 1.0. Al guardar se crea un borrador");
     expect(html).toContain('<script type="module" src="/js/editor.js"></script>');
-    expect(html).toContain(`<a href="/flows/${id}/details">Datos del flujo</a>`);
+    expect(html).toContain('<button type="button" class="button-link" data-flow-data="true" aria-expanded="false" aria-controls="flow-data">Datos del flujo</button>');
     expect(html).toContain(`<a href="/flows/${id}/save-points">Puntos guardados</a>`);
     expect(data!.base).toMatch(/^release:\d+$/);
     // The preview beside the grid, in the flow's colour (phase 5.4),
@@ -79,14 +79,12 @@ describe("the editor page (phase 5.3)", () => {
     expect(data!.grid.rows[0]!.title).toBe("</script><b>x</b>");
   });
 
-  it("is reached from the flows list, and the flow form and save points go back to it", async () => {
+  it("is reached from the flows list, and save points go back to it", async () => {
     const r = await createFlow(env.DB, "Ventas");
     if (!r.ok) throw new Error(r.error);
     const list = await (await board.fetch("/flows")).text();
     expect(list).toContain(`<a href="/flows/${r.id}/edit" aria-label="Editar Ventas">Editar</a>`);
-    for (const path of [`/flows/${r.id}/details`, `/flows/${r.id}/save-points`]) {
-      expect(await (await board.fetch(path)).text(), path).toContain(`<a href="/flows/${r.id}/edit">← Volver al editor</a>`);
-    }
+    expect(await (await board.fetch(`/flows/${r.id}/save-points`)).text()).toContain(`<a href="/flows/${r.id}/edit">← Volver al editor</a>`);
     expect((await board.fetch(`/flows/${r.id + 100}/edit`)).status).toBe(404);
   });
 });

@@ -70,32 +70,36 @@ export async function createFlow(
   return { ok: true, id: inserted!.meta.last_row_id };
 }
 
-export type FlowDetails = { name: string; objective: string; colour: number; areaIds: number[] };
+// The flow's data (SPEC §6): name, objective, colour (§5: a palette slot,
+// presentation only) and assigned areas. None of it is part of the draft:
+// each is saved at once from the panel above the editor's grid, one field
+// per request, and makes no version. A flow's steps refer to other flows by
+// id, so a rename breaks no link.
+export type FlowField = { name: string } | { objective: string } | { colour: number };
 
-// The flow form (SPEC §6; phases 4.4 and 5.1): name, objective, colour
-// (§5: a palette slot, presentation only, never a new version) and assigned
-// areas, written in one batch. Areas are optional here; the first publication
-// requires one (§5). A flow's steps refer to other flows by id, so a rename
-// breaks no link.
-export async function saveFlowDetails(db: D1Database, id: number, details: FlowDetails): Promise<{ ok: true } | { ok: false; error: string }> {
-  const name = details.name.trim();
-  if (!name) return { ok: false, error: "Escribe el nombre del flujo." };
-  const key = nameKey(name);
-  const taken = await db.prepare("SELECT id, name FROM flows WHERE name_key = ?").bind(key).first<{ id: number; name: string }>();
-  if (taken && taken.id !== id) return { ok: false, error: `Ya existe un flujo llamado «${taken.name}». ${NAME_RULE}` };
-  if (!Number.isSafeInteger(details.colour) || details.colour < 1 || details.colour > COLOURS) return { ok: false, error: "Elige uno de los colores." };
-  try {
-    await db.batch([
-      db.prepare("UPDATE flows SET name = ?, name_key = ?, objective = ?, colour = ? WHERE id = ?").bind(name, key, details.objective.trim(), details.colour, id),
-      ...areaStatements(db, id, details.areaIds),
-    ]);
-  } catch (e) {
-    const message = String(e);
-    if (/UNIQUE/.test(message)) return { ok: false, error: `Ya existe un flujo con ese nombre. ${NAME_RULE}` };
-    if (/FOREIGN KEY/.test(message)) return { ok: false, error: AREA_GONE };
-    throw e;
+export async function saveFlowField(db: D1Database, id: number, field: FlowField): Promise<{ ok: true; value: string | number } | { ok: false; error: string }> {
+  if ("name" in field) {
+    const name = field.name.trim();
+    if (!name) return { ok: false, error: "Escribe el nombre del flujo." };
+    const key = nameKey(name);
+    const taken = await db.prepare("SELECT id, name FROM flows WHERE name_key = ?").bind(key).first<{ id: number; name: string }>();
+    if (taken && taken.id !== id) return { ok: false, error: `Ya existe un flujo llamado «${taken.name}». ${NAME_RULE}` };
+    try {
+      await db.prepare("UPDATE flows SET name = ?, name_key = ? WHERE id = ?").bind(name, key, id).run();
+    } catch (e) {
+      if (/UNIQUE/.test(String(e))) return { ok: false, error: `Ya existe un flujo con ese nombre. ${NAME_RULE}` };
+      throw e;
+    }
+    return { ok: true, value: name };
   }
-  return { ok: true };
+  if ("objective" in field) {
+    const objective = field.objective.trim();
+    await db.prepare("UPDATE flows SET objective = ? WHERE id = ?").bind(objective, id).run();
+    return { ok: true, value: objective };
+  }
+  if (!Number.isSafeInteger(field.colour) || field.colour < 1 || field.colour > COLOURS) return { ok: false, error: "Elige uno de los colores." };
+  await db.prepare("UPDATE flows SET colour = ? WHERE id = ?").bind(field.colour, id).run();
+  return { ok: true, value: field.colour };
 }
 
 const AREA_GONE = "Una de las áreas elegidas ya no existe.";
@@ -105,9 +109,8 @@ const areaStatements = (db: D1Database, id: number, areaIds: number[]) => [
   ...[...new Set(areaIds)].map((areaId) => db.prepare("INSERT INTO flow_areas (flow_id, area_id) VALUES (?, ?)").bind(id, areaId)),
 ];
 
-// The areas alone, from the selector above the editor's grid (DECISIONS,
-// 2026-11-19): the same data as the flow form's, saved at once. Areas are
-// not part of the draft, so they need no Guardar and make no version.
+// The areas, from their selector in the flow data panel (SPEC §6), the
+// whole set at once. Not part of the draft: no Guardar, no version.
 export async function saveFlowAreas(db: D1Database, id: number, areaIds: number[]): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     await db.batch(areaStatements(db, id, areaIds));

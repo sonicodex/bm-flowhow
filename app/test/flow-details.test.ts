@@ -10,153 +10,136 @@ import { signIn, type Signed } from "./session.ts";
 
 const area = async (name: string) =>
   (await env.DB.prepare("INSERT INTO areas (name, name_key) VALUES (?, ?) RETURNING id").bind(name, nameKey(name)).first<number>("id"))!;
-const save = (who: Signed, id: number, fields: { name: string; objective?: string; colour?: string; areas?: number[] }) => {
-  const body = new URLSearchParams({ name: fields.name, objective: fields.objective ?? "", colour: fields.colour ?? "1" });
-  for (const a of fields.areas ?? []) body.append("area", String(a));
-  return who.fetch(`/flows/${id}/details`, { method: "POST", body });
-};
-const flowRow = (id: number) => env.DB.prepare("SELECT name, objective FROM flows WHERE id = ?").bind(id).first();
+const post = (who: Signed, path: string, body: unknown) =>
+  who.fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+const field = (who: Signed, id: number, body: unknown) => post(who, `/flows/${id}/details`, body);
+const areas = (who: Signed, id: number, areaIds: unknown) => post(who, `/flows/${id}/areas`, { areaIds });
+const flowRow = (id: number) => env.DB.prepare("SELECT name, objective, colour FROM flows WHERE id = ?").bind(id).first();
 const areasOf = async (id: number) =>
   (await env.DB.prepare("SELECT area_id FROM flow_areas WHERE flow_id = ? ORDER BY area_id").bind(id).all<{ area_id: number }>()).results.map((r) => r.area_id);
+const instalacionesId = async () => {
+  await loadDevFlows(env.DB, [{ name: "Instalaciones", grid: instalaciones as Grid }]);
+  return (await env.DB.prepare("SELECT id FROM flows WHERE name = 'Instalaciones'").first<number>("id"))!;
+};
+const releases = (id: number) => env.DB.prepare("SELECT count(*) AS n FROM releases WHERE flow_id = ?").bind(id).first<number>("n");
 
-describe("flow form (phase 4.4)", () => {
-  it("saves name, objective and areas, and shows the form with them", async () => {
-    // A process owner: can_edit and nothing else is enough.
-    const owner = await signIn({ username: "dueno", role: "leader", permissions: { canEdit: true } });
-    const flow = await createFlow(env.DB, "Borrador");
+// SPEC §6: the flow's data lives in a folded panel above the editor's grid,
+// and none of it is part of the draft: each change is saved at once.
+describe("flow data panel (SPEC §6)", () => {
+  it("shows the panel folded in the editor, with every field, and no separate page", async () => {
+    const board = await signIn();
+    const flow = await createFlow(env.DB, "Despachos");
     if (!flow.ok) throw new Error(flow.error);
     const ops = await area("Operaciones");
-    const res = await save(owner, flow.id, { name: "  Despachos ", objective: " Que todo salga a tiempo. ", areas: [ops] });
-    expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe(`/flows/${flow.id}/details?guardado=1`);
-    expect(await flowRow(flow.id)).toEqual({ name: "Despachos", objective: "Que todo salga a tiempo." });
-    expect(await areasOf(flow.id)).toEqual([ops]);
-    const html = await (await owner.fetch(res.headers.get("location")!)).text();
-    expect(html).toContain("Cambios guardados.");
-    expect(html).toContain('value="Despachos"');
+    await areas(board, flow.id, [ops]);
+    const html = await (await board.fetch(`/flows/${flow.id}/edit`)).text();
+    expect(html).toContain('<button type="button" class="button-link" data-flow-data="true" aria-expanded="false" aria-controls="flow-data">Datos del flujo</button>');
+    expect(html).toContain('<section class="card editor-import editor-data" id="flow-data" aria-labelledby="flow-data-title" hidden="">');
+    expect(html).toContain('<input id="flow-name" name="name" value="Despachos"');
+    expect(html).toContain('<textarea id="flow-objective" name="objective"');
+    expect(html.match(/name="colour"/g)).toHaveLength(12);
     expect(html).toContain(`<input type="checkbox" name="area" value="${ops}" checked=""`);
+    expect(html).toContain('<span data-area-summary="true">Operaciones</span>');
+    expect((await board.fetch(`/flows/${flow.id}/details`)).status).toBe(404);
   });
 
-  it("refuses a blank name or another flow's name, keeping what was typed", async () => {
-    const board = await signIn();
+  it("saves name and objective one at a time, trimmed, and refuses a blank or taken name", async () => {
+    // A process owner: can_edit and nothing else is enough.
+    const owner = await signIn({ username: "dueno", role: "leader", permissions: { canEdit: true } });
     const a = await createFlow(env.DB, "Ventas");
     const b = await createFlow(env.DB, "Compras");
     if (!a.ok || !b.ok) throw new Error("setup");
-    let res = await save(board, b.id, { name: "VENTAS", objective: "Algo" });
+    let res = await field(owner, b.id, { name: "  Despachos " });
+    expect(await res.json()).toEqual({ status: "saved", value: "Despachos" });
+    res = await field(owner, b.id, { objective: " Que todo salga a tiempo. " });
+    expect(await res.json()).toEqual({ status: "saved", value: "Que todo salga a tiempo." });
+    expect(await flowRow(b.id)).toMatchObject({ name: "Despachos", objective: "Que todo salga a tiempo." });
+    expect(await (await owner.fetch(`/flows/${b.id}/edit`)).text()).toContain("<title>Editar Despachos · FlowHow</title>");
+    res = await field(owner, b.id, { name: "VENTAS" });
     expect(res.status).toBe(422);
-    let html = await res.text();
-    expect(html).toContain("Ya existe un flujo llamado «Ventas». Los nombres se comparan sin mayúsculas ni tildes.");
-    expect(html).toContain('value="VENTAS"');
-    res = await save(board, b.id, { name: "  " });
+    expect(await res.json()).toEqual({ status: "invalid", error: "Ya existe un flujo llamado «Ventas». Los nombres se comparan sin mayúsculas ni tildes." });
+    res = await field(owner, b.id, { name: "  " });
     expect(res.status).toBe(422);
-    html = await res.text();
-    expect(html).toContain("Escribe el nombre del flujo.");
-    expect(await flowRow(b.id)).toEqual({ name: "Compras", objective: "" });
+    expect(await res.json()).toEqual({ status: "invalid", error: "Escribe el nombre del flujo." });
+    // Its own name, written differently, is no clash.
+    expect(await (await field(owner, b.id, { name: "despachos" })).json()).toEqual({ status: "saved", value: "despachos" });
+    // One field per request, of the right kind.
+    for (const bad of [null, {}, { name: "A", objective: "B" }, { name: 3 }, { colour: "7" }, { other: "x" }]) {
+      expect((await field(owner, b.id, bad)).status, JSON.stringify(bad)).toBe(400);
+    }
+    expect(await flowRow(b.id)).toMatchObject({ name: "despachos", objective: "Que todo salga a tiempo." });
   });
 
-  it("decides which Empleados see a published flow", async () => {
-    await loadDevFlows(env.DB, [{ name: "Instalaciones", grid: instalaciones as Grid }]);
-    const id = (await env.DB.prepare("SELECT id FROM flows WHERE name = 'Instalaciones'").first<number>("id"))!;
+  it("decides which Empleados see a published flow, and the viewer shows the objective", async () => {
+    const id = await instalacionesId();
     const ventas = await area("Ventas");
     const board = await signIn();
     const ana = await signIn({ username: "ana", role: "standard", areaIds: [ventas] });
     expect((await ana.fetch(`/flows/${id}`)).status).toBe(404);
-    await save(board, id, { name: "Instalaciones", areas: [ventas] });
+    expect(await (await areas(board, id, [ventas])).json()).toEqual({ status: "saved", warning: null });
     expect((await ana.fetch(`/flows/${id}`)).status).toBe(200);
     expect(await (await ana.fetch("/home")).text()).toContain("Instalaciones</h2>");
-    // The objective shows in the viewer.
-    await save(board, id, { name: "Instalaciones", objective: "Instalar bien.", areas: [ventas] });
+    await field(board, id, { objective: "Instalar bien." });
     expect(await (await ana.fetch(`/flows/${id}`)).text()).toContain('<p class="muted">Instalar bien.</p>');
     // Taking the area away hides it again.
-    await save(board, id, { name: "Instalaciones", areas: [] });
+    await areas(board, id, []);
     expect((await ana.fetch(`/flows/${id}`)).status).toBe(404);
   });
 
-  it("warns, and still saves, when a published flow is left with no area", async () => {
-    await loadDevFlows(env.DB, [{ name: "Instalaciones", grid: instalaciones as Grid }]);
-    const id = (await env.DB.prepare("SELECT id FROM flows WHERE name = 'Instalaciones'").first<number>("id"))!;
-    const board = await signIn();
-    let res = await save(board, id, { name: "Instalaciones", areas: [] });
-    expect(res.status).toBe(303);
-    expect(await areasOf(id)).toEqual([]);
-    let html = await (await board.fetch(res.headers.get("location")!)).text();
-    expect(html).toContain("Cambios guardados.");
-    expect(html).toContain(NO_AREAS_WARNING);
-    // Only right after saving, not on every visit.
-    expect(await (await board.fetch(`/flows/${id}/details`)).text()).not.toContain(NO_AREAS_WARNING);
-    // With an area, no warning.
-    res = await save(board, id, { name: "Instalaciones", areas: [await area("Ventas")] });
-    expect(await (await board.fetch(res.headers.get("location")!)).text()).not.toContain(NO_AREAS_WARNING);
-    // A draft with no area: nobody sees it yet, and publishing asks for one.
-    const draft = await createFlow(env.DB, "Borrador");
-    if (!draft.ok) throw new Error(draft.error);
-    res = await save(board, draft.id, { name: "Borrador", areas: [] });
-    html = await (await board.fetch(res.headers.get("location")!)).text();
-    expect(html).toContain("Cambios guardados.");
-    expect(html).not.toContain(NO_AREAS_WARNING);
-  });
-
-  it("saves the colour as a palette slot, without a new version (phase 5.1)", async () => {
-    await loadDevFlows(env.DB, [{ name: "Instalaciones", grid: instalaciones as Grid }]);
-    const id = (await env.DB.prepare("SELECT id FROM flows WHERE name = 'Instalaciones'").first<number>("id"))!;
-    const board = await signIn();
-    const releases = () => env.DB.prepare("SELECT count(*) AS n FROM releases WHERE flow_id = ?").bind(id).first<number>("n");
-    const colour = () => env.DB.prepare("SELECT colour FROM flows WHERE id = ?").bind(id).first<number>("colour");
-    const before = await releases();
-    // The form offers the twelve slots, the current one chosen.
-    let html = await (await board.fetch(`/flows/${id}/details`)).text();
-    expect(html.match(/name="colour"/g)).toHaveLength(12);
-    expect(html).toContain(`value="${await colour()}" class="swatch flow-${await colour()}" aria-label="Color ${await colour()}" checked=""`);
-    const res = await save(board, id, { name: "Instalaciones", colour: "7" });
-    expect(res.status).toBe(303);
-    expect(await colour()).toBe(7);
-    expect(await releases()).toBe(before);
-    html = await (await board.fetch(`/flows/${id}/details`)).text();
-    expect(html).toContain('value="7" class="swatch flow-7" aria-label="Color 7" checked=""');
-    // The viewer paints with it.
-    expect(await (await board.fetch(`/flows/${id}`)).text()).toContain("flow-7");
-    // Anything but a slot is refused, and nothing changes.
-    for (const bad of ["0", "13", "", "azul"]) {
-      const r = await save(board, id, { name: "Instalaciones", colour: bad });
-      expect(r.status, bad).toBe(422);
-      expect(await r.text()).toContain("Elige uno de los colores.");
-    }
-    expect(await colour()).toBe(7);
-  });
-
-  it("saves the areas alone from the editor, the same data as the form (DECISIONS, 2026-11-19)", async () => {
-    await loadDevFlows(env.DB, [{ name: "Instalaciones", grid: instalaciones as Grid }]);
-    const id = (await env.DB.prepare("SELECT id FROM flows WHERE name = 'Instalaciones'").first<number>("id"))!;
+  it("saves the areas as a set, without a version, and warns when a published flow is left with none", async () => {
+    const id = await instalacionesId();
     const board = await signIn();
     const ventas = await area("Ventas");
     const ops = await area("Operaciones");
-    const releases = () => env.DB.prepare("SELECT count(*) AS n FROM releases WHERE flow_id = ?").bind(id).first<number>("n");
-    const before = await releases();
-    const put = (body: unknown) =>
-      board.fetch(`/flows/${id}/areas`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-    // The editor shows the selector with every area, the flow's checked.
-    let html = await (await board.fetch(`/flows/${id}/edit`)).text();
-    expect(html).toContain('id="area-picker"');
-    let res = await put({ areaIds: [ops, ventas, ops] });
+    const before = await releases(id);
+    let res = await areas(board, id, [ops, ventas, ops]);
     expect(await res.json()).toEqual({ status: "saved", warning: null });
     expect(await areasOf(id)).toEqual([ventas, ops].sort((a, b) => a - b));
-    expect(await releases()).toBe(before);
-    html = await (await board.fetch(`/flows/${id}/details`)).text();
-    expect(html).toContain(`<input type="checkbox" name="area" value="${ops}" checked=""`);
-    html = await (await board.fetch(`/flows/${id}/edit`)).text();
+    expect(await releases(id)).toBe(before);
+    const html = await (await board.fetch(`/flows/${id}/edit`)).text();
     expect(html).toContain(`<input type="checkbox" name="area" value="${ventas}" checked=""`);
     expect(html).toContain('<span data-area-summary="true">Operaciones, Ventas</span>');
-    // A published flow left with no area: saved, with the form's warning.
-    res = await put({ areaIds: [] });
+    res = await areas(board, id, []);
     expect(await res.json()).toEqual({ status: "saved", warning: NO_AREAS_WARNING });
     expect(await areasOf(id)).toEqual([]);
+    // A draft with no area: nobody sees it yet, and publishing asks for one.
+    const draft = await createFlow(env.DB, "Borrador");
+    if (!draft.ok) throw new Error(draft.error);
+    expect(await (await areas(board, draft.id, [])).json()).toEqual({ status: "saved", warning: null });
     // Anything but a list of ids, or an area that is gone, changes nothing.
-    for (const bad of [null, {}, { areaIds: "1" }, { areaIds: [0] }, { areaIds: ["1"] }]) {
-      expect((await put(bad)).status).toBe(400);
+    await areas(board, id, [ops]);
+    for (const bad of [null, "1", [0], ["1"]]) {
+      expect((await areas(board, id, bad)).status, JSON.stringify(bad)).toBe(400);
     }
-    res = await put({ areaIds: [ventas, ventas + ops + 100] });
+    expect((await post(board, `/flows/${id}/areas`, null)).status).toBe(400);
+    res = await areas(board, id, [ventas, ventas + ops + 100]);
     expect(res.status).toBe(422);
     expect(await res.json()).toEqual({ status: "invalid", error: "Una de las áreas elegidas ya no existe." });
-    expect(await areasOf(id)).toEqual([]);
+    expect(await areasOf(id)).toEqual([ops]);
+  });
+
+  it("saves the colour as a palette slot, without a new version (phase 5.1)", async () => {
+    const id = await instalacionesId();
+    const board = await signIn();
+    const colour = () => env.DB.prepare("SELECT colour FROM flows WHERE id = ?").bind(id).first<number>("colour");
+    const before = await releases(id);
+    // The panel offers the twelve slots, the current one chosen.
+    let html = await (await board.fetch(`/flows/${id}/edit`)).text();
+    expect(html).toContain(`value="${await colour()}" class="swatch flow-${await colour()}" aria-label="Color ${await colour()}" checked=""`);
+    expect(await (await field(board, id, { colour: 7 })).json()).toEqual({ status: "saved", value: 7 });
+    expect(await colour()).toBe(7);
+    expect(await releases(id)).toBe(before);
+    html = await (await board.fetch(`/flows/${id}/edit`)).text();
+    expect(html).toContain('value="7" class="swatch flow-7" aria-label="Color 7" checked=""');
+    expect(html).toContain('<section class="editor flow-7">');
+    // The viewer paints with it.
+    expect(await (await board.fetch(`/flows/${id}`)).text()).toContain("flow-7");
+    // Anything but a slot is refused, and nothing changes.
+    for (const bad of [0, 13, 1.5]) {
+      const r = await field(board, id, { colour: bad });
+      expect(r.status, String(bad)).toBe(422);
+      expect(await r.json()).toEqual({ status: "invalid", error: "Elige uno de los colores." });
+    }
+    expect(await colour()).toBe(7);
   });
 });

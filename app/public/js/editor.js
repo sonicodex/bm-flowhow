@@ -646,12 +646,95 @@ if (dataEl && table) {
   });
 
   window.addEventListener('beforeunload', (ev) => {
-    if ((dirty() || areasBusy) && !leaving) ev.preventDefault();
+    if ((dirty() || areasBusy || dataBusy) && !leaving) ev.preventDefault();
   });
 
-  // ---- The flow's areas, above the grid (DECISIONS, 2026-11-19): the
-  // same data as «Datos del flujo», saved at once on each change, with no
-  // Guardar and no version (POST /flows/:id/areas). One request at a time;
+  // ---- The flow's data (SPEC §6): a panel above the grid that starts
+  // folded, as the import box does. None of it is part of the draft: each
+  // change is saved at once, with no Guardar and no version. Name,
+  // objective and colour go one field per request (POST /flows/:id/details),
+  // one request after another. ----
+
+  const dataBox = document.getElementById('flow-data');
+  const dataButton = document.querySelector('[data-flow-data]');
+  const dataStatus = document.getElementById('flow-data-status');
+  const nameInput = document.getElementById('flow-name');
+  const objectiveInput = document.getElementById('flow-objective');
+  let dataQueue = Promise.resolve();
+  let dataBusy = 0;
+
+  function openData(open, focus = true) {
+    dataBox.hidden = !open;
+    dataButton.setAttribute('aria-expanded', String(open));
+    if (!focus) return;
+    if (open) nameInput.focus();
+    else dataButton.focus();
+  }
+  dataButton.addEventListener('click', () => openData(dataBox.hidden));
+
+  function dataSay(text, kind = '') {
+    dataStatus.textContent = text;
+    dataStatus.className = kind === 'error' ? 'form-error' : 'muted';
+  }
+
+  /** Saves one field; `shown` puts the saved value on the page. */
+  function saveField(body, input, shown) {
+    dataBusy++;
+    dataSay('Guardando…');
+    dataQueue = dataQueue.then(async () => {
+      let answer;
+      try {
+        const res = await fetch(`/flows/${data.flowId}/details`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        answer = await res.json();
+      } catch {
+        answer = { status: 'invalid', error: 'No se pudo guardar: revisa la conexión y vuelve a intentarlo.' };
+      }
+      dataBusy--;
+      if (answer.status === 'saved') {
+        input?.removeAttribute('aria-invalid');
+        shown(answer.value);
+        if (!dataBusy) dataSay('Guardado.');
+      } else {
+        input?.setAttribute('aria-invalid', 'true');
+        dataSay(answer.error || 'No se pudo guardar.', 'error');
+      }
+    });
+  }
+
+  const redrawPreview = () => {
+    drawn = null;
+    drawPreview(compileGrid(grid, ctx).flow);
+  };
+  // What is typed stays in the field when it is refused, so it can be fixed.
+  nameInput.addEventListener('change', () =>
+    saveField({ name: nameInput.value }, nameInput, (name) => {
+      nameInput.value = name;
+      data.name = name;
+      ctx.name = name;
+      document.getElementById('flow-name-title').textContent = name;
+      document.title = `Editar ${name} · FlowHow`;
+      redrawPreview();
+    }));
+  objectiveInput.addEventListener('change', () =>
+    saveField({ objective: objectiveInput.value }, objectiveInput, (objective) => {
+      objectiveInput.value = objective;
+    }));
+  const section = document.querySelector('.editor');
+  dataBox.querySelector('.swatches').addEventListener('change', (ev) => {
+    const colour = Number(ev.target.value);
+    saveField({ colour }, null, () => {
+      section.classList.replace(`flow-${data.colour}`, `flow-${colour}`);
+      data.colour = colour;
+      redrawPreview();
+    });
+  });
+
+  // ---- The flow's areas, in the same panel (DECISIONS, 2026-11-19), saved
+  // at once on each change (POST /flows/:id/areas). One request at a time;
   // a change made meanwhile is sent after it, with the whole set. ----
 
   const picker = document.getElementById('area-picker');
@@ -708,8 +791,10 @@ if (dataEl && table) {
     showAreas(checkedAreas());
     saveAreas();
   });
-  // A drop-down: it closes on a click outside it, and with Escape.
-  document.addEventListener('click', (ev) => {
+  // A drop-down: it closes on a press outside it, and with Escape. On the
+  // press, not the click: the click on Publicar that opens it would
+  // otherwise reach here and close it again.
+  document.addEventListener('pointerdown', (ev) => {
     if (picker.open && !picker.contains(ev.target)) picker.open = false;
   });
   picker.addEventListener('keydown', (ev) => {
@@ -768,8 +853,11 @@ if (dataEl && table) {
       return;
     }
     if (!data.published && !data.areaIds.length) {
-      say('<h2>Falta asignar un área</h2><p>La primera publicación necesita al menos un área: sin ella nadie vería el flujo. Elígela en «Áreas que lo ven», encima de la tabla, y vuelve a publicar.</p>' +
-        actions('<button type="button" class="button-primary" data-pick-areas>Elegir áreas</button>'));
+      // The panel opens on the selector, so the area is chosen here.
+      say('<h2>Falta asignar un área</h2><p>La primera publicación necesita al menos un área: sin ella nadie vería el flujo. Elígela en «Áreas que lo ven» y vuelve a publicar.</p>' + actions(''));
+      openData(true, false);
+      picker.open = true;
+      (picker.querySelector('input, a') || picker.querySelector('summary')).focus();
       return;
     }
     const choice = data.published
@@ -815,11 +903,6 @@ if (dataEl && table) {
     if (t.closest('[data-close]')) say('');
     else if (t.closest('[data-save-publish]') && (await save())) openPublish();
     else if (t.closest('[data-confirm-publish]')) publish(t.closest('[data-confirm-publish]'));
-    else if (t.closest('[data-pick-areas]')) {
-      say('');
-      picker.open = true;
-      (picker.querySelector('input, a') || picker.querySelector('summary')).focus();
-    }
   });
 
   // ---- Template and export (SPEC §6; phase 5.6): built here, from the grid

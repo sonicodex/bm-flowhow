@@ -74,8 +74,6 @@ describe("administration screens (phase 4.4)", () => {
       "/users/new": "/users",
       [`/users/${board.id}`]: "/users",
       "/flows/new": "/flows",
-      // The flow form belongs to the editor (phase 5.3): it goes back there.
-      [`/flows/${flow.id}/details`]: `/flows/${flow.id}/edit`,
     };
     for (const [path, back] of Object.entries(forms)) {
       const html = await (await board.fetch(path)).text();

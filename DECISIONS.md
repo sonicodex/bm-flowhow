@@ -14,6 +14,43 @@ Entry format:
 
 ---
 
+## 2026-11-19 — The flow data panel replaces «Datos del flujo» (SPEC §6)
+
+- Decision:
+  - **The owner changed SPEC §6:** name, objective, colour and areas all
+    live in the editor, in a panel above the grid that starts folded. The
+    separate page goes.
+  - **The panel works like the import box.** It is a section above the
+    grid, hidden at first and opened by «Datos del flujo», which used to
+    be the link to the page and is now a button in the same place.
+    - It holds Nombre, Objetivo, the twelve colour swatches, and the
+      areas selector from b5eca22, unchanged.
+    - Folded, the grid keeps its height (775 at 1280×800, as before).
+      Opened, the grid fits what is left, never below a third of the
+      window.
+  - **Each field is saved at once, with no version** (SPEC §6: none of
+    the four is part of the draft).
+    - Name and objective save on `change` (leaving the field, or Enter on
+      the name); colour on picking a swatch. `POST /flows/:id/details`
+      now takes JSON, one field per request, and answers with the value
+      as saved (trimmed). Requests go one after another.
+    - A blank or taken name is refused with the form's messages. What
+      was typed stays in the field, marked invalid, and the title does
+      not change.
+    - A saved name changes the page title, the heading and the preview.
+      A saved colour repaints the editor and the preview.
+  - **Publishing with no area** says so in the message panel, opens the
+    flow data panel with the selector open, and focuses its first area.
+    - The selector now closes on a press outside it (`pointerdown`), not
+      a click: the click on Publicar that opens it would otherwise also
+      close it.
+  - **Removed:** `GET /flows/:id/details`, the form page,
+    `saveFlowDetails` and `FlowDetails`. They are replaced by
+    `saveFlowField`. Creating a flow still asks for the name and lands
+    in the editor.
+- Reason: SPEC §6, rewritten by the owner on 2026-11-19.
+- Spec sections affected: none beyond the owner's change.
+
 ## 2026-11-19 — The grid fits the window; the areas move up to the editor
 
 - Decision:
@@ -51,6 +88,10 @@ Entry format:
   - Done by the owner in `fca0c53`: §6 now says the areas are also edited
     above the grid, and that none of the flow form's four fields is part
     of the draft.
+- Superseded in part (2026-11-19, entry above): the selector no longer
+  sits above the toolbar but inside the flow data panel, and the flow form
+  page is gone. The grid's height, the selector itself and saving areas at
+  once stand.
 
 ## 2026-11-17 — Phase 5.10, revised: labels only in the decision; the grid scans again (SPEC §6)
 

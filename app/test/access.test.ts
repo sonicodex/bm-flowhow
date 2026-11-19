@@ -75,7 +75,6 @@ describe("route access (phase 4.2)", () => {
       "GET /flows": "editor",
       "GET /flows/new": "editor",
       "POST /flows": "editor",
-      "GET /flows/:id{[0-9]+}/details": "editor",
       "POST /flows/:id{[0-9]+}/details": "editor",
       "POST /flows/:id{[0-9]+}/areas": "editor",
       "GET /flows/:id{[0-9]+}/edit": "editor",
