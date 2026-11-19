@@ -198,12 +198,38 @@ if (data && cols) {
     box.scrollTop = Math.max(0, frame(svg).y(node.y) - box.clientHeight / 2);
   };
 
-  // ---- Tour zoom (SPEC §9, Layout; phase 6.8): on every screen, the
-  // diagram can frame the current step with the one the user came from and
-  // the next ones, so the labels stay readable. Zoomed is the default on a
-  // phone; the choice holds for the rest of the visit to this page. ----
-  const PHONE = window.matchMedia('(max-width: 760px)');
-  let zoomed = PHONE.matches;
+  // ---- Tour zoom (SPEC §9, Layout; phases 6.8 and 6.21): on every screen,
+  // the diagram frames the current step with a couple of steps behind and a
+  // couple ahead, so the labels stay readable. Zoomed is the default on
+  // every screen (6.21); the choice holds for the rest of the visit. ----
+  let zoomed = true;
+  // How many steps the frame takes behind and ahead of the current one.
+  const FRAME_STEPS = 2;
+
+  // The steps framed with the current one (6.21). Behind: the steps walked
+  // into it, along the flow's edges; a step the tour jumped or was sent
+  // back from is not behind, it is elsewhere on the map. Ahead: on a
+  // decision, its branches; otherwise the next step and the one after it
+  // (the branches, when the next one is a decision).
+  const frameIds = (tour) => {
+    const current = tour.current().id;
+    const ids = new Set([current]);
+    for (let k = tour.pos, n = 0; k > 0 && n < FRAME_STEPS; k--, n++) {
+      const from = tour.trail[k - 1].id;
+      if (!tour.exitsOf(from).some((e) => e.to === tour.trail[k].id)) break;
+      ids.add(from);
+    }
+    if (tour.canChoose()) {
+      for (const e of tour.exitsOf(current)) ids.add(e.to);
+      return ids;
+    }
+    let front = [current];
+    for (let n = 0; n < FRAME_STEPS; n++) {
+      front = front.flatMap((id) => tour.exitsOf(id).map((e) => e.to));
+      for (const id of front) ids.add(id);
+    }
+    return ids;
+  };
   // Room beside the current step for its tag badges, and around the frame.
   const BADGE_ROOM = 96;
   const FRAME_PAD = 24;
@@ -214,8 +240,7 @@ if (data && cols) {
     const svg = box.querySelector('svg');
     if (!svg) return;
     const current = tour.current().id;
-    const ids = new Set([current, ...tour.options().map((o) => o.to)]);
-    if (tour.pos > 0) ids.add(tour.trail[tour.pos - 1].id);
+    const ids = frameIds(tour);
     const nodes = layout.nodes.filter((n) => ids.has(n.id));
     if (!nodes.length) return;
     const step = tour.step();
@@ -232,7 +257,13 @@ if (data && cols) {
     // the room the card gives the diagram.
     const style = getComputedStyle(box);
     const roomW = box.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-    const roomH = parseFloat(style.maxHeight) - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+    const padY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+    // The part of the card on screen, not its whole height: the frame is
+    // what the reader sees without scrolling the page (6.21). Never less
+    // than half the card, so a card that starts low still gets a frame.
+    const full = parseFloat(style.maxHeight) - padY;
+    const onScreen = window.innerHeight - Math.max(0, box.getBoundingClientRect().top) - padY;
+    const roomH = Math.max(full / 2, Math.min(full, onScreen));
     const k = Math.max(0.1, Math.min(MAX_SCALE, roomW / w, roomH > 0 ? roomH / h : MAX_SCALE));
     svg.setAttribute('viewBox', `${x0} ${y0} ${w} ${h}`);
     svg.setAttribute('width', String(Math.round(w * k)));

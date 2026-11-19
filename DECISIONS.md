@@ -14,6 +14,39 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.21: the tour zoom on by default, two steps behind and two ahead
+
+- Decision:
+  - **On by default on every screen** (owner's change to SPEC §9 Layout).
+    «Ver todo» still switches to the whole diagram for the rest of the
+    visit, as in 6.8.
+  - **The frame:**
+    - **Behind:** up to two steps the user walked into the current one
+      along the flow's edges. A step the tour jumped or was sent back
+      from is not behind, because it is elsewhere on the map. Following
+      the trail blindly would stretch the frame across the diagram after
+      every return.
+    - **Ahead:** on a decision, its branches. Otherwise the next step and
+      the one after it, which are the branches when the next step is a
+      decision.
+  - **The frame fits the card's part on screen, not the card's full
+    height** (76vh). On a laptop the card starts about 300 px down, so
+    the old frame put a decision's branches below the window. It is
+    never less than half the card, so a card that starts low still gets a
+    usable frame.
+  - **Phone:** §9 puts the step panel above the diagram, so the zoomed
+    frame is below the fold there. This does not change in 6.21. The
+    owner is told, because 6.20 moves the choice onto the diagram.
+  - **Checked in Chrome** on Apertura, at 1280×800 and 390×844, with the
+    start and steps answered in the browser:
+    - zoom on at the start;
+    - at P5, P3 to P7 framed;
+    - at P6, P4 and P5 behind, and P7 and P13 (its branches) on screen,
+      above the buttons;
+    - «Ver todo» shows the whole diagram.
+- Reason: SPEC §9 (owner's change); plan_iteration_7, slice 6.21.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.19: the return tooltip at any decision with branches left
 
 - Decision:
