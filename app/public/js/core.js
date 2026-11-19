@@ -700,6 +700,7 @@ var Core = (function () {
     this.taken = new Set(); // branches already chosen, as 'stepId#exitIndex'
     this.stale = 0;     // consecutive moves onto already visited steps without a choice (guards endless cycles)
     this.starts = first.slice(1);
+    this.retry = new Map(); // decision id -> per exit index: true for a retry (leads back to the decision)
     this.meet = this._meetingPoints();
     // decision id -> per exit index: 'direct' (straight to its meeting point), 'short' (one step), 'long' or null.
     this.reach = new Map();
@@ -713,9 +714,14 @@ var Core = (function () {
     });
     // decision id -> its meeting point, for the decisions whose branches are parallel (see above).
     this.parallel = new Map();
+    // Retries are not roads (phase 6.18): the decision is parallel when its other branches, two or more,
+    // all reach the same meeting point in one step or none.
     this.meet.forEach(function (m, d) {
-      var r = self.reach.get(d);
-      if (m[0] && m.every(function (x) { return x === m[0]; }) && r.every(function (x) { return x === 'short' || x === 'direct'; })) self.parallel.set(d, m[0]);
+      var r = self.reach.get(d), retry = self.retry.get(d) || [];
+      var ks = m.map(function (_, k) { return k; }).filter(function (k) { return !retry[k]; });
+      if (ks.length < 2) return;
+      var to = m[ks[0]];
+      if (to && ks.every(function (k) { return m[k] === to && (r[k] === 'short' || r[k] === 'direct'); })) self.parallel.set(d, to);
     });
     this._goto(first[0], null);
     this._save();
@@ -774,10 +780,15 @@ var Core = (function () {
     this.ids.forEach(function (d) {
       var ex = self.exitsOf(d); if (ex.length < 2) return;
       var chains = ex.map(function (e) { return chain(e.to); });
+      // A branch that always leads back to its own decision is a retry, not another road (SPEC §7;
+      // phase 6.18): it meets nothing and holds no other branch back.
+      var retry = chains.map(function (c) { return c.indexOf(d) >= 0; });
+      self.retry.set(d, retry);
       meet.set(d, chains.map(function (c, i) {
+        if (retry[i]) return null;
         var best = -1;
         chains.forEach(function (o, j) {
-          if (i === j) return;
+          if (i === j || retry[j]) return;
           var k = c.findIndex(function (x) { return x !== d && x !== EXIT && o.indexOf(x) >= 0; });
           if (k >= 0 && (best < 0 || k < best)) best = k;
         });
@@ -881,6 +892,9 @@ var Core = (function () {
   Tour.prototype.choose = function (i) {
     var entry = this.current(), d = entry.id, e = this.exitsOf(d)[i];
     if (!e) return { moved: false };
+    // A branch that cannot be entered yet: nothing changes, and the caller says what to walk first.
+    var wait = this.holdsBack(i);
+    if (wait) return { moved: false, held: { to: e.to, wait: wait } };
     if (!this.atEnd()) {
       if (this.exitsOf(d).length < 2) return { moved: false };
       // The same branch as before only moves the view forward.
@@ -891,11 +905,56 @@ var Core = (function () {
     entry.chose = i;
     this.taken.add(d + '#' + i);
     var r, hold = this._holdFor(e.to);
-    // A branch that goes straight to the meeting point: back to the decision, with its note every time.
-    if (hold >= 0) r = this._hold(hold, e.to, this.path[hold] === d ? { direct: e.to } : { joinAt: e.to });
+    if (hold >= 0 && this.path[hold] === d && !(this.parallel.get(d) === e.to && this._pendingAt(d, e.to).length)) r = this._enterOwn(d, e.to);
+    // Held at another decision (an outer one): back there, saying where it joins. Held at this one, a
+    // parallel decision walks on to its next branch.
+    else if (hold >= 0) r = this._hold(hold, e.to, { joinAt: e.to });
     else { this._goto(e.to, null); this.stale = 0; r = { moved: true }; }
     this._save();
     return r;
+  };
+  /* A branch of d, not parallel, that goes straight to `to` and is not held back by holdsBack: the branches
+     still to reach `to` from d go straight there too, so they are taken on entering it, as twins are. If
+     the hold is an outer decision's, the tour goes back there instead, saying where it joins; d's open
+     branches are gone back to later. Never a choice answered by staying put (SPEC §7; phase 6.18). */
+  Tour.prototype._enterOwn = function (d, to) {
+    var pend = this._pendingAt(d, to), self = this;
+    if (!pend.length) {
+      for (var i = this.path.length - 2; i >= 0; i--) {
+        var m = this.meet.get(this.path[i]) || [], o = this.path[i];
+        if (m.some(function (x, k) { return x === to && !self.taken.has(o + '#' + k); })) return this._back(i, { joinAt: to });
+      }
+    }
+    pend.forEach(function (k) { self.taken.add(d + '#' + k); });
+    this._goto(to, pend.length ? { alsoDirect: d, exits: pend } : null); this.stale = 0;
+    return { moved: true };
+  };
+  /* The branches to walk before branch i of the decision in view can be entered, as exit indices, or
+     null when it can be entered now (SPEC §7; phase 6.18). A branch that goes straight to a meeting point
+     that another branch of the same decision, with steps of its own, has still to reach waits for it,
+     unless the decision is parallel. choose() then changes nothing: the branch is not taken, nothing is
+     logged, and the viewer says what to walk first. */
+  Tour.prototype.holdsBack = function (i) {
+    var entry = this.current(), d = entry.id, ex = this.exitsOf(d), e = ex[i];
+    if (!e || ex.length < 2) return null;
+    // On a decision left behind, the path it had then.
+    var keep = this.path;
+    if (!this.atEnd()) { if (entry.chose === i) return null; this.path = entry.saved.path; }
+    // As choose() asks it: with this branch counted as taken.
+    var key = d + '#' + i, had = this.taken.has(key);
+    this.taken.add(key);
+    var hold = this._holdFor(e.to), path = this.path;
+    if (!had) this.taken.delete(key);
+    this.path = keep;
+    if (hold < 0 || path[hold] !== d) return null;
+    var self = this, taken = function (k) { return k === i || self.taken.has(d + '#' + k); };
+    var pending = (this.meet.get(d) || []).map(function (x, k) { return x === e.to && !taken(k) ? k : -1; }).filter(function (k) { return k >= 0; });
+    if (this.parallel.get(d) === e.to) return null;
+    // Only branches with steps of their own to walk are waited for; one that goes straight there too is
+    // taken on entering (see _enterOwn).
+    var reach = this.reach.get(d) || [];
+    var wait = pending.filter(function (k) { return reach[k] !== 'direct'; });
+    return wait.length ? wait : null;
   };
   Tour.prototype.next = function () {
     if (!this.atEnd()) { this.pos++; return { moved: true }; }

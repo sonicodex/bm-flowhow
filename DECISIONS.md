@@ -14,6 +14,82 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.18: a branch back to its own decision is a retry; a held branch is not taken
+
+- Decision:
+  - **The owner's report:** Apertura P31 «¿El cliente pagó?», «Sí»
+    chosen on a fresh tour. The tour stayed at the decision, marked «Sí»
+    «Ya recorrida» and showed the return tooltip.
+    - Diagnosis: P31 was not parallel. Under phase 3.5's hold, «Sí» (straight
+      to P33) waited for «No», whose road to P33 goes back through P31 itself.
+    - The owner chose A + C and changed SPEC §7.
+  - **A. Retries** (`core.js`, `_meetingPoints`):
+    - A branch counts as a retry when its own decision post-dominates it,
+      that is, when every path from it leads back there (SPEC: «leads back
+      to its own decision»). `Tour.retry` keeps it per decision.
+    - A retry meets nothing (`meet` null) and holds no branch back.
+      Apertura P31 and the example's P3 (`No → Comprar material → Revisar
+      inventario`) now have no meeting point: «Sí» goes on at once. «No» is
+      walked when the tour comes back to the decision after a dead end, as
+      for branches that never meet.
+    - **Parallel, without the retries:** a decision is parallel when its
+      branches that are not retries, two or more, all reach the same
+      meeting point in one step or none. Without this, twin branches next
+      to a retry each waited for the other, a deadlock found by the random
+      graphs. It follows SPEC's «does not count as one of the branches
+      that meet». In the reference flows nothing changes: no parallel
+      decision has a retry.
+  - **C. A held branch is not taken** (P9 and P17, where waiting makes
+    sense):
+    - `Tour.holdsBack(i)` gives the branches to walk before branch i can
+      be entered. Those are the pending branches of the same decision with
+      steps of their own to its meeting point, or null.
+    - When a branch is held, `choose()` returns `{ moved: false, held }`
+      and changes nothing. The branch is not «Ya recorrida», nothing is
+      visited, and the server refuses it and logs nothing.
+    - The viewer asks before sending. It sends nothing, and below that
+      branch, with `role="status"`, it writes «Sí» lleva directo a
+      «Confirmar la fecha de instalación programada», donde se une con
+      «No». Recorre primero «No».
+      - A branch without a label is named by its step's title.
+      - Several branches are listed with «y».
+      - Focus stays on the branch. The note goes with the next action.
+      - There is no return tooltip: the tour never left the decision.
+  - **Never staying put** (SPEC: «The tour never answers a choice by
+    doing nothing»):
+    - Only branches with steps are waited for. A direct branch whose other
+      pending branches are direct too enters the meeting point and takes
+      them along, with the twins' note («La opción … lleva directo a este
+      paso.»), even when the decision is not parallel.
+    - A hold that belongs to an outer decision goes back to that decision,
+      with «Esta rama sigue en…».
+    - The `direct` note and its text («Esta opción va directo a…, Antes de
+      seguir, mira las otras.») are gone.
+  - **Tests:**
+    - `core.test.js` rewrites four cases of the old rule: «Sí first»,
+      «meeting points», «a branch straight to the meeting point» and
+      «Instalaciones P17».
+    - The random walkers check that a held choice changes nothing and
+      names branches that can be walked, that no `direct` return ever
+      happens, and that held choices did occur.
+    - `tour.test.ts` walks the three decisions of the reference flows
+      through the server: Apertura P31, Instalaciones P9 and P17.
+  - **The owner's runs:** under the new rule two open runs no longer
+    replay, because they contain the old bounce (a row of a held branch
+    followed by choosing again):
+    - run 8 (`empleado`, Apertura), the very run of the report;
+    - run 2 (`junta`, «Flujo de prueba fase 5», P2 «¿Hay plata?», also a
+      retry).
+    When opened, they close and start clean with «Las reglas del recorrido
+    cambiaron…», as in 6.11. They were not touched.
+  - **Checked in Chrome:** as junta on Instalaciones, with the step
+    requests answered in the browser (run 5 still has no rows). At P9,
+    «Sí» sent nothing, stayed unmarked, showed the note below it with
+    focus on it, and no tooltip. «No» then walked on and the note was
+    gone.
+- Reason: SPEC §7 (owner's change); slice 6.18.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.17: the return notice is a tooltip on the decision
 
 - Decision:
@@ -1939,8 +2015,10 @@ Entry format:
     what is left to walk.
   - In the reference flows: Apertura P7 and P26 walk their branches in a
     row; P34 enters P35 once and takes «No» on the way; Instalaciones P11
-    likewise. The direct-branch note (bounce) stays only where a long
-    branch is still pending: Instalaciones P9 and P17, Apertura P31.
+    likewise. ~~The direct-branch note (bounce) stays only where a long
+    branch is still pending: Instalaciones P9 and P17, Apertura P31.~~
+    Superseded by the owner on 2026-11-19: see «Phase 6.18: a branch back
+    to its own decision is a retry; a held branch is not taken».
   - **"Anterior" can undo a choice.** On a decision left behind, its
     branches are live again ("Puedes elegir otra rama: el recorrido
     seguirá desde aquí"). The branch chosen there before only moves the
@@ -1989,13 +2067,15 @@ Entry format:
 ## 2026-11-16 — The direct-branch note is shown every time; no commented-out tests
 
 - Decision:
-  - A branch that goes straight to its meeting point shows «Esta opción va
+  - ~~A branch that goes straight to its meeting point shows «Esta opción va
     directo a «X». Antes de seguir, mira las otras.» every time it is
-    chosen while another branch meets there, not only the first time. A
+    chosen while another branch meets there, not only the first time.~~ A
     click that shows nothing is worse than a repeated note: the user cannot
     tell whether it was ignored, broken or wrong. The note is true about
     the process, not a reproach. (Owner's correction of their own earlier
     instruction.)
+    Superseded by the owner on 2026-11-19: see «Phase 6.18: a branch back
+    to its own decision is a retry; a held branch is not taken».
   - The original lines of the two `core.test.js` cases changed in 3.5 are
     deleted rather than kept as comments: git keeps them, and the reason
     is here and in the commit. Changing them was right because the rule
@@ -2020,10 +2100,12 @@ Entry format:
     after the last one. A decision walked since then that still has a
     branch to take comes first, so nested branches are not left behind
     (a random flow found this case while it was being built).
-  - **A branch straight to the meeting point** (Instalaciones P9, P11,
+  - ~~**A branch straight to the meeting point** (Instalaciones P9, P11,
     P17; Apertura P31, P34) does not enter it while another branch meets
     there. The branch is marked taken and the tour stays at the decision:
-    «Esta opción va directo a «X». Antes de seguir, mira las otras.»
+    «Esta opción va directo a «X». Antes de seguir, mira las otras.»~~
+    Superseded by the owner on 2026-11-19: see «Phase 6.18: a branch back
+    to its own decision is a retry; a held branch is not taken».
     ~~Choosing it again says nothing more (owner: do not repeat the note).~~
     **Superseded** the same day: the note is shown every time (see
     "The direct-branch note is shown every time").

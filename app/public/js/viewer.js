@@ -111,7 +111,6 @@ if (data && cols) {
       const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}` : names[0];
       return `<p class="note">${names.length > 1 ? `Las opciones ${list} llevan` : `La opción ${list} lleva`} directo a este paso.</p>`;
     }
-    if (note.direct) return `<p class="note">Esta opción va directo a ${title(note.direct)}. Antes de seguir, mira las otras.</p>`;
     if (note.joinAt) return `<p class="note">Esta rama sigue en ${title(note.joinAt)}, igual que las otras. Vuelves a la decisión para ver las que faltan.</p>`;
     const why = note.endAt ? `Esa rama terminó en ${title(note.endAt)}. ` : note.loopTo ? 'Ese camino se repite sin llegar a un cierre. ' : '';
     const then = note.returned ? 'Vuelves a esta decisión para ver las otras opciones.' : 'Ahora sigues con una parte del flujo que faltaba.';
@@ -142,14 +141,24 @@ if (data && cols) {
     return `<div class="link-target"><dl class="step-tags">${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>${go}</div>`;
   };
 
+  // Why a branch was not entered (SPEC §7; phase 6.18): it goes straight to where the branches with
+  // steps of their own join it, so those go first. Said where the choice was made.
+  const heldNote = (options, o, wait) => {
+    const name = (x) => quoted(x.label || x.title);
+    const others = new Intl.ListFormat('es', { type: 'conjunction' }).format(wait.map((k) => name(options[k])));
+    return `<p class="note held-note" role="status">${name(o)} lleva directo a ${quoted(o.title)}, donde se une con ${others}. Recorre primero ${others}.</p>`;
+  };
+
   const exitsPanel = (tour) => {
     const options = tour.options();
     if (!options.length) return '';
     const text = (o) => `${o.label ? `<strong>${esc(o.label)}</strong> · ` : ''}${esc(o.title)}`;
     // At the last step, or on a decision "Anterior" came back to (phase 3.6).
     if (tour.canChoose()) {
+      const held = state.held && state.held.at === tour.pos ? state.held : null;
       const buttons = options.map((o) =>
-        `<button type="button" class="branch${o.taken ? ' taken' : ''}" data-choose="${o.index}">${text(o)}${o.taken ? `<span class="taken-tag">${DONE_ICON}Ya recorrida</span>` : ''}</button>`,
+        `<button type="button" class="branch${o.taken ? ' taken' : ''}" data-choose="${o.index}">${text(o)}${o.taken ? `<span class="taken-tag">${DONE_ICON}Ya recorrida</span>` : ''}</button>` +
+        (held && held.exit === o.index ? heldNote(options, o, held.wait) : ''),
       ).join('');
       const skip = tour.canSkip() ? '<button type="button" class="branch" data-skip>Ir a lo que falta por visitar</button>' : '';
       const again = options.some((o) => o.taken) ? '<p class="muted small">Puedes repetir una rama ya recorrida.</p>' : '';
@@ -578,6 +587,8 @@ if (data && cols) {
     }
     const tour = state.tour;
     const at = tour.current().id;
+    // The held-branch note lasts until the next action (phase 6.18).
+    state.held = null;
     if (b.hasAttribute('data-prev')) {
       tour.prev();
       state.message = '';
@@ -590,6 +601,14 @@ if (data && cols) {
       } else act({ at, action: 'next' }, '[data-next]');
     } else if (b.hasAttribute('data-choose')) {
       const exit = Number(b.getAttribute('data-choose'));
+      // A branch that cannot be entered yet (SPEC §7; phase 6.18): nothing is sent, nothing moves, and
+      // the note by the branch says what to walk first.
+      const wait = tour.holdsBack(exit);
+      if (wait) {
+        state.held = { exit, wait, at: tour.pos };
+        state.message = '';
+        return renderTour(`[data-choose="${exit}"]`);
+      }
       if (tour.atEnd()) act({ at, action: 'choose', exit });
       else if (tour.current().chose === exit) {
         // The branch chosen here before: only the view moves.

@@ -47,13 +47,14 @@ async function setup(name = "Apertura de OT") {
 }
 
 // The action a user would take next: untaken branches first, in order,
-// unless `prefer` picks one; skip when a decision has nothing left.
+// unless `prefer` picks one; skip when a decision has nothing left. A branch
+// held back (phase 6.18) is skipped, as the viewer never sends it.
 function nextAction(tour: any, prefer?: (step: string) => number | undefined): Action | null {
   const step = tour.current().id;
   if (tour.canFinish()) return null;
   if (tour.canSkip()) return { at: step, action: "skip" };
   if (!tour.needsChoice()) return { at: step, action: "next" };
-  const options = tour.options() as { index: number; taken: boolean }[];
+  const options = (tour.options() as { index: number; taken: boolean }[]).filter((o) => tour.holdsBack(o.index) === null);
   const exit = prefer?.(step) ?? (options.find((o) => !o.taken) ?? options[0]!).index;
   return { at: step, action: "choose", exit };
 }
@@ -317,6 +318,75 @@ describe("the tour on the server (SPEC §7)", () => {
     expect((await takeStep(db(), s.user, s.flowId, { at: "P1", action: "next" }, at(1))).ok).toBe(false);
     expect((await finishTour(db(), s.user, s.flowId, at(1))).ok).toBe(false);
     expect(await count("tour_visits")).toBe(0);
+  });
+});
+
+// Phase 6.18 (SPEC §7), on the three decisions of the reference flows with a
+// branch straight to the meeting point and another that is not one step.
+describe("held branches and retries (phase 6.18)", () => {
+  const until = (id: string) => (tour: any) => tour.atEnd() && tour.current().id === id;
+  const branch = (s: { flow: any }, d: string, label: string) =>
+    (s.flow.steps.find((x: any) => x.id === d).exits as { label: string }[]).findIndex((e) => e.label === label);
+
+  it("Apertura P31 «¿El cliente pagó?»: «No» is a retry, so «Sí» goes on to P33 at once", async () => {
+    const s = await setup();
+    await startTour(db(), s.user, s.flowId, at(0));
+    const t = await walk(s, 0, { stop: until("P31") });
+    let tour = replay(s.flow, await logOf(s.user));
+    expect(tour.retry.get("P31")).toEqual([false, true]);
+    expect(tour.meet.get("P31")).toEqual([null, null]);
+    const si = branch(s, "P31", "Sí");
+    expect(tour.holdsBack(si)).toBeNull();
+    const r = await takeStep(db(), s.user, s.flowId, { at: "P31", action: "choose", exit: si }, at(t + 1));
+    expect(r).toEqual({ ok: true, row: { step: "P31", exit: si } });
+    tour = replay(s.flow, await logOf(s.user));
+    expect(tour.current().id).toBe("P33");
+    expect(tour.current().note).toBeNull();
+    // «No» is still to walk: the tour comes back for it, and the loop is walked.
+    const end = await walk(s, t + 1);
+    tour = replay(s.flow, await logOf(s.user));
+    expect(tour.canFinish()).toBe(true);
+    expect(tour.taken.has(`P31#${branch(s, "P31", "No")}`)).toBe(true);
+    expect((await finishTour(db(), s.user, s.flowId, at(Math.max(end, s.flow.steps.length * 5))) as any).ok).toBe(true);
+  });
+
+  for (const [d, direct, other, meet] of [
+    ["P9", "Sí", "No", "P13"],
+    ["P17", "No", "Sí", "P21"],
+  ] as const) {
+    it(`Instalaciones ${d}: «${direct}» waits for «${other}», is not taken, nothing is logged, and later goes on`, async () => {
+      const s = await setup("Instalaciones");
+      await startTour(db(), s.user, s.flowId, at(0));
+      // Every decision before this one walked as a user would; at this one, nothing taken yet.
+      const t = await walk(s, 0, { stop: until(d) });
+      let tour = replay(s.flow, await logOf(s.user));
+      const k = branch(s, d, direct);
+      const o = branch(s, d, other);
+      expect(tour.reach.get(d)[k]).toBe("direct");
+      expect(tour.meet.get(d)[k]).toBe(meet);
+      expect(tour.holdsBack(k)).toEqual([o]);
+      // The server refuses it, and writes nothing.
+      const rows = (await logOf(s.user)).length;
+      expect((await takeStep(db(), s.user, s.flowId, { at: d, action: "choose", exit: k }, at(t + 1))).ok).toBe(false);
+      expect((await logOf(s.user)).length).toBe(rows);
+      tour = replay(s.flow, await logOf(s.user));
+      expect([tour.current().id, tour.taken.has(`${d}#${k}`), tour.visited.has(meet)]).toEqual([d, false, false]);
+      // «${other}» first; back at the decision, «${direct}» goes straight into the meeting point.
+      const back = await walk(s, t + 1, { prefer: (step) => (step === d ? o : undefined), stop: (x) => x.atEnd() && x.current().id === d && x.taken.has(`${d}#${o}`) });
+      tour = replay(s.flow, await logOf(s.user));
+      expect(tour.holdsBack(k)).toBeNull();
+      expect((await takeStep(db(), s.user, s.flowId, { at: d, action: "choose", exit: k }, at(back + 1))).ok).toBe(true);
+      tour = replay(s.flow, await logOf(s.user));
+      expect(tour.current().id).toBe(meet);
+      expect(tour.trail.filter((x: any) => x.id === meet)).toHaveLength(1);
+    });
+  }
+
+  it("the viewer's text for a held branch, and the old «direct» note is gone", async () => {
+    const viewer = await import("../public/js/viewer.js?raw");
+    const src = (viewer as any).default as string;
+    expect(src).toContain("lleva directo a ${quoted(o.title)}, donde se une con ${others}. Recorre primero ${others}.");
+    expect(src).not.toContain("Antes de seguir, mira las otras.");
   });
 });
 
