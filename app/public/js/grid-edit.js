@@ -1,6 +1,6 @@
 // The step grid's operations (SPEC §6; phase 5.3), apart from the page, so
 // they are tested in the Workers runtime. The rows are the grid's own
-// (`{id, type, ref, title, description, tags, exits, depends_on}`, `ref` the
+// (`{id, type, ref, contact, title, description, tags, exits, depends_on}`, `ref` the
 // target flow's name): what the server reads back on saving. Exits are the
 // one source of the connections; "Depende de" is computed from them and,
 // when edited, rewritten into the predecessors' exits (core.js).
@@ -35,7 +35,7 @@ export function blankRow(categories, id) {
   /** @type {Record<string, string>} */
   const tags = {};
   for (const c of categories) tags[c] = '';
-  return { id, type: 'activity', ref: '', title: '', description: '', tags, exits: '', depends_on: '' };
+  return { id, type: 'activity', ref: '', contact: '', title: '', description: '', tags, exits: '', depends_on: '' };
 }
 
 /**

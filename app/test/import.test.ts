@@ -6,6 +6,7 @@ import apertura from "../../reference/Flujo_Apertura_OT.grid.json";
 import { createFlow, nextColour } from "../src/flows.ts";
 import { applyGrid, parseGrid, reviewGrid, type Accepted } from "../src/import.ts";
 import { publishFlow } from "../src/publish.ts";
+import { signIn } from "./session.ts";
 
 const db = () => env.DB;
 const INST = instalaciones as Grid;
@@ -43,6 +44,50 @@ describe("parseGrid: the shape the browser sends", () => {
       { categories: [], rows: [{ ...row("A", "end"), title: 3 }] }, { categories: ["R"], rows: [row("A", "end")] }]) {
       expect(parseGrid(bad).ok, JSON.stringify(bad)).toBe(false);
     }
+  });
+
+  it("takes a contact as text, or none from a grid written before it existed", () => {
+    expect(parseGrid(tiny([row("A", "end", { contact: "Jefe" })])).ok).toBe(true);
+    expect(parseGrid(tiny([row("A", "end")])).ok).toBe(true);
+    expect(parseGrid(tiny([{ ...row("A", "end"), contact: 3 } as never])).ok).toBe(false);
+  });
+});
+
+describe("the contact of a link (SPEC §5)", () => {
+  it("is stored on a link only when it has one, and comes back in the editor's grid", async () => {
+    const target = await flow("Instalaciones");
+    const id = await flow("Apertura de OT");
+    const grid = tiny([
+      row("A", "start", { exits: "B", contact: "" }),
+      row("B", "link", { ref: "Instalaciones", contact: " Jefe de instalación ", exits: "C" }),
+      row("C", "link", { ref: "Instalaciones", contact: "", exits: "D" }),
+      row("D", "end", { contact: "Nadie" }),
+    ]);
+    const review = await reviewGrid(db(), id, grid);
+    expect(review.errors).toEqual([
+      { row: 3, message: "Fila 5 (D): es de tipo Fin, así que no lleva contacto; se ignoró «Nadie» de la columna Contacto.", blocking: false },
+    ]);
+    expect(review.flow.steps.map((s) => s.contact)).toEqual(["", "Jefe de instalación", "", ""]);
+    const r = await applyGrid(db(), id, grid, { categories: [], tags: [] });
+    if (!r.ok) throw new Error(JSON.stringify(r.errors));
+    expect(r.document.steps.map((s) => ({ id: s.id, ref: s.ref, ...("contact" in s ? { contact: s.contact } : {}) }))).toEqual([
+      { id: "A", ref: null },
+      { id: "B", ref: target, contact: "Jefe de instalación" },
+      { id: "C", ref: target },
+      { id: "D", ref: null },
+    ]);
+    // The editor opens it with the contact in its row, empty on the rest.
+    const board = await signIn();
+    const html = await (await board.fetch(`/flows/${id}/edit`)).text();
+    const data = JSON.parse(html.slice(html.indexOf('id="editor-data">') + 17, html.indexOf("</script>", html.indexOf('id="editor-data">'))));
+    expect(data.grid.rows.map((r: { contact: string }) => r.contact)).toEqual(["", "Jefe de instalación", "", ""]);
+  });
+
+  it("leaves a document stored before the contact existed exactly as it was", async () => {
+    const id = await flow("Instalaciones");
+    const r = await applyGrid(db(), id, INST, await acceptAll(id, INST));
+    if (!r.ok) throw new Error(JSON.stringify(r.errors));
+    expect(r.document.steps.some((s) => "contact" in s)).toBe(false);
   });
 });
 

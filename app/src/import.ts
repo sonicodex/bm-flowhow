@@ -7,6 +7,9 @@ import { nameKey } from "./names.ts";
 // server checks it, shows the review, and on confirmation replaces the draft.
 
 const ROW_FIELDS = ["id", "type", "ref", "title", "description", "exits", "depends_on"] as const;
+// Fields a row may lack, from a grid written before they existed; when
+// present they are text.
+const OPTIONAL_ROW_FIELDS = ["contact"] as const;
 
 // A grid that does not have exactly this shape did not come from our own
 // parser: it is refused whole (400), not reviewed row by row. An import
@@ -26,6 +29,8 @@ export function parseGrid(body: unknown, options: { allowEmpty?: boolean } = {})
     const r = row as Record<string, unknown>;
     const bad = ROW_FIELDS.find((f) => typeof r[f] !== "string");
     if (bad) return fail(`la fila ${i} no trae el campo de texto ${bad}.`);
+    const badOptional = OPTIONAL_ROW_FIELDS.find((f) => r[f] !== undefined && typeof r[f] !== "string");
+    if (badOptional) return fail(`el campo ${badOptional} de la fila ${i} no es texto.`);
     const tags = r.tags;
     if (typeof tags !== "object" || tags === null || Array.isArray(tags)) return fail(`la fila ${i} no trae tags.`);
     const t = tags as Record<string, unknown>;
@@ -108,7 +113,9 @@ function toDocument(prep: Prepared, index: TagIndex): FlowDocument {
         if (id !== undefined && !ids.includes(id)) ids.push(id); // rejected tags are dropped
       }
     }
-    return { id: s.id, type: s.type, title: s.title, description: s.description, ref: s.ref, tags: ids, exits: s.exits };
+    const step: DocStep = { id: s.id, type: s.type, title: s.title, description: s.description, ref: s.ref, tags: ids, exits: s.exits };
+    if (s.contact) step.contact = s.contact;
+    return step;
   });
   return { steps };
 }

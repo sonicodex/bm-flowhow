@@ -8,11 +8,13 @@ import { writeWorkbook } from '../public/js/xlsx-write.js';
 import instalaciones from '../../reference/Flujo_Instalaciones.grid.json';
 import apertura from '../../reference/Flujo_Apertura_OT.grid.json';
 
-const row = (id, type, extra = {}) => ({ id, type, ref: '', title: 't' + id, description: '', tags: {}, exits: '', depends_on: '', ...extra });
+const row = (id, type, extra = {}) => ({ id, type, ref: '', contact: '', title: 't' + id, description: '', tags: {}, exits: '', depends_on: '', ...extra });
 // The round trip keeps the connections; the Salidas cell comes back written
 // with commas (SPEC §5), whatever separator it had. The reference files keep
 // their pipes on purpose: the old format still comes in.
-const connections = (grid) => ({ ...grid, rows: grid.rows.map((r) => ({ ...r, exits: Core.parseExits(r.exits) })) });
+// The export always writes Contacto (SPEC §5), so a grid written before it
+// existed comes back with an empty one on every row.
+const connections = (grid) => ({ ...grid, rows: grid.rows.map((r) => ({ ...r, contact: r.contact ?? '', exits: Core.parseExits(r.exits) })) });
 const back = async (grid) => {
   const read = await gridFromXlsx(exportXlsx(grid));
   expect(read.errors).toEqual([]);
@@ -47,7 +49,7 @@ describe('export → import, round trip', () => {
       rows: [
         row('P1', 'start', { title: '1.10', description: 'Línea uno\nLínea dos — 1-2 & <b>"x"</b> 🚚', tags, exits: 'P2' }),
         row('P2', 'decision', { title: '=SUMA(A1)', exits: 'Sí:P3, No:P4', tags: { ...tags, 'Categoría 1': '' } }),
-        row('P3', 'link', { ref: 'Apertura de OT', tags: Object.fromEntries(categories.map((c) => [c, ''])) }),
+        row('P3', 'link', { ref: 'Apertura de OT', contact: 'Jefe de instalación', tags: Object.fromEntries(categories.map((c) => [c, ''])) }),
         row('P4', 'end', { title: 'Fin', tags: Object.fromEntries(categories.map((c) => [c, ''])) }),
       ],
     };
@@ -56,7 +58,7 @@ describe('export → import, round trip', () => {
 
   it('writes "Salidas" only: "Depende de" is already in the exits', async () => {
     const grid = { categories: [], rows: [row('P1', 'start', { exits: 'P2' }), row('P2', 'end', { depends_on: 'P1' })] };
-    expect(gridToTable(grid)[0]).toEqual(['ID', 'Tipo', 'Flujo', 'Título', 'Descripción', 'Salidas']);
+    expect(gridToTable(grid)[0]).toEqual(['ID', 'Tipo', 'Flujo', 'Contacto', 'Título', 'Descripción', 'Salidas']);
     expect((await back(grid)).rows[1].depends_on).toBe('');
   });
 
@@ -74,7 +76,7 @@ describe('export → import, round trip', () => {
 describe('the template', () => {
   it('has the headers, every category as a column, and no steps', async () => {
     const rows = await readSheet(templateXlsx(['Responsable', 'Herramienta']), SHEET);
-    expect(rows).toEqual([['ID', 'Tipo', 'Flujo', 'Título', 'Descripción', 'Responsable', 'Herramienta', 'Salidas']]);
+    expect(rows).toEqual([['ID', 'Tipo', 'Flujo', 'Contacto', 'Título', 'Descripción', 'Responsable', 'Herramienta', 'Salidas']]);
   });
 
   it('freezes the header and offers the types as a list in the Tipo column', () => {

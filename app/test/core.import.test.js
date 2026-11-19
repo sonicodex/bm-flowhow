@@ -67,10 +67,38 @@ describe('parseTable with the Flujo column', () => {
       { id: 'C', type: 'end', title: 'c', description: '', tags: { Responsable: '' }, exits: '' },
     ] };
     const tsv = C.toTSV(draft, (id) => (id === FACT ? 'Facturación' : ''));
-    assert.strictEqual(tsv.split('\n')[0], 'ID\tTipo\tFlujo\tTítulo\tDescripción\tResponsable\tSalidas');
+    assert.strictEqual(tsv.split('\n')[0], 'ID\tTipo\tFlujo\tContacto\tTítulo\tDescripción\tResponsable\tSalidas');
     const p = C.parseTable(tsv, (n) => (n === 'Facturación' ? FACT : null));
     assert.deepStrictEqual(p.errors, []);
     assert.deepStrictEqual(C.compile({ name: 'x', categories: p.categories, steps: p.steps }), C.compile(draft));
+  });
+
+  // SPEC §5: a link or subflow carries a contact, a job title in free text,
+  // in the Contacto column right after Flujo.
+  it('reads the contact of a link and a subflow, trimmed, and round-trips it through toTSV', () => {
+    const p = C.parseTable('ID\tTipo\tFlujo\tContacto\tTítulo\tSalidas\nA\tInicio\t\t\ta\tB\nB\tEnlace\tFacturación\t  Jefe de facturación \tb\tC\nC\tSubflujo\tFacturación\tJefe de bodega\tc\t', () => FACT);
+    assert.deepStrictEqual(p.errors, []);
+    assert.deepStrictEqual(p.steps.map((s) => s.contact), [undefined, 'Jefe de facturación', 'Jefe de bodega']);
+    const flow = C.compile({ name: 'x', categories: [], steps: p.steps });
+    assert.deepStrictEqual(flow.steps.map((s) => s.contact), ['', 'Jefe de facturación', 'Jefe de bodega']);
+    const tsv = C.toTSV({ categories: [], steps: p.steps }, () => 'Facturación');
+    assert.strictEqual(tsv.split('\n')[2], 'B\tEnlace\tFacturación\tJefe de facturación\tb\t\tC');
+    const again = C.parseTable(tsv, () => FACT);
+    assert.deepStrictEqual(C.compile({ name: 'x', categories: [], steps: again.steps }), flow);
+  });
+
+  it('warns, without blocking, when Contacto is filled on a step that is neither a link nor a subflow', () => {
+    const p = C.parseTable('ID\tTipo\tContacto\tTítulo\nA\tActividad\tJefe de bodega\tUno', () => FACT);
+    assert.deepStrictEqual(p.errors, [{ row: 0, message: 'Fila 2 (A): es de tipo Actividad, así que no lleva contacto; se ignoró «Jefe de bodega» de la columna Contacto.', blocking: false }]);
+    assert.strictEqual(p.steps[0].contact, undefined);
+    // Compiled, it has none either, even if a draft carried one.
+    assert.strictEqual(C.compile({ steps: [{ id: 'A', type: 'activity', title: 'a', description: '', tags: {}, exits: '', contact: 'x' }] }).steps[0].contact, '');
+  });
+
+  it('gives rows a contact only when the table has a Contacto column, so older files read as before', () => {
+    assert.strictEqual('contact' in C.tableToGrid([['ID', 'Título'], ['A', 'a']]).grid.rows[0], false);
+    assert.strictEqual(C.tableToGrid([['ID', 'contact', 'Título'], ['A', 'Jefe', 'a']]).grid.rows[0].contact, 'Jefe');
+    assert.deepStrictEqual(C.tableToGrid([['ID', 'Contacto', 'Título'], ['A', '', 'a']]).grid.categories, []);
   });
 
   it('warns, without blocking, when Flujo is filled on a step that is not a link', () => {

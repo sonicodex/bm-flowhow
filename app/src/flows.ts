@@ -139,7 +139,7 @@ export async function flowEntries(db: D1Database): Promise<FlowListEntry[]> {
   return flows.results.map((f) => {
     const doc = published.get(f.id as number);
     const flow: Flow | null = doc
-      ? { name: f.name as string, objective: "", categories: [], steps: doc.steps.map((s) => ({ ...s, tags: {} })) }
+      ? { name: f.name as string, objective: "", categories: [], steps: doc.steps.map((s) => ({ ...s, contact: s.contact ?? "", tags: {} })) }
       : null;
     return { id: f.id as number, name: f.name as string, key: f.name_key as string, published: flow };
   });

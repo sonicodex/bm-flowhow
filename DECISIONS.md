@@ -14,6 +14,47 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.1: the contact of links and subflows in the data, import and export
+
+- Decision:
+  - **Where it lives:**
+    - `contact` is a field of the grid row, of the draft step and of the
+      compiled step: free text, optional, trimmed.
+    - It is kept only on `link` and `subflow` steps. A compiled step of
+      any other type has `contact: ""`.
+  - **Not in SQL:** the contact lives in the stored document of each
+    version, so there is no migration.
+    - `DocStep.contact` is written only when it has a value. Documents
+      stored before it existed, and every step without one, stay
+      byte-for-byte as they were. Re-running `db:load` changes nothing,
+      and no release changes shape.
+  - **Reading:**
+    - The Contacto column is read under the headers «Contacto» or
+      «Contact», in any case or accent.
+    - A table without that column gives rows no `contact` key. A file
+      written before it existed reads into exactly the grid it always
+      did, which keeps the committed `reference/*.grid.json` valid until
+      6.3.
+    - A contact on any other type is dropped with a warning that does not
+      block, worded like Flujo's (SPEC §5).
+    - `parseGrid` accepts a row without `contact`; when present, it must
+      be text.
+  - **Writing:**
+    - The template, the export and `toTSV` write «Contacto» right after
+      «Flujo» (SPEC §5).
+    - Export writes the cell as the grid holds it, as it already does for
+      Flujo.
+  - **A consequence:** «Contacto» is now a fixed column, so no tag
+    category can be called that, as with every other fixed header. No
+    category in the reference flows has that name.
+  - **The editor carries the contact through:**
+    - Its rows come from the stored document with `contact`, and a save
+      sends it back.
+    - A new row starts with an empty one.
+    - The cell that shows and edits it is slice 6.2.
+- Reason: phase 6 plan (plan_iteration_3), slice 6.1; SPEC §5.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Areas back beside the action buttons; grid scrollbars always shown (SPEC §6)
 
 - Decision:

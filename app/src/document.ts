@@ -2,13 +2,16 @@ import Core, { type Exit, type Flow, type Grid } from "../public/js/core.js";
 
 // The flow document stored in drafts, save points and releases. Tags are
 // stored by id, so renaming a tag does not break past releases; `ref` is the
-// target flow's id. Name, objective, colour and areas live on the flow row.
+// target flow's id. `contact` is a link's or subflow's contact (SPEC §5),
+// present only when it has one: documents stored before it existed are
+// left as they were. Name, objective, colour and areas live on the flow row.
 export type DocStep = {
   id: string;
   type: string;
   title: string;
   description: string;
   ref: number | null;
+  contact?: string;
   tags: number[];
   exits: Exit[];
 };
@@ -53,7 +56,7 @@ export function documentToFlow(name: string, objective: string, doc: FlowDocumen
         const cat = tag && index.categories.find((c) => c.id === tag.categoryId);
         if (tag && cat) tags[cat.name]!.push(tag.name);
       }
-      return { id: s.id, type: s.type, title: s.title, description: s.description, tags, exits: s.exits, ref: s.ref };
+      return { id: s.id, type: s.type, title: s.title, description: s.description, tags, exits: s.exits, ref: s.ref, contact: s.contact ?? "" };
     }),
   };
 }
@@ -81,6 +84,7 @@ export function documentToGrid(doc: FlowDocument, index: TagIndex, flowName: (id
         id: s.id,
         type: s.type,
         ref: s.ref === null ? "" : (flowName(s.ref) ?? ""),
+        contact: s.contact ?? "",
         title: s.title,
         description: s.description,
         tags,

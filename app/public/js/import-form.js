@@ -27,7 +27,8 @@ export async function gridFromXlsx(bytes) {
 }
 
 /**
- * The grid as the import format's table: the fixed columns, every category,
+ * The grid as the import format's table: the fixed columns (Contacto right
+ * after Flujo, SPEC §5), every category,
  * and "Salidas" as the one source of the connections (SPEC §6: export
  * writes no "Depende de"), always written with commas (SPEC §5), whatever
  * separator the cell was typed with. Types by their Spanish name.
@@ -35,22 +36,22 @@ export async function gridFromXlsx(bytes) {
  * @returns {string[][]}
  */
 export function gridToTable(grid) {
-  const head = ['ID', 'Tipo', 'Flujo', 'Título', 'Descripción', ...grid.categories, 'Salidas'];
+  const head = ['ID', 'Tipo', 'Flujo', 'Contacto', 'Título', 'Descripción', ...grid.categories, 'Salidas'];
   const labels = /** @type {Record<string, string>} */ (Core.TYPE_LABELS);
   return [head].concat(
-    grid.rows.map((r) => [r.id, labels[r.type] || r.type, r.ref, r.title, r.description, ...grid.categories.map((c) => r.tags[c] || ''), Core.formatExits(Core.parseExits(r.exits))].map((v) => String(v ?? ''))),
+    grid.rows.map((r) => [r.id, labels[r.type] || r.type, r.ref, r.contact, r.title, r.description, ...grid.categories.map((c) => r.tags[c] || ''), Core.formatExits(Core.parseExits(r.exits))].map((v) => String(v ?? ''))),
   );
 }
 
 /** @param {string[][]} table @returns {Uint8Array} */
 function flowWorkbook(table) {
-  const cats = table[0].length - 6;
+  const cats = table[0].length - 7;
   const types = Core.TYPES.map((t) => /** @type {Record<string, string>} */ (Core.TYPE_LABELS)[t]);
   return writeWorkbook([
     {
       name: SHEET,
       rows: table,
-      widths: [8, 12, 18, 44, 60, ...Array(cats).fill(22), 22],
+      widths: [8, 12, 18, 22, 44, 60, ...Array(cats).fill(22), 22],
       lists: [{ col: 1, values: types, title: 'Tipo', message: `Usa uno de estos tipos: ${types.join(', ')}.` }],
     },
   ]);

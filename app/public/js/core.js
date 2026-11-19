@@ -8,9 +8,11 @@
 
 /**
  * One row of the import grid. `type` is a type code, or the cell as written
- * when it is not one; `ref` is the target flow's name; `tags` maps each
- * category to its values ("a, b").
- * @typedef {{ id: string, type: string, ref: string, title: string, description: string,
+ * when it is not one; `ref` is the target flow's name; `contact` the job
+ * title to deal with on a link or subflow (SPEC §5); `tags` maps each
+ * category to its values ("a, b"). A grid written before the contact
+ * existed has no `contact`: it reads as empty.
+ * @typedef {{ id: string, type: string, ref: string, contact?: string, title: string, description: string,
  *   tags: Record<string, string>, exits: string, depends_on: string }} GridRow
  */
 
@@ -26,17 +28,19 @@
 
 /**
  * A step as edited: exits and tags are still text. `ref` is the target
- * flow's id, as stored: a number, never converted to text.
+ * flow's id, as stored: a number, never converted to text. `contact` only
+ * on link and subflow steps.
  * @typedef {{ id: string, type: string, title: string, description: string,
- *   tags: Record<string, string>, exits: string, ref?: number|null }} DraftStep
+ *   tags: Record<string, string>, exits: string, ref?: number|null, contact?: string }} DraftStep
  */
 
 /** @typedef {{ name?: string, objective?: string, categories?: string[], steps?: DraftStep[] }} Draft */
 
 /**
- * `ref` is the target flow's id on link and subflow steps, null otherwise.
+ * `ref` is the target flow's id on link and subflow steps, null otherwise;
+ * `contact` is their contact (SPEC §5), empty on every other type.
  * @typedef {{ id: string, type: string, title: string, description: string,
- *   tags: Record<string, string[]>, exits: Exit[], ref: number|null }} Step
+ *   tags: Record<string, string[]>, exits: Exit[], ref: number|null, contact: string }} Step
  */
 
 /** @typedef {{ name: string, objective: string, categories: string[], steps: Step[] }} Flow */
@@ -168,10 +172,12 @@ var Core = (function () {
         /** @type {Record<string, string[]>} */
         var tags = {};
         cats.forEach(function (c) { tags[c] = parseTags(s.tags && s.tags[c]); });
+        var pointing = s.type === 'subflow' || s.type === 'link';
         return {
           id: String(s.id || '').trim(), type: s.type, title: String(s.title || '').trim(),
           description: String(s.description || '').trim(), tags: tags, exits: parseExits(s.exits),
-          ref: (s.type === 'subflow' || s.type === 'link') && s.ref != null ? s.ref : null
+          ref: pointing && s.ref != null ? s.ref : null,
+          contact: pointing ? String(s.contact || '').trim() : ''
         };
       })
     };
@@ -284,7 +290,8 @@ var Core = (function () {
      take one of these names. */
   var FIXED_COLUMNS = {
     id: 'id', tipo: 'type', type: 'type', titulo: 'title', title: 'title', descripcion: 'description', description: 'description',
-    salidas: 'exits', exits: 'exits', 'depende de': 'dep', 'depends on': 'dep', flujo: 'ref', subflujo: 'ref', subflow: 'ref'
+    salidas: 'exits', exits: 'exits', 'depende de': 'dep', 'depends on': 'dep', flujo: 'ref', subflujo: 'ref', subflow: 'ref',
+    contacto: 'contact', contact: 'contact'
   };
   /** @param {string} header @returns {string|null} */
   function fixedColumn(header) {
@@ -298,7 +305,7 @@ var Core = (function () {
     var lines = (table || []).filter(function (r) { return (r || []).some(function (v) { return cell(v) !== ''; }); });
     if (!lines.length) { out.errors.push({ row: null, message: 'No hay nada pegado.', blocking: true }); return out; }
     var head = lines[0].map(cell);
-    var col = { id: -1, type: -1, title: -1, description: -1, exits: -1, dep: -1, ref: -1 };
+    var col = { id: -1, type: -1, title: -1, description: -1, exits: -1, dep: -1, ref: -1, contact: -1 };
     var cats = []; var seen = new Set();
     head.forEach(function (h, i) {
       var n = norm(h); var fixed = fixedColumn(h);
@@ -316,12 +323,18 @@ var Core = (function () {
     lines.slice(1).forEach(function (cells) {
       var get = function (i) { return i === -1 ? '' : cell(cells[i]); };
       var rawType = get(col.type);
+      /** @type {Record<string, string>} */
       var tags = {};
       cats.forEach(function (c) { tags[c.name] = get(c.i); });
-      out.grid.rows.push({
+      /** @type {GridRow} */
+      var row = {
         id: get(col.id), type: TYPE_ALIASES[norm(rawType)] || rawType, ref: get(col.ref), title: get(col.title),
         description: get(col.description), tags: tags, exits: get(col.exits), depends_on: get(col.dep)
-      });
+      };
+      // Only a table with a Contacto column gives rows a contact: a file
+      // written before it existed reads exactly as it always did.
+      if (col.contact !== -1) row.contact = get(col.contact);
+      out.grid.rows.push(row);
     });
     if (!out.grid.rows.length) out.errors.push({ row: null, message: 'Solo llegó la fila de encabezados.', blocking: true });
     return out;
@@ -357,6 +370,13 @@ var Core = (function () {
       } else if (refName) {
         out.errors.push({ row: r, message: label + ': es de tipo ' + (TYPE_LABELS[type] || type) + ', así que no lleva a otro flujo; se ignoró «' + refName + '» de la columna Flujo.', blocking: false });
       }
+      // SPEC §5: the contact belongs to a link or a subflow; on any other
+      // type it is dropped with a warning, as Flujo is.
+      var contact = String(g.contact || '').trim();
+      if (contact && (type === 'subflow' || type === 'link')) step.contact = contact;
+      else if (contact) {
+        out.errors.push({ row: r, message: label + ': es de tipo ' + (TYPE_LABELS[type] || type) + ', así que no lleva contacto; se ignoró «' + contact + '» de la columna Contacto.', blocking: false });
+      }
       out.steps.push(step);
     });
     var tmp = { steps: out.steps };
@@ -389,9 +409,10 @@ var Core = (function () {
   function toTSV(draft, flowName) {
     var cats = draft.categories || [];
     var clean = function (v) { return String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' '); };
-    var rows = [['ID', 'Tipo', 'Flujo', 'Título', 'Descripción'].concat(cats, ['Salidas'])];
+    var rows = [['ID', 'Tipo', 'Flujo', 'Contacto', 'Título', 'Descripción'].concat(cats, ['Salidas'])];
     draft.steps.forEach(function (s) {
-      rows.push([s.id, TYPE_LABELS[s.type] || '', (s.type === 'subflow' || s.type === 'link') && s.ref && flowName ? flowName(s.ref) || '' : '', s.title, s.description].concat(cats.map(function (c) { return (s.tags && s.tags[c]) || ''; }), [s.exits]).map(clean));
+      var pointing = s.type === 'subflow' || s.type === 'link';
+      rows.push([s.id, TYPE_LABELS[s.type] || '', pointing && s.ref && flowName ? flowName(s.ref) || '' : '', pointing ? s.contact || '' : '', s.title, s.description].concat(cats.map(function (c) { return (s.tags && s.tags[c]) || ''; }), [s.exits]).map(clean));
     });
     return rows.map(function (r) { return r.join('\t'); }).join('\n');
   }

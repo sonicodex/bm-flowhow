@@ -21,7 +21,7 @@ describe('nextStepId', () => {
 
 describe('blankRow', () => {
   it('is an activity with an empty cell per category', () => {
-    expect(blankRow(['Responsable', 'Herramienta'], 'P3')).toEqual(row('P3', 'activity', { title: '', tags: { Responsable: '', Herramienta: '' } }));
+    expect(blankRow(['Responsable', 'Herramienta'], 'P3')).toEqual(row('P3', 'activity', { title: '', contact: '', tags: { Responsable: '', Herramienta: '' } }));
   });
 });
 
