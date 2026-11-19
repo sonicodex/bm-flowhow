@@ -150,7 +150,7 @@ function EditorPage({
           </div>
         )}
       </div>
-      <FlowDataBox flow={flow} data={data} />
+      <FlowDataBox flow={flow} />
       <ImportBox />
       {/* Filled by editor.js with the review of an import (phase 5.5): it
           takes the place of the grid until the import is applied or
@@ -161,6 +161,7 @@ function EditorPage({
           device. */}
       <div class="editor-cols is-folded">
         <div class="editor-main">
+          <AreaPicker data={data} />
           <div class="editor-toolbar">
             <button type="button" class="button-secondary" data-add>
               Agregar paso
@@ -209,10 +210,11 @@ function EditorPage({
   );
 }
 
-// SPEC §6: the flow's data, in a panel above the grid that starts folded,
-// as the import box does. None of it is part of the draft: editor.js saves
-// each change at once, with no Guardar and no version.
-function FlowDataBox({ flow, data }: { flow: FlowRow; data: EditorData }) {
+// SPEC §6: the flow's name, objective and colour, in a panel above the grid
+// that starts folded, as the import box does. None of it is part of the
+// draft: editor.js saves each change at once, with no Guardar and no
+// version. The areas are not here: they sit beside the action buttons.
+function FlowDataBox({ flow }: { flow: FlowRow }) {
   return (
     <section class="card editor-import editor-data" id="flow-data" aria-labelledby="flow-data-title" hidden>
       <h2 id="flow-data-title">Datos del flujo</h2>
@@ -235,7 +237,6 @@ function FlowDataBox({ flow, data }: { flow: FlowRow; data: EditorData }) {
         </div>
         <FieldStatus id="flow-colour-status" />
       </fieldset>
-      <AreaPicker data={data} />
     </section>
   );
 }
@@ -244,8 +245,9 @@ function FlowDataBox({ flow, data }: { flow: FlowRow; data: EditorData }) {
 // that field is fixed, whatever is saved in the others.
 const FieldStatus = ({ id }: { id: string }) => <p class="muted field-status" id={id} role="status"></p>;
 
-// The flow's areas (DECISIONS, 2026-11-19): a drop-down of checkboxes inside
-// the flow data panel. editor.js saves each change at once.
+// The flow's areas (SPEC §6): a drop-down of checkboxes beside the action
+// buttons, visible without opening anything, since publishing needs one.
+// editor.js saves each change at once.
 function AreaPicker({ data }: { data: EditorData }) {
   const chosen = data.areaOptions.filter((a) => data.areaIds.includes(a.id)).map((a) => a.name);
   return (

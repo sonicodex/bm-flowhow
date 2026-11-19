@@ -26,7 +26,7 @@ const releases = (id: number) => env.DB.prepare("SELECT count(*) AS n FROM relea
 // SPEC §6: the flow's data lives in a folded panel above the editor's grid,
 // and none of it is part of the draft: each change is saved at once.
 describe("flow data panel (SPEC §6)", () => {
-  it("shows the panel folded in the editor, with every field, and no separate page", async () => {
+  it("shows the panel folded in the editor, the areas beside the action buttons, and no separate page", async () => {
     const board = await signIn();
     const flow = await createFlow(env.DB, "Despachos");
     if (!flow.ok) throw new Error(flow.error);
@@ -46,6 +46,11 @@ describe("flow data panel (SPEC §6)", () => {
     }
     expect(html).toContain('aria-describedby="flow-name-status"');
     expect(html).toContain('<span data-area-summary="true">Operaciones</span>');
+    // The areas sit outside the panel, beside the action buttons (SPEC §6).
+    const panel = html.slice(html.indexOf('id="flow-data"'), html.indexOf("</section>", html.indexOf('id="flow-data"')));
+    expect(panel).toContain('id="flow-name"');
+    expect(panel).not.toContain('id="area-picker"');
+    expect(html.indexOf('id="area-picker"')).toBeLessThan(html.indexOf('class="editor-toolbar"'));
     expect((await board.fetch(`/flows/${flow.id}/details`)).status).toBe(404);
   });
 

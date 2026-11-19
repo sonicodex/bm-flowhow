@@ -14,6 +14,40 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Areas back beside the action buttons; grid scrollbars always shown (SPEC §6)
+
+- Decision:
+  - **The owner changed SPEC §6 again.** The assigned areas leave the flow
+    data panel: publishing depends on them, so they are visible without
+    opening anything. The panel keeps name, objective and colour. Both
+    of the grid's scrollbars stay visible at all times.
+  - **The areas selector is back where b5eca22 put it:** its own line,
+    right above the toolbar, unchanged.
+    - Publishing with no area opens the selector and focuses its first
+      area. The panel stays as it is.
+  - **Scrollbars:** the grid's scrollbars are styled through
+    `::-webkit-scrollbar`, with tokens only. This makes Chrome, Edge and
+    Safari on macOS draw classic bars that are always shown, instead of
+    overlay bars that appear only while scrolling.
+    - `scrollbar-width` and `scrollbar-color` are left unset: where
+      either is set, Chrome ignores the `::-webkit-scrollbar` rules.
+    - Firefox follows the system setting and cannot be made to show
+      them.
+  - **The grid's height is fitted whenever the page changes size,** not
+    only `.editor`. That covers the site header too.
+    - Measured at 1280×800, 1366×768 and 1280×650, with the publish
+      notice above: the grid ends 25px above the window's bottom in
+      each.
+  - **Known limit:** with the flow data panel open, there is no room
+    left below it on a laptop screen. The grid keeps its floor (a third
+    of the window) and its bottom bar sits below the window until the
+    page is scrolled or the panel is folded. Measured at 1280×800: the
+    grid ends at y=1077.
+  - One message per field in the panel, the third point of this review,
+    was already done in 32185c6.
+- Reason: SPEC §6, rewritten by the owner on 2026-11-19.
+- Spec sections affected: none beyond the owner's change.
+
 ## 2026-11-19 — The flow data panel replaces «Datos del flujo» (SPEC §6)
 
 - Decision:
@@ -55,6 +89,9 @@ Entry format:
     in the editor.
 - Reason: SPEC §6, rewritten by the owner on 2026-11-19.
 - Spec sections affected: none beyond the owner's change.
+- Superseded in part (2026-11-19, entry above): the areas selector left
+  the panel and went back above the toolbar. Publishing with no area
+  opens the selector, not the panel.
 
 ## 2026-11-19 — The grid fits the window; the areas move up to the editor
 

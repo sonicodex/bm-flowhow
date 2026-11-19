@@ -1378,6 +1378,31 @@ textarea:focus-visible,
   overflow: auto;
 }
 
+/* SPEC §6: both scrollbars visible at all times. macOS draws overlay
+   scrollbars that only show while scrolling; giving them a style through
+   ::-webkit-scrollbar makes Chrome, Edge and Safari draw them classic and
+   always shown. Not scrollbar-width or scrollbar-color: where either is set,
+   Chrome ignores these rules. Firefox follows the system setting. */
+.editor .table-scroll::-webkit-scrollbar {
+  width: var(--space-3);
+  height: var(--space-3);
+}
+
+.editor .table-scroll::-webkit-scrollbar-track,
+.editor .table-scroll::-webkit-scrollbar-corner {
+  background: var(--color-subtle);
+}
+
+.editor .table-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border: calc(var(--border-width) * 3) solid var(--color-subtle);
+  border-radius: var(--radius);
+}
+
+.editor .table-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
 .step-grid thead th {
   position: sticky;
   top: 0;
@@ -1513,12 +1538,7 @@ textarea:focus-visible,
   box-shadow: var(--shadow-focus);
 }
 
-.editor-data .area-picker label {
-  font-weight: var(--weight-regular);
-}
-
-.editor-data .choice-list,
-.editor-data .editor-areas {
+.editor-data .choice-list {
   margin: 0;
 }
 

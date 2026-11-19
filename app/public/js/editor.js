@@ -649,8 +649,8 @@ if (dataEl && table) {
     if ((dirty() || areasBusy || dataBusy) && !leaving) ev.preventDefault();
   });
 
-  // ---- The flow's data (SPEC §6): a panel above the grid that starts
-  // folded, as the import box does. None of it is part of the draft: each
+  // ---- The flow's name, objective and colour (SPEC §6): a panel above the
+  // grid that starts folded, as the import box does. None of it is part of the draft: each
   // change is saved at once, with no Guardar and no version. Name,
   // objective and colour go one field per request (POST /flows/:id/details),
   // one request after another. ----
@@ -664,12 +664,10 @@ if (dataEl && table) {
   /** Saves in flight per field, so «Guardado» waits for the last one. */
   const pendingFor = new Map();
 
-  function openData(open, focus = true) {
+  function openData(open) {
     dataBox.hidden = !open;
     dataButton.setAttribute('aria-expanded', String(open));
-    if (!focus) return;
-    if (open) nameInput.focus();
-    else dataButton.focus();
+    (open ? nameInput : dataButton).focus();
   }
   dataButton.addEventListener('click', () => openData(dataBox.hidden));
 
@@ -739,7 +737,7 @@ if (dataEl && table) {
     });
   });
 
-  // ---- The flow's areas, in the same panel (DECISIONS, 2026-11-19), saved
+  // ---- The flow's areas (SPEC §6), beside the action buttons, saved
   // at once on each change (POST /flows/:id/areas). One request at a time;
   // a change made meanwhile is sent after it, with the whole set. ----
 
@@ -810,7 +808,7 @@ if (dataEl && table) {
     }
   });
 
-  // ---- The grid's height (DECISIONS, 2026-11-19): at most what is left of
+  // ---- The grid's height (SPEC §6, grid scrolling): at most what is left of
   // the window below the grid's top, so its horizontal bar is in view
   // without scrolling the page; the rows scroll inside it, under a header
   // that stays put. Never below a third of the window, for a short one. ----
@@ -823,10 +821,11 @@ if (dataEl && table) {
     const edges = frame.offsetHeight - scroller.offsetHeight + (parseFloat(getComputedStyle(frame).marginBottom) || 0);
     scroller.style.maxHeight = `${Math.max(window.innerHeight - top - edges, window.innerHeight / 3)}px`;
   }
-  // What sits above the grid changes height (a message, the import box):
-  // the section's size changes with it. Setting the same height again
-  // changes nothing, so this does not loop.
-  new ResizeObserver(fitGrid).observe(document.querySelector('.editor'));
+  // What sits above the grid changes height (a message, a panel, the
+  // site header once its logo and fonts load): the page's size changes with
+  // it. Setting the same height again changes nothing, so this does not
+  // loop.
+  new ResizeObserver(fitGrid).observe(document.body);
   window.addEventListener('resize', fitGrid);
 
   // ---- Publish (SPEC §6 publish validations, §8; phase 5.7). What is
@@ -859,9 +858,8 @@ if (dataEl && table) {
       return;
     }
     if (!data.published && !data.areaIds.length) {
-      // The panel opens on the selector, so the area is chosen here.
+      // The selector opens, so the area is chosen right here.
       say('<h2>Falta asignar un área</h2><p>La primera publicación necesita al menos un área: sin ella nadie vería el flujo. Elígela en «Áreas que lo ven» y vuelve a publicar.</p>' + actions(''));
-      openData(true, false);
       picker.open = true;
       (picker.querySelector('input, a') || picker.querySelector('summary')).focus();
       return;
