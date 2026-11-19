@@ -678,20 +678,49 @@ textarea:focus-visible,
   }
 }
 
-/* The notice when the tour went back to a decision (phase 6.13): a band
-   across the top of the diagram that stays until a branch is chosen,
-   marked like every warning, with the alert icon and a yellow edge. */
-.tour-return {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin: 0;
-  padding: var(--space-3) var(--space-6);
+/* Tooltips (phase 6.17): one look for every tooltip (theme.css tooltip
+   tokens), anchored above a diagram node with the arrow down, or below it
+   with the arrow up. public/js/viewer.js places them and the arrow. */
+.diagram-scroll {
+  position: relative;
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 2;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: var(--tooltip-max-width);
+  padding: var(--tooltip-padding);
+  border-radius: var(--tooltip-radius);
+  background: var(--color-tooltip-surface);
+  color: var(--color-tooltip-text);
+  box-shadow: var(--shadow-tooltip);
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
-  background: var(--color-bg);
-  border-bottom: var(--border-width) solid var(--color-border);
-  border-left: calc(var(--border-width) * 3) solid var(--color-status-alert);
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - var(--tooltip-arrow)));
+}
+
+.tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: var(--tip-arrow-x, 50%);
+  transform: translateX(-50%);
+  border: var(--tooltip-arrow) solid transparent;
+  border-top-color: var(--color-tooltip-surface);
+}
+
+.tooltip.below {
+  transform: translate(-50%, var(--tooltip-arrow));
+}
+
+.tooltip.below::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: var(--color-tooltip-surface);
 }
 
 .tour-progress .bar {

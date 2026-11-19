@@ -214,7 +214,8 @@ if (data && cols) {
     const side = (n) => (n.id === current && tagged ? BADGE_ROOM : 0);
     const x0 = Math.max(0, Math.min(...nodes.map((n) => n.x - n.w / 2 - side(n))) - FRAME_PAD);
     const x1 = Math.min(layout.width, Math.max(...nodes.map((n) => n.x + n.w / 2 + side(n))) + FRAME_PAD);
-    const y0 = Math.max(0, Math.min(...nodes.map((n) => n.y - n.h / 2)) - FRAME_PAD);
+    const room = (n) => (n.id === current && pendingBranches(tour).length ? TIP_ROOM : 0);
+    const y0 = Math.max(0, Math.min(...nodes.map((n) => n.y - n.h / 2 - room(n))) - FRAME_PAD);
     const y1 = Math.min(layout.height, Math.max(...nodes.map((n) => n.y + n.h / 2)) + FRAME_PAD);
     const w = x1 - x0;
     const h = y1 - y0;
@@ -238,16 +239,15 @@ if (data && cols) {
     resizing = requestAnimationFrame(() => {
       const box = document.getElementById('diagram');
       if (state && zoomed && box) zoomTo(box, state.layout, state.tour);
+      // The tooltip follows its node.
+      if (state && box) showReturnTip(box, state.tour);
+      hideHoverTip();
     });
   });
 
   const zoomToggle = () =>
     `<button type="button" class="button-link zoom-toggle" data-zoom aria-pressed="${zoomed}"><span class="icon-zoom" aria-hidden="true"></span>${zoomed ? 'Ver todo' : 'Acercar'}</button>`;
 
-  // SPEC §7 (phase 6.13): when the tour went back to a decision, for
-  // whatever reason, a notice stays on the diagram until a branch is
-  // chosen. The side panel says why; this says what is left. Being moved
-  // without being told is when people decide the app is broken.
   // «Convenciones» (SPEC §7; phase 6.14): what each badge style stands for,
   // above the diagram wherever badges show (the tour and the free review).
   // Category slots repeat from the fifth on, as the badges do.
@@ -256,12 +256,75 @@ if (data && cols) {
       ? `<div class="legend"><span class="legend-title">Convenciones</span>${categories.map((c, i) => `<span class="legend-item"><span class="legend-swatch c${(i % CATEGORY_SLOTS) + 1}" aria-hidden="true"></span>${esc(c)}</span>`).join('')}</div>`
       : '';
 
-  const RETURN_NOTICE = 'Faltan ramas por recorrer en esta decisión. Elige una para seguir.';
-  const returnNotice = (tour) => {
-    const note = tour.current().note;
-    if (!tour.atEnd() || !note || !note.returned || !tour.canChoose()) return '';
-    return `<p class="tour-return" role="status"><img class="icon" src="/icons/alert.svg" alt="" width="18" height="18"><span>${RETURN_NOTICE}</span></p>`;
+  // ---- Tooltips (SPEC §7; phase 6.17): one look for all of them, dark
+  // with light text (theme.css tooltip tokens), above the node they speak
+  // of with the arrow down; below it only when the diagram has no room
+  // above. They live inside the diagram's scroll box, so they move with it.
+  const TIP_GAP = 4;
+  const placeTip = (box, node, tip) => {
+    const b = box.getBoundingClientRect();
+    const r = node.getBoundingClientRect();
+    const anchor = r.left - b.left + box.scrollLeft + r.width / 2;
+    const w = tip.offsetWidth;
+    const h = tip.offsetHeight;
+    // Kept inside the diagram sideways; the arrow still points at the node.
+    const x = Math.max(w / 2 + TIP_GAP, Math.min(anchor, box.scrollWidth - w / 2 - TIP_GAP));
+    const top = r.top - b.top + box.scrollTop;
+    const below = top - h - TIP_GAP * 2 < 0;
+    tip.classList.toggle('below', below);
+    tip.style.left = `${x}px`;
+    tip.style.top = `${below ? top + r.height : top}px`;
+    tip.style.setProperty('--tip-arrow-x', `${anchor - x + w / 2}px`);
+    return below ? top + r.height : top - h - TIP_GAP * 2;
   };
+
+  // The tooltip of a step that has one (a link step: where it leads), on
+  // pointer hover and on keyboard focus. Its text is also in the step's
+  // accessible name, so the tooltip itself is hidden from screen readers.
+  const hideHoverTip = () => document.querySelectorAll('.tooltip-hover').forEach((t) => t.remove());
+  const showHoverTip = (target) => {
+    hideHoverTip();
+    if (!(target instanceof Element)) return;
+    const node = target.closest('[data-tip]') || target.querySelector('[data-tip]');
+    const box = node && node.closest('.diagram-scroll');
+    if (!node || !box) return;
+    const tip = document.createElement('div');
+    tip.className = 'tooltip tooltip-hover';
+    tip.setAttribute('aria-hidden', 'true');
+    tip.textContent = node.getAttribute('data-tip');
+    box.append(tip);
+    placeTip(box, node, tip);
+  };
+
+  // When the tour went back to a decision, for whatever reason, a tooltip
+  // on that decision names the branches still to walk, until one is chosen
+  // (SPEC §7; phase 6.17, replacing 6.13's band). The side panel says why.
+  const pendingBranches = (tour) => {
+    const note = tour.current().note;
+    if (!tour.atEnd() || !note || !note.returned || !tour.canChoose()) return [];
+    return tour.options().filter((o) => !o.taken).map((o) => o.label || o.title);
+  };
+  const returnText = (pending) => {
+    const names = new Intl.ListFormat('es', { type: 'conjunction' }).format(pending.map((p) => `«${p}»`));
+    return pending.length === 1 ? `Falta la rama ${names}. Elígela para seguir.` : `Faltan las ramas ${names}. Elige una para seguir.`;
+  };
+  // Room above the decision for the tooltip when the tour is zoomed.
+  const TIP_ROOM = 72;
+  const showReturnTip = (box, tour) => {
+    box.querySelector('.tooltip-return')?.remove();
+    const pending = pendingBranches(tour);
+    const node = pending.length ? box.querySelector(`.node[data-id="${CSS.escape(tour.current().id)}"]`) : null;
+    if (!node) return;
+    const tip = document.createElement('div');
+    tip.className = 'tooltip tooltip-return';
+    tip.setAttribute('role', 'status');
+    tip.textContent = returnText(pending);
+    box.append(tip);
+    const top = placeTip(box, node, tip);
+    // In view: the diagram scrolls up if the tooltip starts above it.
+    if (top < box.scrollTop) box.scrollTop = Math.max(0, top);
+  };
+
 
   const renderTour = (focus) => {
     const { tour, flow: toured, layout } = state;
@@ -279,7 +342,6 @@ if (data && cols) {
       `<div class="bar" role="progressbar" aria-label="Pasos visitados" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${seen}"><div style="width:${Math.round((seen / total) * 100)}%"></div></div>` +
       // Back to the overview; the run stays open (phase 3.5).
       `${zoomToggle()}<button type="button" class="button-link" data-overview>Ver el flujo completo</button></div>` +
-      returnNotice(tour) +
       legend(toured.categories) +
       `<div class="diagram-scroll" id="diagram">${renderDiagram(layout, { name, colour }, marks(tour, toured.categories), linkMarks(toured, false))}</div>` +
       `<div class="diagram-actions"><p class="tour-message" role="status">${esc(state.message)}</p>` +
@@ -289,6 +351,7 @@ if (data && cols) {
     const box = document.getElementById('diagram');
     if (zoomed) zoomTo(box, layout, tour);
     else scrollToCurrent(box, layout, tour.current().id);
+    showReturnTip(box, tour);
     const target = (focus && cols.querySelector(focus)) || cols.querySelector('[data-choose]:not(.taken)') || cols.querySelector('[data-finish]') || cols.querySelector('[data-next]:not([disabled])');
     if (target && !target.disabled) target.focus({ preventScroll: true });
   };
@@ -471,6 +534,16 @@ if (data && cols) {
     ev.preventDefault();
     selectNode(node);
   });
+
+  cols.addEventListener('pointerover', (ev) => {
+    if (ev.target instanceof Element && ev.target.closest('[data-tip]')) showHoverTip(ev.target);
+  });
+  cols.addEventListener('pointerout', (ev) => {
+    const from = ev.target instanceof Element ? ev.target.closest('[data-tip]') : null;
+    if (from && !(ev.relatedTarget instanceof Node && from.contains(ev.relatedTarget))) hideHoverTip();
+  });
+  cols.addEventListener('focusin', (ev) => showHoverTip(ev.target));
+  cols.addEventListener('focusout', hideHoverTip);
 
   cols.addEventListener('click', (ev) => {
     if (review) {

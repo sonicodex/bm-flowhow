@@ -160,7 +160,8 @@ let seq = 0;
 
 /**
  * Where link steps lead (SPEC §7; phase 6.15), by step id: the target
- * flow's name, always shown as the step's tooltip, and `href` when the user
+ * flow's name, always shown as the step's tooltip (the app's own, drawn
+ * by the viewer from `data-tip`; phase 6.17), and `href` when the user
  * may open it, which makes the step a link.
  * @typedef {Record<string, { name: string, href?: string }>} LinkMarks
  */
@@ -208,15 +209,17 @@ export function renderDiagram(layout, flow, tour, links = {}) {
   out += parallels(layout, id, tour ? (a, b) => tour.walked(a, b) || tour.walked(b, a) : null);
   for (const n of layout.nodes) {
     const state = tour ? tour.state(n.id) : '';
-    const button = clickable
-      ? ` tabindex="0" role="button" aria-label="${esc(`${Core.TYPE_LABELS[n.type] || n.type}: ${n.title || '(sin título)'}`)}"${/\bselected\b/.test(state) ? ' aria-pressed="true"' : ' aria-pressed="false"'}`
-      : '';
     const target = links[n.id];
-    const tip = target ? `Lleva al flujo «${target.name}»` : n.title;
+    // A link step's tooltip is the app's own (data-tip, drawn by the viewer;
+    // phase 6.17), not the browser's: one look for every tooltip (SPEC §7).
+    const tip = target ? `Lleva al flujo «${target.name}»` : '';
+    const button = clickable
+      ? ` tabindex="0" role="button" aria-label="${esc(`${Core.TYPE_LABELS[n.type] || n.type}: ${n.title || '(sin título)'}${tip ? `. ${tip}` : ''}`)}"${/\bselected\b/.test(state) ? ' aria-pressed="true"' : ' aria-pressed="false"'}`
+      : '';
     const to = href(n.id);
     if (to) out += `<a class="node-link" href="${esc(to)}" aria-label="${esc(`Enlace: ${n.title || '(sin título)'}. ${tip}`)}">`;
-    out += `<g class="node t-${esc(n.type)}${state ? ` ${esc(state)}` : ''}${clickable ? ' clickable' : ''}" data-id="${esc(n.id)}" transform="translate(${num(n.x - n.w / 2)} ${num(n.y - n.h / 2)})"${button}>`;
-    out += `<title>${esc(tip)}</title>${shape(n)}${icon(n)}${label(n)}</g>`;
+    out += `<g class="node t-${esc(n.type)}${state ? ` ${esc(state)}` : ''}${clickable ? ' clickable' : ''}" data-id="${esc(n.id)}"${tip ? ` data-tip="${esc(tip)}"` : ''} transform="translate(${num(n.x - n.w / 2)} ${num(n.y - n.h / 2)})"${button}>`;
+    out += `${tip ? '' : `<title>${esc(n.title)}</title>`}${shape(n)}${icon(n)}${label(n)}</g>`;
     if (to) out += '</a>';
   }
   if (tags) out += tags.svg;

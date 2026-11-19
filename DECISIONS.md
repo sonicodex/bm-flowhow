@@ -14,6 +14,61 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.17: the return notice is a tooltip on the decision
+
+- Decision:
+  - **Owner's change to SPEC §7:** when the tour goes back to a decision,
+    the notice is a tooltip anchored to that decision's node, not 6.13's
+    band. It stays until a branch is chosen and names the pending
+    branches. The tooltip tokens are the owner's, in `theme.css`.
+  - **One tooltip for the app** (`.tooltip` in `app.css`):
+    - Dark with light text: `--color-tooltip-surface`,
+      `--color-tooltip-text`, `--tooltip-radius`, `--tooltip-padding`,
+      `--tooltip-max-width`, `--shadow-tooltip`, and an arrow of
+      `--tooltip-arrow`.
+    - It sits above the node, arrow down (owner's answer). Only when the
+      diagram has no room above, it goes below, arrow up.
+    - It lives inside the diagram's scroll box, so it scrolls with the
+      diagram. `viewer.js` places it from the node's drawn position, so it
+      follows the zoom and the window's size. Sideways it stays inside the
+      diagram, and the arrow still points at the node.
+  - **The return tooltip:**
+    - Text, naming every pending branch (owner's answer):
+      - one: «Falta la rama «Sí». Elígela para seguir.»
+      - several: «Faltan las ramas «A» y «B». Elige una para seguir.»
+      - A branch with no label is named by the title of the step it
+        leads to.
+    - It shows when the engine's note says `returned` and the decision
+      still has untaken branches. It has `role="status"`, so it is
+      announced.
+    - The diagram scrolls so it is in view. When zoomed, the frame makes
+      72 units of room above the decision.
+    - The side panel still says why.
+  - **The link tooltip** (6.15) moves to the same tooltip (owner's
+    answer):
+    - The renderer marks link steps with `data-tip` instead of the
+      browser's `<title>`, so two tooltips never show at once.
+    - It shows on pointer hover and on keyboard focus.
+    - Its text is already in the step's accessible name: the link's,
+      and now also the free review button's. So the tooltip is
+      `aria-hidden`.
+    - Every other step keeps its `<title>`, which still shows the full
+      title of a label cut short.
+  - **Checked in Chrome:**
+    - As junta on Instalaciones: P5 «No» → P30 → back to P5. The tooltip
+      «Falta la rama «Sí». Elígela para seguir.» sits centred above P5,
+      dark with white text, inside the card. It stays in place zoomed,
+      and is gone after «Sí».
+      - The step requests were answered in the browser, so the owner's
+        run 5 was not written to.
+    - In Apertura's overview, hovering P13 shows «Lleva al flujo
+      «Instalaciones»», with no native tooltip. It goes away on leaving.
+  - **P13 report:** run 8 (`empleado`) went past P13 at 20:41 UTC and on
+    to P23. Those visits are the owner's; the previous commit's test
+    covers the case.
+- Reason: SPEC §7 (owner's change and answers); slice 6.17.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.16: the report's filters apply as they change
 
 - Decision:
@@ -138,11 +193,13 @@ Entry format:
     answer): a branch ended, a path looped without closing, a branch was
     held at a meeting point, or «Ir a lo que falta por visitar». That is
     every engine note with `returned`.
-  - **What:** a band across the top of the diagram card, under the
+  - ~~**What:** a band across the top of the diagram card, under the
     progress bar: «Faltan ramas por recorrer en esta decisión. Elige una
-    para seguir.»
-    - It has the alert icon and the yellow edge of every warning, and
-      `role="status"`.
+    para seguir.»~~
+    ~~- It has the alert icon and the yellow edge of every warning, and
+      `role="status"`.~~
+    Superseded by the owner, same day: see «Phase 6.17: the return notice
+    is a tooltip on the decision».
     - The side panel keeps saying why («Esa rama terminó en …»).
   - **How long:** while that decision is the step in view and awaits a
     choice; choosing a branch removes it.
