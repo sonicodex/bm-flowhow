@@ -325,8 +325,9 @@ Publishing is blocked if:
 Pattern: whole → parts → whole.
 
 1. **Overview:** full diagram plus the objective, read-only. A `link` step is
-   clickable here too when the user has access to the target flow, with a
-   tooltip saying where it leads.
+   clickable here too when the user has access to the target flow, and leads
+   to that flow's overview, not into its tour: an overview answers an
+   overview. The tooltip says where it leads, with or without access.
 2. **Tour:** one step at a time. Current step highlighted, the rest dimmed.
    Side panel with title, description and tags. "Anterior" / "Siguiente".
 3. **Free review:** full diagram, click any step, highlight the steps that
@@ -348,7 +349,8 @@ Tour rules:
 - **Going back to the decision in between is for choices that matter.** The
   tour walks the branches one after another without returning only when
   **every** branch of that decision reaches the meeting point in a single
-  step: then there is nothing to decide, only alternatives to be shown, and
+  step, or goes straight to it with no step in between: then there is nothing
+  to decide, only alternatives to be shown, and
   the tour says which is which ("2 de 3"). Say it the way a person would
   explain it out loud: "here there are three ways the material arrives — this
   one, this one and this one — and after that they all go the same way."
@@ -462,7 +464,8 @@ Designed for desktop, usable on mobile.
   right corner of the diagram card, side by side. The same order applies to
   the overview and the free review.
 - **Parallel branches are drawn as parallel.** When every branch of a
-  decision reaches the same meeting point in a single step, those steps are
+  decision reaches the same meeting point in one step or none at all, those
+  steps are
   joined to each other by a double-headed connector: they are alternatives,
   not a sequence. The mark is part of the diagram and shows everywhere it is
   drawn, not only while the tour walks them — the same condition that makes
@@ -579,8 +582,10 @@ several parent flows.
   so a rule cannot drift between them. This is the reason the server is
   TypeScript: in any other language those rules exist twice and must be kept
   in step by hand, forever.
-- **Pages:** server-rendered. Only three screens run JavaScript of their own:
-  the step grid, the diagram and the tour. Not a single-page app.
+- **Pages:** server-rendered. Only four screens run JavaScript of their own:
+  the step grid, the diagram, the tour and the progress report, whose filters
+  work as you type. The report still works without it: no JavaScript, and the
+  filters fall back to a button. Not a single-page app.
 - **Diagram:** layered auto-layout computed in the browser, drawn as SVG.
   Coordinates are never stored.
 - **Excel and paste:** parsed in the browser into the grid structure, so the
