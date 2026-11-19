@@ -12,7 +12,7 @@
 // against a newer server would break the tour. The cache makes the shell
 // available when the network is not; it does not make anything faster.
 // Bump VERSION when the list changes.
-const VERSION = 'flowhow-shell-1';
+const VERSION = 'flowhow-shell-2';
 
 // The "sin conexión" page is public/offline.html, which the assets serve at
 // /offline (they redirect the .html address, and a redirected response

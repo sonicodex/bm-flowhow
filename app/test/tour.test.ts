@@ -413,6 +413,34 @@ describe("tour routes", () => {
     expect((await post("/flows/999/tour")).status).toBe(404);
   });
 
+  // Owner's report after phase 6: an Empleado without access to the flow a
+  // link leads to was stuck on Apertura's P13. «Siguiente» on a link step
+  // follows its exit, with access to the other flow or without it.
+  it("goes on past a link step to a flow the user cannot open", async () => {
+    const s = await setup();
+    const area = (await db().prepare("INSERT INTO areas (name, name_key) VALUES ('Diseño', 'diseno') RETURNING id").first<number>("id"))!;
+    await db().prepare("DELETE FROM flow_areas").run();
+    await db().prepare("INSERT INTO flow_areas (flow_id, area_id) VALUES (?, ?)").bind(s.flowId, area).run();
+    const ana = await signIn({ username: "empleada", role: "standard", areaIds: [area] });
+    const send = (path: string, body?: unknown) =>
+      ana.fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+    const inst = (await db().prepare("SELECT id FROM flows WHERE name = 'Instalaciones'").first<number>("id"))!;
+    // She cannot open Instalaciones: to her it does not exist.
+    expect((await ana.fetch(`/flows/${inst}`)).status).toBe(404);
+    const started = (await (await send(`/flows/${s.flowId}/tour`)).json()) as any;
+    // The link is named, and closed to her.
+    expect(started.links).toEqual({ [inst]: { name: "Instalaciones", open: false } });
+    for (const at of ["P1", "P2", "P3", "P4", "P5"]) expect((await send(`/flows/${s.flowId}/tour/step`, { at, action: "next" })).status).toBe(200);
+    expect((await send(`/flows/${s.flowId}/tour/step`, { at: "P6", action: "choose", exit: 1 })).status).toBe(200);
+    // P13, the link to Instalaciones: «Siguiente» leads to P14.
+    const step = await send(`/flows/${s.flowId}/tour/step`, { at: "P13", action: "next" });
+    expect(step.status).toBe(200);
+    expect(await step.json()).toEqual({ row: { step: "P13", exit: 0 } });
+    const tour = replay(s.flow, await logOf(ana.id));
+    expect(tour.current().id).toBe("P14");
+    expect(s.flow.steps.find((x: any) => x.id === "P14")?.title).toBe("Poner las artes en el Dropbox de Producción");
+  });
+
   it("answers start and finish with the new status, and the page shows it", async () => {
     const s = await setup("Ramas gemelas");
     const page = async () => (await me.fetch(`/flows/${s.flowId}`)).text();
