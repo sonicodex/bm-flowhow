@@ -84,7 +84,17 @@ With `npx wrangler tail` while using the app:
   validates the flow and loads every other flow's latest release, to
   check links.
 
-## 6. After every deployment
+## 6. Automatic deployment — the target, not built yet
+
+Every push to `main` deploys. There is no `main` branch yet; work lives on
+`devel`. When it exists, the deployment moves to a GitHub Action running
+`wrangler deploy` with a Cloudflare API token in the repository's secrets,
+and the migrations run in the same job, before the deploy. Until then the
+owner deploys by hand, and nothing in the steps above may depend on a human
+being there: every one of them has to be reproducible from CI, the first
+Board user excepted, which is created once.
+
+## 7. After every deployment
 
 - The session cookie is `Secure`: the app must be served over HTTPS
   (`workers.dev` and Cloudflare custom domains are).
