@@ -380,6 +380,11 @@ Tour rules:
   the tour says which is which ("2 de 3"). Say it the way a person would
   explain it out loud: "here there are three ways the material arrives — this
   one, this one and this one — and after that they all go the same way."
+- **The reader opens each of them.** Clicking one parallel step does not carry
+  the tour through the rest: "Siguiente" stays disabled until every sibling
+  has been clicked, each one read in its turn. They are alternatives that all
+  happen at the same place, and being shown them in a row teaches less than
+  opening them one by one.
 - In every other case the tour returns to the decision, because entering a
   different road should be a deliberate act and the labels carry meaning. A
   decision with one long branch and one short one returns: coming out of a
