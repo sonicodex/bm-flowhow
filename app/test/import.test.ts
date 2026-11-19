@@ -103,6 +103,10 @@ describe("reviewGrid and applyGrid", () => {
     if (!r.ok) throw new Error(JSON.stringify(r.errors));
     expect(r.document.steps).toHaveLength(36);
     expect(r.document.steps.find((s) => s.id === "P13")!.ref).toBe(inst);
+    // P13 carries the reference file's one contact (phase 6.3); no other
+    // step has one, so no other step stores the field.
+    expect(r.document.steps.find((s) => s.id === "P13")!.contact).toBe("Jefe de instalación");
+    expect(r.document.steps.filter((s) => "contact" in s).map((s) => s.id)).toEqual(["P13"]);
     expect(await count("SELECT count(*) AS n FROM save_points WHERE flow_id = ?", ot)).toBe(1);
   });
 

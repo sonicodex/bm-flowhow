@@ -14,6 +14,39 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.3: P13 of Apertura de OT gets its contact in the reference file
+
+- Decision:
+  - **The edit:** `reference/Flujo_Apertura_OT.xlsx` gains a «Contacto»
+    column right after «Flujo», as in the template (the owner's answer 4).
+    P13, the link to Instalaciones, holds «Jefe de instalación». The
+    owner authorised this edit of `reference/`.
+  - **How:** an edit of the sheet's XML, not a rewrite with
+    `xlsx-write.js`, which would have dropped the «Dudas» and «Ficha»
+    sheets and the formatting.
+    - Every cell from D on moved one column right, with its width.
+    - The new D column is 22 wide, as in the template, and takes each
+      row's style.
+    - The sheet's dimension went to `A1:I37`.
+    - The script refused to run if the sheet had anything it does not
+      account for: merged cells, formulas, validations, filters, links,
+      tables. It had none.
+    - Every other zip entry was copied byte for byte, in the same order.
+      The script was one-off and is not committed.
+  - **Checked before replacing the file:**
+    - Read with our own reader (`tools/xlsx-to-grid.mjs`), the new file
+      gives the committed grid row for row.
+    - The only difference is a `contact` key on every row, empty except
+      on P13.
+  - **The grid:** `Flujo_Apertura_OT.grid.json` was regenerated with the
+    same tool. `Flujo_Instalaciones` is untouched: it has no link, and a
+    file without the column still reads as before.
+  - **Local database:** `db:load` published Apertura de OT 1.2, whose P13
+    stores the contact. Instalaciones stays on 1.0, and a second load
+    changes nothing.
+- Reason: phase 6 plan (plan_iteration_3), slice 6.3; SPEC §5.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.2: the contact in the editor's grid
 
 - Decision:

@@ -15,7 +15,8 @@
         "Herramienta": "TC, WP"
       },
       "exits": "P2",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P2",
@@ -28,7 +29,8 @@
         "Herramienta": "TC, Dropbox"
       },
       "exits": "P3",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P3",
@@ -41,7 +43,8 @@
         "Herramienta": "TC, WP"
       },
       "exits": "P4",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P4",
@@ -54,7 +57,8 @@
         "Herramienta": "TC"
       },
       "exits": "P5",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P5",
@@ -67,7 +71,8 @@
         "Herramienta": "TC"
       },
       "exits": "P6",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P6",
@@ -80,7 +85,8 @@
         "Herramienta": ""
       },
       "exits": "Externa:P7 | Interna:P13",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P7",
@@ -93,7 +99,8 @@
         "Herramienta": "WP"
       },
       "exits": "Litografía:P8 | Otro proveedor:P9",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P8",
@@ -106,7 +113,8 @@
         "Herramienta": "WP"
       },
       "exits": "P10",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P9",
@@ -119,7 +127,8 @@
         "Herramienta": "WP"
       },
       "exits": "P10",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P10",
@@ -132,7 +141,8 @@
         "Herramienta": "WP, Correo"
       },
       "exits": "P11",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P11",
@@ -145,7 +155,8 @@
         "Herramienta": ""
       },
       "exits": "P12",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P12",
@@ -158,7 +169,8 @@
         "Herramienta": ""
       },
       "exits": "P24",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P13",
@@ -171,7 +183,8 @@
         "Herramienta": ""
       },
       "exits": "P14",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": "Jefe de instalación"
     },
     {
       "id": "P14",
@@ -184,7 +197,8 @@
         "Herramienta": "Dropbox, WP, TC"
       },
       "exits": "P15",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P15",
@@ -197,7 +211,8 @@
         "Herramienta": ""
       },
       "exits": "P16",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P16",
@@ -210,7 +225,8 @@
         "Herramienta": "TC"
       },
       "exits": "P17",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P17",
@@ -223,7 +239,8 @@
         "Herramienta": "WP, TV Producción"
       },
       "exits": "P18",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P18",
@@ -236,7 +253,8 @@
         "Herramienta": "TC"
       },
       "exits": "P19",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P19",
@@ -249,7 +267,8 @@
         "Herramienta": ""
       },
       "exits": "P20",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P20",
@@ -262,7 +281,8 @@
         "Herramienta": "TCA"
       },
       "exits": "P21",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P21",
@@ -275,7 +295,8 @@
         "Herramienta": ""
       },
       "exits": "P22",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P22",
@@ -288,7 +309,8 @@
         "Herramienta": ""
       },
       "exits": "P23",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P23",
@@ -301,7 +323,8 @@
         "Herramienta": ""
       },
       "exits": "P25",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P24",
@@ -314,7 +337,8 @@
         "Herramienta": "TC"
       },
       "exits": "P25",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P25",
@@ -327,7 +351,8 @@
         "Herramienta": "TC, WP"
       },
       "exits": "P26",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P26",
@@ -340,7 +365,8 @@
         "Herramienta": ""
       },
       "exits": "El proveedor entrega:P27 | Almacén recoge:P28 | Producción entrega:P29",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P27",
@@ -353,7 +379,8 @@
         "Herramienta": ""
       },
       "exits": "P30",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P28",
@@ -366,7 +393,8 @@
         "Herramienta": "TCA"
       },
       "exits": "P30",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P29",
@@ -379,7 +407,8 @@
         "Herramienta": ""
       },
       "exits": "P30",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P30",
@@ -392,7 +421,8 @@
         "Herramienta": ""
       },
       "exits": "P31",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P31",
@@ -405,7 +435,8 @@
         "Herramienta": ""
       },
       "exits": "Sí:P33 | No:P32",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P32",
@@ -418,7 +449,8 @@
         "Herramienta": ""
       },
       "exits": "P31",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P33",
@@ -431,7 +463,8 @@
         "Herramienta": "WP"
       },
       "exits": "P34",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P34",
@@ -444,7 +477,8 @@
         "Herramienta": ""
       },
       "exits": "Sí:P35 | No:P35",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P35",
@@ -457,7 +491,8 @@
         "Herramienta": ""
       },
       "exits": "P36",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     },
     {
       "id": "P36",
@@ -470,7 +505,8 @@
         "Herramienta": ""
       },
       "exits": "",
-      "depends_on": ""
+      "depends_on": "",
+      "contact": ""
     }
   ]
 }
