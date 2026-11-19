@@ -2,7 +2,7 @@ import { raw } from "hono/html";
 import type { Flow } from "../public/js/core.js";
 import type { Action } from "../public/js/tour-log.js";
 import { getFlow, latestRelease, type FlowRow } from "./flows.ts";
-import { Router, visibleFlows } from "./access.tsx";
+import { Router, visibleFlows, type VisibleFlow } from "./access.tsx";
 import { scriptJson } from "./layout.tsx";
 import { userOf, type SessionUser } from "./session.ts";
 import { StatusLine } from "./status.tsx";
@@ -20,7 +20,12 @@ export const viewer = new Router();
 // about a flow the user cannot see.
 export type LinkTargets = Record<number, { name: string; open: boolean }>;
 
-export async function linkTargets(db: D1Database, user: Pick<SessionUser, "id" | "role">, flow: Flow): Promise<LinkTargets> {
+export async function linkTargets(
+  db: D1Database,
+  user: Pick<SessionUser, "id" | "role">,
+  flow: Flow,
+  known?: VisibleFlow[],
+): Promise<LinkTargets> {
   const ids = [...new Set(flow.steps.filter((s) => s.type === "link" && s.ref !== null).map((s) => s.ref!))];
   if (!ids.length) return {};
   const [names, visible] = await Promise.all([
@@ -28,16 +33,40 @@ export async function linkTargets(db: D1Database, user: Pick<SessionUser, "id" |
       .prepare(`SELECT id, name FROM flows WHERE id IN (${ids.map(() => "?").join(", ")})`)
       .bind(...ids)
       .all<{ id: number; name: string }>(),
-    visibleFlows(db, user),
+    known ?? visibleFlows(db, user),
   ]);
   const open = new Set(visible.map((f) => f.id));
   return Object.fromEntries(names.results.map((r) => [r.id, { name: r.name, open: open.has(r.id) }]));
 }
 
-function ViewerPage({ flow, compiled, status, links }: { flow: FlowRow; compiled: Flow; status: ReviewStatus; links: LinkTargets }) {
+// The flow selector (SPEC §7, Flow selector; phase 6.7): the flows this
+// user sees, as on the home screen. A Standard user gets it only with more
+// than one; the Board and Leaders always. Subflows are out of stage 1, so
+// none is listed. public/js/viewer.js opens the chosen flow.
+export const showsSelector = (role: SessionUser["role"], flows: number) => role !== "standard" || flows > 1;
+
+function FlowSelector({ current, flows }: { current: number; flows: VisibleFlow[] }) {
+  return (
+    <div class="flow-selector">
+      <label for="flow-select">Flujo</label>
+      <select id="flow-select" data-flow-select>
+        {flows.map((f) => (
+          <option value={String(f.id)} selected={f.id === current}>
+            {f.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+type PageProps = { flow: FlowRow; compiled: Flow; status: ReviewStatus; links: LinkTargets; selector: VisibleFlow[] | null };
+
+function ViewerPage({ flow, compiled, status, links, selector }: PageProps) {
   const steps = compiled.steps.length;
   return (
     <section class={`viewer flow-${flow.colour}`}>
+      {selector && <FlowSelector current={flow.id} flows={selector} />}
       <div class="viewer-head">
         <h1 class="viewer-title">
           <span class="flow-dot" aria-hidden="true"></span>
@@ -89,8 +118,10 @@ viewer.get("/:id{[0-9]+}", "flow", async (c) => {
   const release = await latestRelease(c.env.DB, flow);
   if (!release) return c.notFound();
   const user = userOf(c);
-  const [status, links] = await Promise.all([reviewStatus(c.env.DB, user.id, flow.id, release), linkTargets(c.env.DB, user, release.flow)]);
-  return c.render(<ViewerPage flow={flow} compiled={release.flow} status={status} links={links} />, { title: flow.name });
+  const visible = await visibleFlows(c.env.DB, user);
+  const [status, links] = await Promise.all([reviewStatus(c.env.DB, user.id, flow.id, release), linkTargets(c.env.DB, user, release.flow, visible)]);
+  const selector = showsSelector(user.role, visible.length) ? visible : null;
+  return c.render(<ViewerPage flow={flow} compiled={release.flow} status={status} links={links} selector={selector} />, { title: flow.name });
 });
 
 // The tour (phase 3.2). JSON in and out; the server's clock, never the

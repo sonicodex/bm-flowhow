@@ -14,6 +14,24 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.7: the flow selector in the viewer
+
+- Decision:
+  - **Who sees it** (SPEC §7, Flow selector): the Board and Leaders,
+    always, even with a single flow to show. A Standard user sees it only
+    with more than one flow.
+  - **What it lists:** the flows this user may open, the same list as the
+    home screen (`visibleFlows`): published, by name, the current one
+    chosen. Subflows are out of stage 1, so none can appear.
+  - **Where:** a «Flujo» select above the flow's title, as in the
+    prototype.
+  - **How it opens a flow:** choosing one opens its viewer at once. A tour
+    open on the flow left behind stays open, as when following a link.
+    - With no JavaScript the select does nothing; the viewer needs it
+      anyway.
+- Reason: phase 6 plan (plan_iteration_3), slice 6.7; SPEC §7.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Free review: the view goes to the highlighted steps
 
 - Decision:

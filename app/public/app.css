@@ -480,6 +480,36 @@ textarea:focus-visible,
   gap: var(--space-2);
 }
 
+/* The flow selector above the title (phase 6.7). */
+.flow-selector {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.flow-selector label {
+  font-weight: var(--weight-medium);
+}
+
+.flow-selector select {
+  min-width: min(100%, calc(var(--space-10) * 6));
+  min-height: var(--space-10);
+  padding: var(--space-1) var(--space-3);
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius);
+  outline: var(--border-width) solid transparent;
+}
+
+.flow-selector select:focus-visible {
+  box-shadow: var(--shadow-focus);
+}
+
 .viewer-title {
   display: flex;
   align-items: center;

@@ -160,3 +160,38 @@ describe("link steps (phase 6.4)", () => {
     expect(run.log).toHaveLength(1);
   });
 });
+
+// SPEC §7, Flow selector (phase 6.7).
+describe("flow selector (phase 6.7)", () => {
+  const area = async (name: string) =>
+    (await env.DB.prepare("INSERT INTO areas (name, name_key) VALUES (?, lower(?)) RETURNING id").bind(name, name).first<number>("id"))!;
+  const assign = (flowId: number, areaId: number) =>
+    env.DB.prepare("INSERT INTO flow_areas (flow_id, area_id) VALUES (?, ?)").bind(flowId, areaId).run();
+  const options = (html: string) => [...html.matchAll(/<option value="(\d+)"( selected="")?>([^<]*)<\/option>/g)].map((m) => `${m[3]}${m[2] ? "*" : ""}`);
+
+  it("lists the flows the user sees, the current one chosen, for whoever has a choice", async () => {
+    await load();
+    const ot = await idOf("Apertura de OT");
+    const inst = await idOf("Instalaciones");
+    // A flow never published is not listed, even for the Board.
+    await createFlow(env.DB, "Borrador");
+    const ventas = await area("Ventas");
+    const campo = await area("Campo");
+    await assign(ot, ventas);
+    await assign(inst, campo);
+    let html = await (await get(`/flows/${inst}`)).text();
+    expect(html).toContain('<label for="flow-select">Flujo</label><select id="flow-select" data-flow-select="true">');
+    expect(options(html)).toEqual(["Apertura de OT", "Instalaciones*"]);
+    // A Standard user with a single flow never sees it.
+    const ana = await signIn({ username: "ana", role: "standard", areaIds: [ventas] });
+    html = await (await ana.fetch(`/flows/${ot}`)).text();
+    expect(html).not.toContain("flow-select");
+    // With two flows, they do.
+    const beto = await signIn({ username: "beto", role: "standard", areaIds: [ventas, campo] });
+    expect(options(await (await beto.fetch(`/flows/${ot}`)).text())).toEqual(["Apertura de OT*", "Instalaciones"]);
+    // A Leader always does, even with one flow to show.
+    await env.DB.prepare("DELETE FROM releases WHERE flow_id = ?").bind(inst).run();
+    const lia = await signIn({ username: "lia", role: "leader" });
+    expect(options(await (await lia.fetch(`/flows/${ot}`)).text())).toEqual(["Apertura de OT*"]);
+  });
+});

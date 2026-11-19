@@ -32,6 +32,16 @@ const showStatus = (status) => {
   line.innerHTML = `<img class="icon" src="/icons/${STATUS_ICONS[status.state]}.svg" alt="" width="18" height="18"><strong>${esc(status.label)}</strong>${status.detail ? `<span class="muted">${esc(status.detail)}</span>` : ''}`;
 };
 
+// The flow selector (phase 6.7): choosing a flow opens it. A tour open
+// here stays open, as when following a link.
+const picker = document.querySelector('[data-flow-select]');
+if (picker instanceof HTMLSelectElement) {
+  const here = picker.value;
+  picker.addEventListener('change', () => {
+    if (picker.value !== here) location.assign(`/flows/${encodeURIComponent(picker.value)}`);
+  });
+}
+
 if (data && cols) {
   const { id, name, colour, flow, status: initial, links: initialLinks } = JSON.parse(data.textContent);
   // Where each link leads, by target flow id: its name, and whether this
