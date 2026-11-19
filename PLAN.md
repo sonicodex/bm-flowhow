@@ -6,6 +6,128 @@ nunca se edita: los cambios generan una iteración nueva.
 
 ---
 
+## plan_iteration_2 — 2026-11-19
+
+Estado: **propuesta, pendiente de aprobación.** Hasta que se apruebe, la
+vigente sigue siendo `plan_iteration_1`.
+
+Agrega a la iteración 1 los cortes de la **fase 6, Cierre** (SPEC §11):
+revisión libre, móvil, pasos `link`, selector de flujos, reporte de avance y
+PWA. Incluye el contacto de los enlaces que el dueño agregó a SPEC §5, §6 y
+§7 el 2026-11-19 (`2e01096`). Lo demás de la iteración 1 no cambia.
+
+### Fase 6 — Cierre
+
+Primero los datos, porque el contacto viaja en el documento de cada versión
+y todo lo demás lo lee. Después el visor, y al final lo que no depende de
+nada.
+
+**6.1 — El contacto en los datos, la plantilla, la importación y la
+exportación**
+
+- `core.js`: campo `contact` en la fila del grid y en el paso, texto libre,
+  opcional.
+- Se lee de la columna `CONTACTO` (también `Contact`).
+- En un paso que no es `link` ni `subflow` se ignora, con un aviso que no
+  bloquea, igual que hoy con `FLUJO`.
+- Sin migración SQL: el paso vive en el documento JSON de cada versión. Los
+  documentos ya guardados no lo traen y se leen como vacío.
+- Plantilla y exportación con la columna `CONTACTO` justo después de
+  `FLUJO`. El round trip de `xlsx-write.test.js` la cubre.
+- Es contenido del paso: cambiarlo va al borrador y se publica como
+  cualquier otro cambio.
+- Casos nuevos en `core.test.js`, sin quitar ninguno.
+
+**6.2 — El contacto en el editor**
+
+- Solo en filas Enlace y Subflujo, junto al selector de Flujo (SPEC §6).
+  En las demás filas, vacío y sin editar, como Flujo.
+- La forma, columna propia o dentro de la celda de Flujo, queda a decisión
+  del dueño (pregunta 1).
+
+**6.3 — La referencia: contacto en `reference/Flujo_Apertura_OT.xlsx`**
+
+- El paso P13, enlace a Instalaciones, estrena el contacto «Jefe de
+  instalación». El dueño autoriza esta edición de `reference/`.
+- Edición puntual del XML de la hoja «Flujo», no con nuestro escritor:
+  reescribir el archivo perdería las hojas «Dudas» y el formato.
+- Se regenera `Flujo_Apertura_OT.grid.json` con `tools/xlsx-to-grid.mjs`, y
+  `db:load` publica la versión menor siguiente.
+
+**6.4 — Enlaces navegables en el visor**
+
+- En un paso `link`, el panel lateral nombra el otro flujo y su contacto,
+  con acceso o sin él.
+- Con acceso, «Ir a «X»» abre el visor de X desde su inicio, como recorrido
+  propio, sin migas ni regreso automático.
+- Sin acceso, solo el nombre y el contacto. El servidor decide el acceso
+  con la misma regla de las rutas, y la respuesta no deja ver nada del otro
+  flujo.
+- Un enlace con salidas ofrece las dos acciones: «Ir a «X»» en el panel y
+  «Siguiente» en la esquina del diagrama.
+- El recorrido que se deja queda abierto, como cualquier otro que no se
+  termina.
+
+**6.5 — Inicio: el recorrido pendiente dice dónde quedó**
+
+- La tarjeta de un flujo con recorrido abierto dice en qué paso va
+  (SPEC §7).
+
+**6.6 — Revisión libre**
+
+- Diagrama completo; clic en cualquier paso abre su panel.
+- Resaltar los pasos que llevan una etiqueta.
+- Se desbloquea al terminar el recorrido.
+
+**6.7 — Selector de flujos en el visor**
+
+- Con las reglas de SPEC §7: solo con más de un flujo, o para Junta y
+  Líderes.
+
+**6.8 — Móvil y zoom del recorrido**
+
+- El panel del paso, en su forma mínima, arriba del diagrama. Los botones
+  en la esquina del diagrama.
+- «Ver todo» / «Acercar» en todas las pantallas, con «Acercar» por defecto
+  en el teléfono (SPEC §9, Layout).
+
+**6.9 — Reporte de avance**
+
+- Solo para Junta y Líderes. Un Líder ve solo a quienes comparten un área
+  con él; el filtro lo aplica el servidor.
+- Las columnas de revisión de stage 1, ordenable y filtrable.
+
+**6.10 — PWA**
+
+- Manifiesto y service worker que cachea solo el shell de la app.
+
+La fase termina cuando P13 de Apertura de OT muestra su contacto y lleva a
+Instalaciones desde su inicio a quien tiene acceso. Además, cada parte de
+SPEC §11 fase 6 debe funcionar en el D1 local, con sus pruebas.
+
+### Preguntas abiertas para el dueño
+
+1. **El contacto en la parrilla del editor.**
+   - Columna propia después de Flujo: las filas no cambian de alto, pero la
+     parrilla crece unos 160px y Salidas sale de la vista a 1280px.
+   - Dentro de la celda de Flujo, bajo el selector: el ancho no cambia,
+     pero las filas de enlace crecen, contra «solo crecen las filas de
+     decisión».
+   - Recomendación: columna propia.
+2. **Contacto en un tipo que no lo lleva:** ¿se ignora con aviso, como
+   `FLUJO`, o es un error que bloquea?
+3. **«Ir a «X»» cuando ya hay un recorrido abierto en X:** SPEC dice
+   «desde su inicio». ¿Se reinicia ese recorrido, o se abre la vista
+   general de X con «Continuar recorrido»?
+4. **El archivo de referencia:** ¿`CONTACTO` va al final de la hoja, que
+   es la edición más segura porque la lectura es por encabezado, o después
+   de `FLUJO`, como en la plantilla, aunque obliga a desplazar las columnas
+   siguientes en el XML?
+5. **El zoom del recorrido** está en SPEC §9 pero no en la lista de la fase
+   6 de §11, y no se construyó en la fase 3. ¿Entra en 6.8?
+
+---
+
 ## plan_iteration_1 — 2026-11-12
 
 Estado: **aprobada. Esta es la iteración vigente.**
