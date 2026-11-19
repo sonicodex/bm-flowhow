@@ -6,6 +6,30 @@ nunca se edita: los cambios generan una iteración nueva.
 
 ---
 
+## plan_iteration_5 — 2026-11-19
+
+Estado: **aprobada. Esta es la iteración vigente.**
+
+Es `plan_iteration_4` tal cual, con los cortes 6.11 a 6.16 aprobados por el
+dueño y sus respuestas. SPEC §7 y §9 recogen las que cambian el texto
+(`df6620b`).
+
+1. **Una rama directa al punto de encuentro cuenta como «un paso».** Cero
+   pasos es menos que uno: tampoco hay nada que decidir (Instalaciones P11,
+   Apertura P34).
+2. **El aviso fijo sale en toda vuelta a una decisión,** con el texto
+   «Faltan ramas por recorrer en esta decisión. Elige una para seguir.».
+3. **El Enlace en el panorama lleva al panorama del otro flujo,** no a su
+   recorrido. El tooltip sale con acceso y sin él; tocarlo, solo con acceso.
+4. **El reporte es la cuarta pantalla con JavaScript propio** (SPEC §9) y
+   sigue funcionando sin él.
+
+Al terminar, la etiqueta `phase-6` se mueve al último commit de estos cortes.
+
+Orden de trabajo: se empieza por 6.11.
+
+---
+
 ## plan_iteration_4 — 2026-11-19
 
 Estado: **propuesta, pendiente de aprobación.** Hasta que se apruebe, la
