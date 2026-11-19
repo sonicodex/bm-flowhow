@@ -6,6 +6,29 @@ nunca se edita: los cambios generan una iteración nueva.
 
 ---
 
+## plan_iteration_3 — 2026-11-19
+
+Estado: **aprobada. Esta es la iteración vigente.**
+
+Es `plan_iteration_2` tal cual, con los cortes 6.1 a 6.10 aprobados por el
+dueño y sus respuestas a las cinco preguntas abiertas. SPEC §5 y §7 las
+recogen (`c395a40`).
+
+1. **El contacto en la parrilla** va en columna propia, justo después de
+   Flujo. La parrilla ya tiene su scroll horizontal.
+2. **Un contacto en un tipo que no lo lleva** se ignora con un aviso, igual
+   que `FLUJO` (SPEC §5).
+3. **«Ir a «X»» con un recorrido abierto en X** lo continúa donde iba. Llegar
+   nunca borra avance; «Empezar de nuevo» lo elige el usuario (SPEC §7).
+4. **En el archivo de referencia,** `CONTACTO` va después de `FLUJO`, como
+   en la plantilla. El archivo de referencia y la plantilla no pueden
+   divergir.
+5. **El zoom del recorrido** («Ver todo» / «Acercar») entra en el corte 6.8.
+
+Orden de trabajo: se empieza por 6.1.
+
+---
+
 ## plan_iteration_2 — 2026-11-19
 
 Estado: **propuesta, pendiente de aprobación.** Hasta que se apruebe, la
