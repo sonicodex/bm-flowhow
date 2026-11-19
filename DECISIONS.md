@@ -39,6 +39,11 @@ Entry format:
       not change.
     - A saved name changes the page title, the heading and the preview.
       A saved colour repaints the editor and the preview.
+    - **One message per field, the owner's choice.** Name, objective and
+      colour each have their own message under them; the areas already
+      had theirs. One field's error stays until that field is saved,
+      whatever is saved in the others. The name's message is its
+      `aria-describedby`.
   - **Publishing with no area** says so in the message panel, opens the
     flow data panel with the selector open, and focuses its first area.
     - The selector now closes on a press outside it (`pointerdown`), not

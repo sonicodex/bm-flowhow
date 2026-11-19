@@ -1518,9 +1518,18 @@ textarea:focus-visible,
 }
 
 .editor-data .choice-list,
-.editor-data .editor-areas,
-.editor-data #flow-data-status {
+.editor-data .editor-areas {
   margin: 0;
+}
+
+/* Each field's own message, under it; empty, it takes no room. */
+.editor-data .field-status {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.editor-data .field-status:empty {
+  display: none;
 }
 
 .editor-review > h2 {

@@ -39,6 +39,12 @@ describe("flow data panel (SPEC §6)", () => {
     expect(html).toContain('<textarea id="flow-objective" name="objective"');
     expect(html.match(/name="colour"/g)).toHaveLength(12);
     expect(html).toContain(`<input type="checkbox" name="area" value="${ops}" checked=""`);
+    // Each field has its own message, so one field's error is not wiped
+    // out by a save in another.
+    for (const f of ["name", "objective", "colour"]) {
+      expect(html).toContain(`<p class="muted field-status" id="flow-${f}-status" role="status"></p>`);
+    }
+    expect(html).toContain('aria-describedby="flow-name-status"');
     expect(html).toContain('<span data-area-summary="true">Operaciones</span>');
     expect((await board.fetch(`/flows/${flow.id}/details`)).status).toBe(404);
   });

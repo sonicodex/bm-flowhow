@@ -218,11 +218,13 @@ function FlowDataBox({ flow, data }: { flow: FlowRow; data: EditorData }) {
       <h2 id="flow-data-title">Datos del flujo</h2>
       <p class="muted">Cada cambio se guarda al momento, sin «Guardar» y sin crear una versión nueva.</p>
       <label for="flow-name">Nombre</label>
-      <input id="flow-name" name="name" value={flow.name} required maxlength={100} autocomplete="off" />
+      <input id="flow-name" name="name" value={flow.name} required maxlength={100} autocomplete="off" aria-describedby="flow-name-status" />
+      <FieldStatus id="flow-name-status" />
       <label for="flow-objective">Objetivo</label>
-      <textarea id="flow-objective" name="objective" rows={3}>
+      <textarea id="flow-objective" name="objective" rows={3} aria-describedby="flow-objective-status">
         {flow.objective}
       </textarea>
+      <FieldStatus id="flow-objective-status" />
       <fieldset class="choice-list">
         <legend>Color</legend>
         <p class="muted">Pinta el flujo en el diagrama y en el recorrido.</p>
@@ -231,12 +233,16 @@ function FlowDataBox({ flow, data }: { flow: FlowRow; data: EditorData }) {
             <input type="radio" name="colour" value={String(n)} class={`swatch flow-${n}`} aria-label={`Color ${n}`} checked={flow.colour === n} />
           ))}
         </div>
+        <FieldStatus id="flow-colour-status" />
       </fieldset>
       <AreaPicker data={data} />
-      <p class="muted" id="flow-data-status" role="status"></p>
     </section>
   );
 }
+
+// Each field says how its own save went, so one field's error stays until
+// that field is fixed, whatever is saved in the others.
+const FieldStatus = ({ id }: { id: string }) => <p class="muted field-status" id={id} role="status"></p>;
 
 // The flow's areas (DECISIONS, 2026-11-19): a drop-down of checkboxes inside
 // the flow data panel. editor.js saves each change at once.

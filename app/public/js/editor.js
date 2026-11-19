@@ -657,11 +657,12 @@ if (dataEl && table) {
 
   const dataBox = document.getElementById('flow-data');
   const dataButton = document.querySelector('[data-flow-data]');
-  const dataStatus = document.getElementById('flow-data-status');
   const nameInput = document.getElementById('flow-name');
   const objectiveInput = document.getElementById('flow-objective');
   let dataQueue = Promise.resolve();
   let dataBusy = 0;
+  /** Saves in flight per field, so «Guardado» waits for the last one. */
+  const pendingFor = new Map();
 
   function openData(open, focus = true) {
     dataBox.hidden = !open;
@@ -672,15 +673,18 @@ if (dataEl && table) {
   }
   dataButton.addEventListener('click', () => openData(dataBox.hidden));
 
-  function dataSay(text, kind = '') {
-    dataStatus.textContent = text;
-    dataStatus.className = kind === 'error' ? 'form-error' : 'muted';
+  // Each field has its own message: one field's error stays until that
+  // field is saved, whatever happens in the others.
+  function fieldSay(statusEl, text, kind = '') {
+    statusEl.textContent = text;
+    statusEl.className = `field-status ${kind === 'error' ? 'form-error' : 'muted'}`;
   }
 
   /** Saves one field; `shown` puts the saved value on the page. */
-  function saveField(body, input, shown) {
+  function saveField(body, input, statusEl, shown) {
     dataBusy++;
-    dataSay('Guardando…');
+    pendingFor.set(statusEl, (pendingFor.get(statusEl) || 0) + 1);
+    fieldSay(statusEl, 'Guardando…');
     dataQueue = dataQueue.then(async () => {
       let answer;
       try {
@@ -694,13 +698,15 @@ if (dataEl && table) {
         answer = { status: 'invalid', error: 'No se pudo guardar: revisa la conexión y vuelve a intentarlo.' };
       }
       dataBusy--;
+      const left = pendingFor.get(statusEl) - 1;
+      pendingFor.set(statusEl, left);
       if (answer.status === 'saved') {
         input?.removeAttribute('aria-invalid');
         shown(answer.value);
-        if (!dataBusy) dataSay('Guardado.');
+        if (!left) fieldSay(statusEl, 'Guardado.');
       } else {
         input?.setAttribute('aria-invalid', 'true');
-        dataSay(answer.error || 'No se pudo guardar.', 'error');
+        fieldSay(statusEl, answer.error || 'No se pudo guardar.', 'error');
       }
     });
   }
@@ -711,7 +717,7 @@ if (dataEl && table) {
   };
   // What is typed stays in the field when it is refused, so it can be fixed.
   nameInput.addEventListener('change', () =>
-    saveField({ name: nameInput.value }, nameInput, (name) => {
+    saveField({ name: nameInput.value }, nameInput, document.getElementById('flow-name-status'), (name) => {
       nameInput.value = name;
       data.name = name;
       ctx.name = name;
@@ -720,13 +726,13 @@ if (dataEl && table) {
       redrawPreview();
     }));
   objectiveInput.addEventListener('change', () =>
-    saveField({ objective: objectiveInput.value }, objectiveInput, (objective) => {
+    saveField({ objective: objectiveInput.value }, objectiveInput, document.getElementById('flow-objective-status'), (objective) => {
       objectiveInput.value = objective;
     }));
   const section = document.querySelector('.editor');
   dataBox.querySelector('.swatches').addEventListener('change', (ev) => {
     const colour = Number(ev.target.value);
-    saveField({ colour }, null, () => {
+    saveField({ colour }, null, document.getElementById('flow-colour-status'), () => {
       section.classList.replace(`flow-${data.colour}`, `flow-${colour}`);
       data.colour = colour;
       redrawPreview();
