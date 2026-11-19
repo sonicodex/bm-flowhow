@@ -197,11 +197,14 @@ the step would point nowhere.
 
 ## 6. Editor (Board only)
 
-- **Flow data:** name, objective, colour and assigned areas, all of it in the
-  editor, in a panel above the grid that starts folded. There is no separate
-  page for it: sending the admin elsewhere in the middle of the work — which
-  is what publishing did when it asked for an area — is how people lose their
-  place. Folded, it costs the grid no height; the table keeps the priority.
+- **Flow data:** name, objective and colour live in the editor, in a panel
+  above the grid that starts folded. There is no separate page for them:
+  sending the admin elsewhere in the middle of the work — which is what
+  publishing did when it asked for an area — is how people lose their place.
+  Folded, the panel costs the grid no height; the table keeps the priority.
+- **Assigned areas** stay outside that panel, beside the action buttons: an
+  area is the one piece of flow data that decides whether publishing is even
+  allowed, so it is visible without opening anything.
 - None of those four is part of the draft. Changing one takes effect at once
   and creates no version.
 - **Step grid:** one row per step, spreadsheet-like, with selectors for type,
@@ -254,6 +257,10 @@ the step would point nowhere.
   preview open on a small screen the editing columns are squeezed and typing
   a row means scrolling sideways. A visible control opens and closes it, and
   the choice is remembered for that person.
+- **Grid scrolling:** the grid has its own height, fitted to the window, and
+  scrolls inside itself in both directions. Both scrollbars stay visible at
+  all times. A horizontal bar reachable only after scrolling the page to the
+  bottom is a horizontal bar nobody finds.
 - **Ease of use here is critical.** Prefer the simplest interaction.
 
 ### Publish validations
