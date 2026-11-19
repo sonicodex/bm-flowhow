@@ -15,13 +15,17 @@ export const scriptJson = (value: unknown) => JSON.stringify(value).replace(/</g
 function Nav() {
   const user = useRequestContext<AppEnv>().get("user");
   // A user who must change their password reaches nothing else yet.
-  if (!user || user.mustChangePassword || !(user.canEdit || user.canManageUsers)) return null;
+  if (!user || user.mustChangePassword) return null;
+  // The progress report: Board members and Leaders (SPEC §7; phase 6.9).
+  const report = user.role === "board" || user.role === "leader";
+  if (!(user.canEdit || user.canManageUsers || report)) return null;
   return (
     <nav class="site-nav" aria-label="Administración">
       {user.canEdit && <a href="/flows">Flujos</a>}
       {user.canEdit && <a href="/areas">Áreas</a>}
       {user.canEdit && <a href="/categories">Categorías</a>}
       {user.canManageUsers && <a href="/users">Usuarios</a>}
+      {report && <a href="/report">Reporte</a>}
     </nav>
   );
 }

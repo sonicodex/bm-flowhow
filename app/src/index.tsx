@@ -8,6 +8,7 @@ import { flowsScreen } from "./flows-screen.tsx";
 import { home } from "./home.tsx";
 import { renderer } from "./layout.tsx";
 import { login } from "./login.tsx";
+import { report } from "./report.tsx";
 import { loadSession, type AppEnv } from "./session.ts";
 import { usersScreen } from "./users-screen.tsx";
 import { viewer } from "./viewer.tsx";
@@ -25,6 +26,7 @@ app.use(renderer);
 // does not decide it.
 app.route("/", login.app);
 app.route("/", home.app);
+app.route("/", report.app);
 app.route("/areas", areas.app);
 app.route("/categories", categories.app);
 app.route("/users", usersScreen.app);

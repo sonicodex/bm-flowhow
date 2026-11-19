@@ -14,6 +14,54 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.9: the progress report
+
+- Decision:
+  - **Owner's answers to the gaps in SPEC §7, Progress report:**
+    1. **Rows:** Empleados and Leaders, the people who get certified. A
+       Leader has a row for every published flow (§4); an Empleado for
+       the published flows of their areas. The Board is never a row, since
+       it is not certified.
+    2. **Scope:** the Board sees every row. A Leader sees the rows of the
+       people who share at least one area with them, other Leaders and
+       themselves included (§4, §9).
+    3. **Área column:** all of the person's areas, in every row. The area
+       filter finds a row by any of them.
+    4. **Status filter:** «Revisado sí / no» from stage 1. The certified
+       filter joins it in stage 2.
+    5. **Deactivated accounts** are not in the report.
+    6. **A Leader without areas** shares one with nobody. The page says
+       why it is empty instead of showing an empty table.
+       - The user screens warn when a Leader is saved without areas,
+         without blocking: SPEC §4 allows it.
+  - **Built:**
+    - `GET /report`, a new access kind `report` (Board and Leaders, by
+      role: SPEC gives the report to roles, not to a permission).
+      Anyone else gets 403. «Reporte» is in their menu.
+    - Columns: Nombre, Área, Flujo, Versión, Revisado, Tiempo de revisión.
+      No score or certified columns until stage 2.
+    - **Revisado** follows the home screen's rule: a review of a release
+      with the latest's major version.
+      - «Sí · date», with «en la versión x.y» when that was not the latest.
+      - «No», with «revisó la versión x.y» when a major release asks for a
+        new review.
+      - The review counted is the first one of the newest release
+        reviewed, as on the home screen.
+    - **Tiempo de revisión:** that review's duration («12 min 34 s»,
+      «1 h 1 min»); «—» when not reviewed.
+    - **Filters and order** live in the address (`area`, `flujo`,
+      `revisado`, `orden`, `dir`). They can be bookmarked and need no
+      JavaScript; anything not understood is ignored.
+      - Each sortable heading is a link with `aria-sort`, and it keeps the
+        filters.
+      - Empty values sort last in either direction; ties go by name, then
+        flow.
+      - The area and flow filters list only what appears in the
+        viewer's own report.
+- Reason: phase 6 plan (plan_iteration_3), slice 6.9; SPEC §4, §7, §9;
+  owner's answers.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.8: phone layout and tour zoom
 
 - Decision:

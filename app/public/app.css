@@ -1745,3 +1745,56 @@ textarea:focus-visible,
 .editor-preview[hidden] {
   display: none;
 }
+
+/* Progress report (phase 6.9): filters in a row above the table, which
+   wrap on a phone; sortable headings are links. */
+.report-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.report-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.report-filters select {
+  min-height: var(--space-10);
+  padding: var(--space-1) var(--space-3);
+  font: inherit;
+  font-weight: normal;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius);
+  outline: var(--border-width) solid transparent;
+}
+
+.report-filters select:focus-visible {
+  box-shadow: var(--shadow-focus);
+}
+
+.report-filters a {
+  align-self: center;
+  font-size: var(--text-sm);
+}
+
+.report-count {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.report-table .sort-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.report-table .sort-link:hover {
+  text-decoration: underline;
+}

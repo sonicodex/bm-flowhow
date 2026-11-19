@@ -23,8 +23,13 @@ import { type AppEnv, type SessionUser } from "./session.ts";
 //           whoever holds it can grant themselves anything. Otherwise 403.
 // - admin:  `can_view_admin_layer`, for the admin layer (stage 3). No route
 //           uses it yet. Otherwise 403.
-// Permissions are read from the flags, never from the role (§4).
-export type Access = "public" | "account" | "user" | "flow" | "editor" | "admin" | "users";
+// - report: the progress report, Board members and Leaders (SPEC §7, §9).
+//           Otherwise 403. Which rows a Leader gets is the report's own
+//           filter (src/report.tsx).
+// Permissions are read from the flags, never from the role (§4). The one
+// exception is `report`: SPEC gives the report to two roles, not to a
+// permission.
+export type Access = "public" | "account" | "user" | "flow" | "editor" | "admin" | "users" | "report";
 
 const ACCESS = Symbol("access");
 type Guard = MiddlewareHandler<AppEnv> & { [ACCESS]: Access };
@@ -104,6 +109,7 @@ function guard(access: Access): Guard {
     if (access === "editor" && !user.canEdit) return forbidden(c);
     if (access === "admin" && !user.canViewAdminLayer) return forbidden(c);
     if (access === "users" && !user.canManageUsers) return forbidden(c);
+    if (access === "report" && user.role !== "board" && user.role !== "leader") return forbidden(c);
     if (access === "flow") {
       const id = Number(c.req.param("id"));
       if (!Number.isSafeInteger(id) || id <= 0 || !(await canSeeFlow(c.env.DB, user, id))) return c.notFound();

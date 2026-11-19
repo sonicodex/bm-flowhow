@@ -8,6 +8,7 @@ import { nameKey } from "../src/names.ts";
 import { verifyPassword } from "../src/password.ts";
 import { COOKIE } from "../src/session.ts";
 import { LAST_MANAGER } from "../src/users.ts";
+import { LEADER_NO_AREAS_WARNING } from "../src/users-screen.tsx";
 import { ORIGIN, signIn, withSession, type Signed } from "./session.ts";
 import { tableRows } from "./table.ts";
 
@@ -116,6 +117,23 @@ describe("user screens (phase 4.4)", () => {
     // A Leader sees every flow: never warned.
     const { html: leaderPage } = await create({ username: "lia", fullName: "Lía", role: "leader" });
     expect(leaderPage).not.toContain("no verá ninguno");
+  });
+
+  // Phase 6.9: a Leader may have no area (§4), but then shares one with
+  // nobody and the progress report shows them no one. Said, not blocked.
+  it("warns, and still saves, when a Leader has no area", async () => {
+    const { res, html } = await create({ username: "lia", fullName: "Lía", role: "leader" });
+    expect(res.status).toBe(200);
+    expect(html).toContain(LEADER_NO_AREAS_WARNING);
+    const lia = (await row("lia"))!;
+    let saved = await post(board, `/users/${lia.id}`, { fullName: "Lía", role: "leader" });
+    expect(await (await board.fetch(saved.headers.get("location")!)).text()).toContain(LEADER_NO_AREAS_WARNING);
+    // With an area, it stops.
+    const ventas = await area("Ventas");
+    saved = await post(board, `/users/${lia.id}`, { fullName: "Lía", role: "leader", area: String(ventas) });
+    expect(await (await board.fetch(saved.headers.get("location")!)).text()).not.toContain(LEADER_NO_AREAS_WARNING);
+    // The Board belongs to no area, and is never warned.
+    expect((await create({ username: "jd", fullName: "Junta", role: "board" })).html).not.toContain(LEADER_NO_AREAS_WARNING);
   });
 
   it("sets each permission on its own, and a role change leaves them alone", async () => {

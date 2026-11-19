@@ -65,9 +65,15 @@ async function getAccount(db: D1Database, id: number): Promise<Account | null> {
   return row && toAccount(row);
 }
 
+export const LEADER_NO_AREAS_WARNING = "Este Líder no tiene áreas, así que no verá a nadie en el reporte de avance hasta que tenga una.";
+
 // SPEC §4: having an area is not having something to see. Said when the
 // account is saved, and the save goes through: flows get assigned later.
-async function noFlowsWarning(db: D1Database, account: { id: number; role: Role }): Promise<string | null> {
+// A Leader may have no area (§4), but then shares one with nobody and the
+// progress report shows them no one: said too, without blocking (owner's
+// decision, phase 6.9).
+async function noFlowsWarning(db: D1Database, account: { id: number; role: Role; areaIds: number[] }): Promise<string | null> {
+  if (account.role === "leader") return account.areaIds.length ? null : LEADER_NO_AREAS_WARNING;
   if (account.role !== "standard") return null;
   if ((await visibleFlows(db, account)).length > 0) return null;
   return "Sus áreas todavía no tienen flujos publicados, así que por ahora no verá ninguno. Los verá cuando se publique un flujo asignado a alguna de ellas.";
