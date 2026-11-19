@@ -24,11 +24,17 @@ describe("PWA (phase 6.10)", () => {
       const html = await res.text();
       expect(html).toContain('<link rel="manifest" href="/manifest.webmanifest"/>');
       expect(html).toContain('<script type="module" src="/js/sw-register.js"></script>');
+      expect(html).toContain('<link rel="apple-touch-icon" href="/app-icon/apple-touch-icon.png"/>');
     }
   });
 
-  it("names the app FlowHow, and opens on the home screen", () => {
-    expect(JSON.parse(manifest)).toMatchObject({ name: "FlowHow", short_name: "FlowHow", lang: "es-CO", start_url: "/home", display: "standalone" });
+  it("names the app FlowHow, opens on the home screen, and has the icons to be installed", () => {
+    const m = JSON.parse(manifest);
+    expect(m).toMatchObject({ name: "FlowHow", short_name: "FlowHow", lang: "es-CO", start_url: "/home", display: "standalone" });
+    // Provisional icons: 192 and 512 px, and a maskable one for Android.
+    const icons = files(import.meta.glob("../public/app-icon/*"));
+    for (const icon of m.icons as { src: string }[]) expect(icons).toContain(icon.src);
+    expect(m.icons.map((i: { sizes: string; purpose: string }) => `${i.sizes} ${i.purpose}`)).toEqual(["any any", "192x192 any", "512x512 any", "512x512 maskable"]);
   });
 
   it("keeps exactly the shell: every module, icon, style and font, and no page", () => {

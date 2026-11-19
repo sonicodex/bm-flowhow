@@ -14,6 +14,32 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Provisional app icon
+
+- Decision:
+  - **Owner's decision:** a provisional icon until the final one comes
+    with the interface design.
+  - **The icon:** the monkey mark of `flowhow_logotype.svg`, its shapes
+    and colours unchanged, centred on white.
+    - `public/app-icon/icon.svg` keeps a 10 % margin.
+    - `maskable.svg` keeps the mark inside the central 80 % circle
+      Android leaves visible.
+    - The PNGs (192, 512, maskable 512 and the 180 px
+      `apple-touch-icon`) were drawn from those SVGs by Chrome.
+  - **Where it lives:** in `public/app-icon/`, apart from the owner's
+    `icons/`, which stays untouched. The final icon replaces these files
+    under the same names, and nothing else changes.
+  - **Wiring:**
+    - The manifest lists the SVG, both PNG sizes and the maskable one.
+    - Every page, and the «Sin conexión» page, links the SVG as its
+      favicon and the `apple-touch-icon`.
+    - These files are not in the service worker's shell: the browser
+      keeps installed icons itself.
+  - **Checked in Chrome:** `Page.getAppManifest` and
+    `Page.getInstallabilityErrors` report no errors.
+- Reason: owner's decision after slice 6.10.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.10: PWA
 
 - Decision:
@@ -22,9 +48,10 @@ Entry format:
     - Background and theme colours are the theme's `--color-bg` and
       `--color-primary`, written as values: a manifest cannot read CSS
       tokens. The page's `theme-color` meta repeats the primary colour.
-    - **No icons yet.** The only brand asset is the horizontal logotype,
+    - ~~**No icons yet.** The only brand asset is the horizontal logotype,
       and an app icon is the owner's to supply (see below). Until then
-      browsers do not offer to install the app; everything else works.
+      browsers do not offer to install the app; everything else works.~~
+      Superseded by the owner, same day: see «Provisional app icon».
   - **Service worker** (`public/sw.js`), registered on every page by
     `js/sw-register.js`.
     - It does no drawing; SPEC §9's "three screens run JavaScript of

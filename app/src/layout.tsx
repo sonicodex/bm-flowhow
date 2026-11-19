@@ -57,6 +57,8 @@ export const renderer = jsxRenderer(({ children, title }) => (
       {/* PWA (SPEC §9, Architecture; phase 6.10): the manifest, and the service worker
           that keeps the app shell, never data. */}
       <link rel="manifest" href="/manifest.webmanifest" />
+      <link rel="icon" href="/app-icon/icon.svg" type="image/svg+xml" />
+      <link rel="apple-touch-icon" href="/app-icon/apple-touch-icon.png" />
       <meta name="theme-color" content="#28519D" />
       <script type="module" src="/js/sw-register.js"></script>
     </head>
