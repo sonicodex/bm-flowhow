@@ -97,3 +97,66 @@ describe("GET /flows/:id (overview)", () => {
     expect(html).not.toContain(`href="/flows/${await idOf("Sin publicar")}" aria-label="Ver`);
   });
 });
+
+// SPEC §5 and §7: a link step names the other flow and its contact whether
+// or not the user can open it; with access, «Ir a» opens that flow's own
+// tour, and nothing walked on either side is lost (phase 6.4).
+describe("link steps (phase 6.4)", () => {
+  const area = async (name: string) =>
+    (await env.DB.prepare("INSERT INTO areas (name, name_key) VALUES (?, lower(?)) RETURNING id").bind(name, name).first<number>("id"))!;
+  const assign = (flowId: number, areaId: number) =>
+    env.DB.prepare("INSERT INTO flow_areas (flow_id, area_id) VALUES (?, ?)").bind(flowId, areaId).run();
+  const post = (who: Signed, path: string, body?: unknown) =>
+    who.fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+
+  it("names the target and its contact to everyone, and says who may open it", async () => {
+    await load();
+    const ot = await idOf("Apertura de OT");
+    const inst = await idOf("Instalaciones");
+    const ventas = await area("Ventas");
+    const campo = await area("Campo");
+    await assign(ot, ventas);
+    await assign(inst, campo);
+    const p13 = (data: { flow: { steps: { id: string }[] } }) => data.flow.steps.find((s) => s.id === "P13");
+    // The Board opens everything.
+    let data = flowData(await (await get(`/flows/${ot}`)).text());
+    expect(p13(data)).toMatchObject({ type: "link", ref: inst, contact: "Jefe de instalación" });
+    expect(data.links).toEqual({ [inst]: { name: "Instalaciones", open: true } });
+    // Someone who sees only Apertura de OT: the name and the contact, no way in.
+    const ana = await signIn({ username: "ana", role: "standard", areaIds: [ventas] });
+    data = flowData(await (await ana.fetch(`/flows/${ot}`)).text());
+    expect(p13(data)).toMatchObject({ contact: "Jefe de instalación" });
+    expect(data.links).toEqual({ [inst]: { name: "Instalaciones", open: false } });
+    expect((await ana.fetch(`/flows/${inst}`)).status).toBe(404);
+    // Someone in both areas may go.
+    const beto = await signIn({ username: "beto", role: "standard", areaIds: [ventas, campo] });
+    data = flowData(await (await beto.fetch(`/flows/${ot}`)).text());
+    expect(data.links).toEqual({ [inst]: { name: "Instalaciones", open: true } });
+    // A flow without links sends none.
+    expect(flowData(await (await beto.fetch(`/flows/${inst}`)).text()).links).toEqual({});
+    // Starting the tour carries the links of the run's own release.
+    const started = (await (await post(ana, `/flows/${ot}/tour`)).json()) as { links: unknown };
+    expect(started.links).toEqual({ [inst]: { name: "Instalaciones", open: false } });
+  });
+
+  it("keeps the tour left open, and continues the one already open on arrival", async () => {
+    await load();
+    const ot = await idOf("Apertura de OT");
+    const inst = await idOf("Instalaciones");
+    // A tour of Apertura de OT, one step in.
+    await post(board, `/flows/${ot}/tour`);
+    expect((await post(board, `/flows/${ot}/tour/step`, { at: "P1", action: "next" })).status).toBe(200);
+    // «Ir a «Instalaciones»» starts that tour; Apertura de OT stays open.
+    let run = (await (await post(board, `/flows/${inst}/tour`)).json()) as { runId: number; log: unknown[] };
+    expect(run.log).toHaveLength(0);
+    await post(board, `/flows/${inst}/tour/step`, { at: "P1", action: "next" });
+    const home = await (await get("/home")).text();
+    expect(home.match(/data-state="in_progress"/g)).toHaveLength(2);
+    // Coming back through the link again continues where it was.
+    const again = (await (await post(board, `/flows/${inst}/tour`)).json()) as { runId: number; log: unknown[] };
+    expect(again.runId).toBe(run.runId);
+    expect(again.log).toHaveLength(1);
+    run = (await (await post(board, `/flows/${ot}/tour`)).json()) as { runId: number; log: unknown[] };
+    expect(run.log).toHaveLength(1);
+  });
+});

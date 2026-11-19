@@ -33,7 +33,10 @@ const showStatus = (status) => {
 };
 
 if (data && cols) {
-  const { id, name, colour, flow, status: initial } = JSON.parse(data.textContent);
+  const { id, name, colour, flow, status: initial, links: initialLinks } = JSON.parse(data.textContent);
+  // Where each link leads, by target flow id: its name, and whether this
+  // user can open it (phase 6.4). The tour's own release replaces it.
+  let links = initialLinks || {};
   // The review status, as the server last gave it: it labels the overview's
   // buttons, and "Empezar de nuevo" shows whenever a run is open.
   let status = initial;
@@ -84,6 +87,19 @@ if (data && cols) {
       out += `<dl class="step-tags">${rows.map((c) => `<div><dt>${esc(c)}</dt><dd>${step.tags[c].map((v) => `<span class="chip">${esc(v)}</span>`).join('')}</dd></div>`).join('')}</dl>`;
     }
     return out;
+  };
+
+  // A link step (SPEC §5, §7; phase 6.4): the other flow and its contact,
+  // whether or not this user can open it; with access, the way there. It
+  // opens that flow's own tour, from its start or where it was left; the
+  // tour here stays open, and its exits are still offered below.
+  const linkPanel = (step) => {
+    if (step.type !== 'link' || step.ref == null) return '';
+    const target = links[step.ref];
+    const other = target ? target.name : 'otro flujo';
+    const rows = [['Flujo', other]].concat(step.contact ? [['Contacto', step.contact]] : []);
+    const go = target && target.open ? `<a class="button-secondary link-go" href="/flows/${encodeURIComponent(step.ref)}?recorrido=1">Ir a ${quoted(other)}</a>` : '';
+    return `<div class="link-target"><dl class="step-tags">${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>${go}</div>`;
   };
 
   const exitsPanel = (tour) => {
@@ -144,7 +160,7 @@ if (data && cols) {
       `<div class="diagram-scroll" id="diagram">${renderDiagram(layout, { name, colour }, marks(tour, toured.categories))}</div>` +
       `<div class="diagram-actions"><p class="tour-message" role="status">${esc(state.message)}</p>` +
       `<button type="button" class="button-secondary" data-prev${tour.pos === 0 ? ' disabled' : ''}>Anterior</button>${primary}</div></div>` +
-      `<aside class="card viewer-side">${tour.atEnd() ? noteFor(tour.current().note) : ''}${details(step, toured.categories)}${exitsPanel(tour)}</aside>`;
+      `<aside class="card viewer-side">${tour.atEnd() ? noteFor(tour.current().note) : ''}${details(step, toured.categories)}${linkPanel(step)}${exitsPanel(tour)}</aside>`;
     if (state.busy) cols.querySelectorAll('button').forEach((b) => { b.disabled = true; });
     scrollToCurrent(document.getElementById('diagram'), layout, tour.current().id);
     const target = (focus && cols.querySelector(focus)) || cols.querySelector('[data-choose]:not(.taken)') || cols.querySelector('[data-finish]') || cols.querySelector('[data-next]:not([disabled])');
@@ -208,6 +224,7 @@ if (data && cols) {
     }
     status = res.json.status;
     showStatus(status);
+    links = res.json.links || {};
     state = { flow: res.json.flow, layout: layoutFlow(res.json.flow), tour, busy: false, message: res.json.notice || '' };
     renderTour();
   };
@@ -269,4 +286,13 @@ if (data && cols) {
     else if (b.hasAttribute('data-skip')) act({ at, action: 'skip' });
     else if (b.hasAttribute('data-finish')) finish();
   });
+
+  // Arriving from a link (phase 6.4): straight into this flow's tour, as
+  // «Iniciar» or «Continuar» would. An open run continues; nothing is
+  // thrown away on arrival (SPEC §7).
+  if (new URLSearchParams(location.search).has('recorrido')) {
+    history.replaceState(null, '', location.pathname);
+    const button = cols.querySelector('[data-start]');
+    if (button) start(button, '');
+  }
 }

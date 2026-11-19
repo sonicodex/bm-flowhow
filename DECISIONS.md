@@ -14,6 +14,50 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.4: link steps lead to the other flow in the viewer
+
+- Decision:
+  - **What the server sends:**
+    - With the flow, the viewer gets `links`: for each flow a link step
+      points to, its current name and whether this user can open it
+      (`visibleFlows`, the same rule as the routes).
+    - Nothing else about the other flow is sent, and its viewer still
+      answers 404 to someone who cannot see it.
+    - Starting a tour sends the `links` of the run's own release, which
+      may be older than the page's.
+  - **In the tour,** a link step's panel lists «Flujo» and, when there is
+    one, «Contacto», in the same rows as the tags, whether or not the user
+    has access (SPEC §5, §7).
+    - With access, «Ir a «X»» follows, a link styled as the secondary
+      button.
+    - Without access there is no button and no extra text: the name only,
+      as SPEC §5 says.
+    - The link's own exits stay listed below («Sigue con»), and
+      «Siguiente» stays in the diagram's corner: two different actions,
+      both offered.
+  - **«Ir a «X»» opens `/flows/X?recorrido=1`.** The viewer drops the
+    parameter and goes straight into the tour, exactly as «Iniciar» or
+    «Continuar» would.
+    - An open run in X continues where it was. Otherwise a new one
+      starts at X's beginning.
+    - Nothing is abandoned on arrival (SPEC §7); «Empezar de nuevo»
+      stays the user's choice.
+    - The tour left behind stays open and the home screen lists it as in
+      progress. Naming its step there is slice 6.5.
+  - **Not here:** clicking a link node in the diagram. The overview is
+    read-only, and choosing any step on the diagram belongs to free
+    review (slice 6.6), which will offer the same «Ir a».
+  - **Checked in Chrome as the Board:**
+    - Walked Apertura de OT to P13 through «Interna». The panel showed
+      Instalaciones, «Jefe de instalación», «Ir a «Instalaciones»» and
+      «Sigue con».
+    - Following it opened Instalaciones' tour at P1, with
+      `?recorrido=1` gone from the address.
+    - Home then listed both tours in progress.
+    - The test runs were removed from the local database afterwards.
+- Reason: phase 6 plan (plan_iteration_3), slice 6.4; SPEC §5, §7.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.3: P13 of Apertura de OT gets its contact in the reference file
 
 - Decision:

@@ -2,9 +2,9 @@ import { raw } from "hono/html";
 import type { Flow } from "../public/js/core.js";
 import type { Action } from "../public/js/tour-log.js";
 import { getFlow, latestRelease, type FlowRow } from "./flows.ts";
-import { Router } from "./access.tsx";
+import { Router, visibleFlows } from "./access.tsx";
 import { scriptJson } from "./layout.tsx";
-import { userOf } from "./session.ts";
+import { userOf, type SessionUser } from "./session.ts";
 import { StatusLine } from "./status.tsx";
 import { finishTour, restartTour, reviewStatus, startTour, takeStep, type ReviewStatus } from "./tour.ts";
 
@@ -14,9 +14,27 @@ import { finishTour, restartTour, reviewStatus, startTour, takeStep, type Review
 // user may not see answers 404 (src/access.tsx).
 export const viewer = new Router();
 
+// Where each link step of `flow` leads (SPEC §5, §7; phase 6.4), by target
+// flow id: its current name, which is shown whether or not the user can open
+// it, and whether they can. Only what a link names is sent: nothing else
+// about a flow the user cannot see.
+export type LinkTargets = Record<number, { name: string; open: boolean }>;
 
+export async function linkTargets(db: D1Database, user: Pick<SessionUser, "id" | "role">, flow: Flow): Promise<LinkTargets> {
+  const ids = [...new Set(flow.steps.filter((s) => s.type === "link" && s.ref !== null).map((s) => s.ref!))];
+  if (!ids.length) return {};
+  const [names, visible] = await Promise.all([
+    db
+      .prepare(`SELECT id, name FROM flows WHERE id IN (${ids.map(() => "?").join(", ")})`)
+      .bind(...ids)
+      .all<{ id: number; name: string }>(),
+    visibleFlows(db, user),
+  ]);
+  const open = new Set(visible.map((f) => f.id));
+  return Object.fromEntries(names.results.map((r) => [r.id, { name: r.name, open: open.has(r.id) }]));
+}
 
-function ViewerPage({ flow, compiled, status }: { flow: FlowRow; compiled: Flow; status: ReviewStatus }) {
+function ViewerPage({ flow, compiled, status, links }: { flow: FlowRow; compiled: Flow; status: ReviewStatus; links: LinkTargets }) {
   const steps = compiled.steps.length;
   return (
     <section class={`viewer flow-${flow.colour}`}>
@@ -54,7 +72,7 @@ function ViewerPage({ flow, compiled, status }: { flow: FlowRow; compiled: Flow;
         </aside>
       </div>
       <script type="application/json" id="flow-data">
-        {raw(scriptJson({ id: flow.id, name: flow.name, colour: flow.colour, flow: compiled, status }))}
+        {raw(scriptJson({ id: flow.id, name: flow.name, colour: flow.colour, flow: compiled, status, links }))}
       </script>
       <script type="module" src="/js/viewer.js"></script>
     </section>
@@ -67,8 +85,8 @@ viewer.get("/:id{[0-9]+}", "flow", async (c) => {
   const release = await latestRelease(c.env.DB, flow);
   if (!release) return c.notFound();
   const user = userOf(c);
-  const status = await reviewStatus(c.env.DB, user.id, flow.id, release);
-  return c.render(<ViewerPage flow={flow} compiled={release.flow} status={status} />, { title: flow.name });
+  const [status, links] = await Promise.all([reviewStatus(c.env.DB, user.id, flow.id, release), linkTargets(c.env.DB, user, release.flow)]);
+  return c.render(<ViewerPage flow={flow} compiled={release.flow} status={status} links={links} />, { title: flow.name });
 });
 
 // The tour (phase 3.2). JSON in and out; the server's clock, never the
@@ -99,14 +117,15 @@ viewer.post("/:id{[0-9]+}/tour", "flow", async (c) => {
   const user = userOf(c);
   const run = await startTour(c.env.DB, user.id, flowId(c), new Date());
   if (!run) return c.notFound();
-  return c.json({ ...run, status: await statusOf(c.env.DB, user.id, flowId(c)) });
+  // The run's release may be older than the page's: its links go with it.
+  return c.json({ ...run, links: await linkTargets(c.env.DB, user, run.flow), status: await statusOf(c.env.DB, user.id, flowId(c)) });
 });
 
 viewer.post("/:id{[0-9]+}/tour/restart", "flow", async (c) => {
   const user = userOf(c);
   const run = await restartTour(c.env.DB, user.id, flowId(c), new Date());
   if (!run) return c.notFound();
-  return c.json({ ...run, status: await statusOf(c.env.DB, user.id, flowId(c)) });
+  return c.json({ ...run, links: await linkTargets(c.env.DB, user, run.flow), status: await statusOf(c.env.DB, user.id, flowId(c)) });
 });
 
 viewer.post("/:id{[0-9]+}/tour/step", "flow", async (c) => {

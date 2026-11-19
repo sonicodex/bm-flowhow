@@ -574,6 +574,20 @@ textarea:focus-visible,
   border-radius: var(--radius-lg);
 }
 
+/* A link step's other flow and contact (phase 6.4), and the way there. */
+.link-target {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.link-go,
+.link-go:visited {
+  align-self: flex-start;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
 .exits {
   display: flex;
   flex-direction: column;
