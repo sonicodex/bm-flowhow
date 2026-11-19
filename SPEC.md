@@ -143,6 +143,11 @@ Scale: one company, about 50 users, about 8 flows.
 
 - Fixed fields: `title`, `type`, `description`.
   The description is the instructional content shown in the tour.
+- A `link` and a `subflow` step also have a **contact**: the job title of the
+  person the two flows talk through, free text ("Jefe de instalación"). It is
+  not a tag and not a user account. A tag says who carries out the step; the
+  contact says who to deal with on the other side, and job titles outlive the
+  people in them, so an account would not scale.
 - Types: `start`, `activity`, `decision`, `wait`, `subflow`, `link`, `end`.
   A `subflow` step also stores which flow it contains (see Subflows), and so
   does a `link` step; both read it from the same `Flujo` column of the import
@@ -164,6 +169,13 @@ Scale: one company, about 50 users, about 8 flows.
 - At least one `start`; more than one is allowed.
 - A `link` step points to another flow. It may have exits. It is clickable only
   if the user has access to the target flow; otherwise it shows the name only.
+  The contact is shown either way: knowing who to talk to does not require
+  access to their flow.
+- **Two flows meet wherever each of them needs to**, not necessarily at a
+  start or an end: step 5 of one can link to a flow whose own reference back
+  sits at step 8. The link still names only the flow, never a step inside it.
+  Someone sent to an unfamiliar flow needs to see it whole, and arriving in
+  its middle hides everything that led there.
 
 ### Tags with categories
 
@@ -180,6 +192,9 @@ P3  decision               ¿Hay existencias?   Define si se compra o despacha. 
 P4  activity               Comprar material    Se genera la orden de compra.    Compras          ERP, Correo  P2
 P5  activity               Despachar pedido    Se alista y se envía.            Almacén, Ventas               P6
 P6  link      Facturación  Pasar a facturación  Continúa en el flujo de facturación.                          P7
+
+A `link` or `subflow` row carries its contact in the `CONTACTO` column, which
+is empty for every other type.
 P7  end                    Pedido cerrado
 ```
 
@@ -210,6 +225,9 @@ the step would point nowhere.
 - **Step grid:** one row per step, spreadsheet-like, with selectors for type,
   tags and exits. Exits are edited inside the step row; there is no separate
   edges table.
+- **The contact appears only on `Enlace` and `Subflujo` rows**, beside the
+  flow selector, the same way the branch list appears only on decision rows.
+  A row that points nowhere has nobody to point to.
 - **Nobody types the `label:target` syntax.** It has to exist, because a cell
   in Excel is text and the same flow travels both ways, but it is a storage
   format and not something a person should have to learn.
@@ -351,6 +369,15 @@ Tour rules:
   has chosen it, and is marked "Ya recorrida" afterwards.
 - This applies to subflows too: the user cannot return to the parent flow
   until the subflow is complete in this sense.
+- **On a `link` step** the side panel names the other flow and its contact —
+  the job title to deal with — whether or not the user can open it. With
+  access, "Ir a «X»" opens that flow's viewer **from its start**, as a tour of
+  its own: the two flows are peers, not parent and child, so there is no
+  breadcrumb and no automatic return. The tour being left is not lost; it
+  stays unfinished and the home screen keeps listing it as pending, with the
+  step it was on.
+- A `link` with exits also continues inside its own flow: going to the other
+  flow and following the exit are two different actions, both offered.
 - The tour can be finished once it is complete and the user is at a dead end
   or at a decision. It is not offered in the middle of a path.
 - Safety: at a decision whose branches are all taken while other steps are
