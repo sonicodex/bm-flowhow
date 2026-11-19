@@ -272,8 +272,28 @@ if (data && cols) {
     renderReview();
   };
 
-  const renderReview = (focus) => {
+  // Brings the highlighted steps into view: their whole span centred when
+  // it fits, otherwise the first of them near the top.
+  const scrollToHits = (box, layout, ids) => {
+    const nodes = layout.nodes.filter((n) => ids.includes(n.id));
+    const svg = box.querySelector('svg');
+    if (!nodes.length || !svg) return;
+    const k = svg.getBoundingClientRect().width / layout.width || 1;
+    const top = Math.min(...nodes.map((n) => n.y - n.h / 2)) * k;
+    const bottom = Math.max(...nodes.map((n) => n.y + n.h / 2)) * k;
+    const left = Math.min(...nodes.map((n) => n.x - n.w / 2)) * k;
+    const right = Math.max(...nodes.map((n) => n.x + n.w / 2)) * k;
+    const margin = box.clientHeight / 8;
+    box.scrollTop = Math.max(0, bottom - top <= box.clientHeight - 2 * margin ? (top + bottom - box.clientHeight) / 2 : top - margin);
+    box.scrollLeft = Math.max(0, right - left <= box.clientWidth ? (left + right - box.clientWidth) / 2 : left);
+  };
+
+  // `jump`: bring the highlighted steps into view (a value was just
+  // pressed). Otherwise the view stays where the user left it.
+  const renderReview = (focus, jump = false) => {
     const { selected, cat, val, notes } = review;
+    const old = document.getElementById('diagram');
+    const kept = old ? { top: old.scrollTop, left: old.scrollLeft } : null;
     laidOut = laidOut || reviewLayout();
     const step = flow.steps.find((s) => s.id === selected) || null;
     const values = cat ? [...new Set(flow.steps.flatMap((s) => s.tags[cat] || []))].sort((a, b) => a.localeCompare(b, 'es-CO')) : [];
@@ -298,6 +318,12 @@ if (data && cols) {
       `<div class="card diagram-card">${filter}<div class="diagram-scroll" id="diagram">${renderDiagram(laidOut, { name, colour }, marks)}</div></div>` +
       `<aside class="card viewer-side">${notes.length ? `<p class="note">${DONE_ICON}<span>${notes.map(esc).join(' ')}</span></p>` : ''}` +
       `${step ? details(step, flow.categories) + linkPanel(step) : intro}</aside>`;
+    const box = document.getElementById('diagram');
+    if (box && jump && cat && val) scrollToHits(box, laidOut, flow.steps.filter((s) => carries(s.id)).map((s) => s.id));
+    else if (box && kept) {
+      box.scrollTop = kept.top;
+      box.scrollLeft = kept.left;
+    }
     const target = focus && cols.querySelector(focus);
     if (target) target.focus({ preventScroll: true });
   };
@@ -331,7 +357,7 @@ if (data && cols) {
       if (chip) {
         const v = chip.getAttribute('data-hl');
         review.val = review.val === v ? '' : v;
-        return renderReview(`[data-hl="${CSS.escape(v)}"]`);
+        return renderReview(`[data-hl="${CSS.escape(v)}"]`, true);
       }
       if (ev.target instanceof Element && ev.target.closest('[data-overview]')) showOverview([]);
       return;

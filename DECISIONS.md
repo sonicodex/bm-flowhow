@@ -14,6 +14,22 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Free review: the view goes to the highlighted steps
+
+- Decision:
+  - **Pressing a value** moves the diagram to the steps that carry it.
+    - When they all fit, their span is centred.
+    - When they do not, the first one goes near the top and the rest
+      follow below.
+  - **Anything else** (choosing a step, changing the category) leaves the
+    view where the user left it. Before this, every redraw of the review
+    sent the diagram back to the top: a fault of 6.6, fixed here.
+  - Checked in Chrome on Instalaciones: Admin and Almacén (one step each)
+    centred; SAC (thirteen steps) starts at P4; choosing a step kept the
+    view.
+- Reason: owner's decision after reviewing slice 6.6.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.6: free review in the viewer
 
 - Decision:
@@ -38,7 +54,9 @@ Entry format:
     value are filled with the flow colour, as the tour's current step is,
     and the rest are dimmed. Pressing the chip again clears it.
     - A flow without categories shows no select.
-    - The view does not scroll to the highlighted steps.
+    - ~~The view does not scroll to the highlighted steps.~~ Superseded
+      by the owner, same day: see «Free review: the view goes to the
+      highlighted steps».
   - **Not here:** «Abrir subflujo» (SPEC §7). Subflows are out of stage 1
     (PLAN.md).
 - Reason: phase 6 plan (plan_iteration_3), slice 6.6; SPEC §7, §9.
