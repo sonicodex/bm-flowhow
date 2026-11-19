@@ -197,11 +197,11 @@ the step would point nowhere.
 
 ## 6. Editor (Board only)
 
-- **Flow form:** name, objective, colour, assigned areas. The areas are also
-  edited above the grid, in the editor: publishing asks for one, and sending
-  the admin to another page in the middle of the work to answer is what makes
-  people lose their place. Name, objective and colour stay on the form only;
-  they are set once, and anything put above the grid costs it height.
+- **Flow data:** name, objective, colour and assigned areas, all of it in the
+  editor, in a panel above the grid that starts folded. There is no separate
+  page for it: sending the admin elsewhere in the middle of the work — which
+  is what publishing did when it asked for an area — is how people lose their
+  place. Folded, it costs the grid no height; the table keeps the priority.
 - None of those four is part of the draft. Changing one takes effect at once
   and creates no version.
 - **Step grid:** one row per step, spreadsheet-like, with selectors for type,
