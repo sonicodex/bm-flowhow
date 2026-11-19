@@ -350,7 +350,11 @@ Tour rules:
   road.** It does not count as one of the branches that meet, so it never
   holds the others back: waiting for it is waiting for the user to come
   through the same decision again, which is not a path to walk but the same
-  question asked twice.
+  question asked twice. A branch is a retry when every path out of it leads
+  back to its own decision.
+- Whether a decision is parallel is judged on its branches that are not
+  retries, and there must be at least two of them. Otherwise two twin
+  branches beside a retry wait for each other forever.
 - **A branch counts as walked only once the tour has entered it.** Marking it
   "Ya recorrida" while holding the user at the decision claims something that
   did not happen, and the user has to choose it a second time to make it
