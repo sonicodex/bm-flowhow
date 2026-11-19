@@ -976,6 +976,83 @@ textarea:focus-visible,
   font-size: var(--text-sm);
 }
 
+/* The flow's areas, above the grid (DECISIONS, 2026-11-19): a drop-down of
+   checkboxes that saves each change at once. */
+.editor-areas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.editor-areas-label {
+  font-weight: var(--weight-medium);
+}
+
+.editor-areas .form-warning,
+.editor-areas .form-error {
+  margin: 0;
+}
+
+.area-picker {
+  position: relative;
+  min-width: 0;
+}
+
+.area-picker summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  list-style: none;
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius);
+  outline: var(--border-width) solid transparent;
+  cursor: pointer;
+}
+
+.area-picker summary::-webkit-details-marker {
+  display: none;
+}
+
+.area-picker summary::after {
+  content: "▾";
+  color: var(--color-text-muted);
+}
+
+.area-picker summary:hover {
+  background: var(--color-subtle);
+}
+
+.area-picker summary:focus-visible {
+  box-shadow: var(--shadow-focus);
+}
+
+.area-picker [data-area-summary] {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Over the grid, below the header cells that stay put (z-index 3). */
+.area-picker-list {
+  position: absolute;
+  z-index: 4;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  width: max-content;
+  min-width: calc(var(--space-10) * 6);
+  max-width: min(calc(var(--space-10) * 10), calc(100vw - var(--space-8)));
+  max-height: calc(var(--space-10) * 8);
+  overflow-y: auto;
+  margin: 0;
+  background: var(--color-surface);
+  border-color: var(--color-border-strong);
+}
+
 .editor-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -1291,6 +1368,25 @@ textarea:focus-visible,
 .step-grid thead .grid-num,
 .step-grid thead .c-id {
   background: var(--color-subtle);
+}
+
+/* In the editor the grid scrolls both ways inside its frame, whose height
+   editor.js fits to the window (DECISIONS, 2026-11-19): the header row
+   stays at the top as Fila and ID stay at the left, and the corner where
+   they meet stays over both. */
+.editor .table-scroll {
+  overflow: auto;
+}
+
+.step-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.step-grid thead .grid-num,
+.step-grid thead .c-id {
+  z-index: 3;
 }
 
 /* The editor's two columns (phase 5.4): the grid, and the preview beside

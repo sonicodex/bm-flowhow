@@ -14,6 +14,41 @@ Entry format:
 
 ---
 
+## 2026-11-19 — The grid fits the window; the areas move up to the editor
+
+- Decision:
+  - **The owner's review, points 1 and 2:** the editor scrolled twice (the
+    page, then the grid), and assigning areas meant leaving for «Datos del
+    flujo», where the publish panel also sent you mid-work.
+  - **The grid scrolls inside its frame, both ways.**
+    - `editor.js` sets the frame's height to what is left of the window
+      below the grid's top, so the horizontal bar is in view on arrival.
+      Never below a third of the window, for a short one.
+    - Recomputed when what sits above changes height (a message, the
+      import box) and on resize.
+    - The header row is sticky at the top, as Fila and ID are at the
+      left; the corner cells stay over both.
+    - Measured on Instalaciones: at 1280×800 the grid ends at y=775, at
+      1440×900 at 875, at 390×844 at 819. The hint and the problem list
+      are still below the grid, reached by scrolling the page.
+  - **«Áreas que lo ven», a drop-down of checkboxes above the toolbar.**
+    - The same data as the flow form, which keeps its own.
+    - Saved at once on each change (`POST /flows/:id/areas`, the whole
+      set as JSON), with no «Guardar» and no version: areas are not part
+      of the draft, and a second save button for them would make the
+      draft's ambiguous. One request at a time; a change made meanwhile
+      goes after it. On failure the boxes go back to what is saved.
+    - A published flow left with no area gets the flow form's warning
+      next to the selector.
+    - The publish panel's «Falta asignar un área» opens the selector
+      instead of linking to «Datos del flujo».
+  - `EditorData.areas` (a count) is replaced by `areaIds` and
+    `areaOptions`.
+- Reason: the owner's review of 2026-11-19.
+- Spec sections affected: §6 (Flow form lists the areas; they are now
+  also edited above the grid). Proposed to the owner: add «and above the
+  grid» to the Flow form line.
+
 ## 2026-11-17 — Phase 5.10, revised: labels only in the decision; the grid scans again (SPEC §6)
 
 - Decision:

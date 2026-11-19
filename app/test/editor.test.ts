@@ -127,7 +127,7 @@ describe("publishing from the editor (phase 5.7)", () => {
       status: "blocked",
       errors: [{ row: null, message: "Asigna al menos un área al flujo antes de su primera publicación.", blocking: true }],
     });
-    expect((await page(id)).data).toMatchObject({ published: null, areas: 0 });
+    expect((await page(id)).data).toMatchObject({ published: null, areaIds: [] });
     await withArea(id);
     res = await post(`/flows/${id}/publish`, { base, bump: "major" });
     expect(await res.json()).toEqual({ status: "published", version: "1.0" });
@@ -136,7 +136,7 @@ describe("publishing from the editor (phase 5.7)", () => {
     const by = await env.DB.prepare("SELECT published_by FROM releases WHERE flow_id = ?").bind(id).first<number>("published_by");
     expect(by).toBe(board.id);
     const { html, data } = await page(id);
-    expect(data).toMatchObject({ published: "1.0", areas: 1, base: expect.stringMatching(/^release:/) });
+    expect(data).toMatchObject({ published: "1.0", areaIds: [expect.any(Number)], base: expect.stringMatching(/^release:/) });
     expect((await (await board.fetch(`/flows/${id}/edit?publicada=1.0`)).text())).toContain(
       `Publicada la versión 1.0. Ya la ven las personas de las áreas del flujo. <a href="/flows/${id}">Ver el flujo</a>`,
     );

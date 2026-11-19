@@ -123,4 +123,40 @@ describe("flow form (phase 4.4)", () => {
     }
     expect(await colour()).toBe(7);
   });
+
+  it("saves the areas alone from the editor, the same data as the form (DECISIONS, 2026-11-19)", async () => {
+    await loadDevFlows(env.DB, [{ name: "Instalaciones", grid: instalaciones as Grid }]);
+    const id = (await env.DB.prepare("SELECT id FROM flows WHERE name = 'Instalaciones'").first<number>("id"))!;
+    const board = await signIn();
+    const ventas = await area("Ventas");
+    const ops = await area("Operaciones");
+    const releases = () => env.DB.prepare("SELECT count(*) AS n FROM releases WHERE flow_id = ?").bind(id).first<number>("n");
+    const before = await releases();
+    const put = (body: unknown) =>
+      board.fetch(`/flows/${id}/areas`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    // The editor shows the selector with every area, the flow's checked.
+    let html = await (await board.fetch(`/flows/${id}/edit`)).text();
+    expect(html).toContain('id="area-picker"');
+    let res = await put({ areaIds: [ops, ventas, ops] });
+    expect(await res.json()).toEqual({ status: "saved", warning: null });
+    expect(await areasOf(id)).toEqual([ventas, ops].sort((a, b) => a - b));
+    expect(await releases()).toBe(before);
+    html = await (await board.fetch(`/flows/${id}/details`)).text();
+    expect(html).toContain(`<input type="checkbox" name="area" value="${ops}" checked=""`);
+    html = await (await board.fetch(`/flows/${id}/edit`)).text();
+    expect(html).toContain(`<input type="checkbox" name="area" value="${ventas}" checked=""`);
+    expect(html).toContain('<span data-area-summary="true">Operaciones, Ventas</span>');
+    // A published flow left with no area: saved, with the form's warning.
+    res = await put({ areaIds: [] });
+    expect(await res.json()).toEqual({ status: "saved", warning: NO_AREAS_WARNING });
+    expect(await areasOf(id)).toEqual([]);
+    // Anything but a list of ids, or an area that is gone, changes nothing.
+    for (const bad of [null, {}, { areaIds: "1" }, { areaIds: [0] }, { areaIds: ["1"] }]) {
+      expect((await put(bad)).status).toBe(400);
+    }
+    res = await put({ areaIds: [ventas, ventas + ops + 100] });
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({ status: "invalid", error: "Una de las áreas elegidas ya no existe." });
+    expect(await areasOf(id)).toEqual([]);
+  });
 });

@@ -8,7 +8,7 @@ import { AdminList, RowActions, yesNo } from "./admin.tsx";
 import { loadTagIndex } from "./document.ts";
 import { listSavePoints, listVersions, openDraft, parseBase, restoreRelease, restoreSavePoint, reviewImport, saveDraft, type Opened, type SaveAnswer, type SavePoint, type Version } from "./draft.ts";
 import { flowEntries, getFlow, type FlowListEntry, type FlowRow } from "./flows.ts";
-import { NO_AREAS_WARNING } from "./flows-screen.tsx";
+import { listAreaOptions, NO_AREAS_WARNING } from "./flows-screen.tsx";
 import { publishFlow, PUBLISH_CONFLICT } from "./publish.ts";
 import type { AppEnv } from "./session.ts";
 
@@ -40,12 +40,14 @@ export type EditorData = {
   // The latest release ("1.0"), or null: the publish panel shows the next
   // minor and major version from it (phase 5.7).
   published: string | null;
-  // How many areas the flow has: the first publication needs one (§6).
-  areas: number;
+  // The flow's areas, for the selector above the grid (DECISIONS,
+  // 2026-11-19): the first publication needs one (§6).
+  areaIds: number[];
+  areaOptions: { id: number; name: string }[];
 };
 
 async function editorData(db: D1Database, flow: FlowRow, userId: number): Promise<{ data: EditorData; opened: Opened; version: string | null }> {
-  const [opened, entries, index, ids, latest, areas] = await Promise.all([
+  const [opened, entries, index, ids, latest, areaRows, areaOptions] = await Promise.all([
     openDraft(db, flow.id),
     flowEntries(db),
     loadTagIndex(db),
@@ -60,7 +62,8 @@ async function editorData(db: D1Database, flow: FlowRow, userId: number): Promis
       .prepare("SELECT major || '.' || minor AS v FROM releases WHERE flow_id = ? ORDER BY major DESC, minor DESC LIMIT 1")
       .bind(flow.id)
       .first<string>("v"),
-    db.prepare("SELECT count(*) AS n FROM flow_areas WHERE flow_id = ?").bind(flow.id).first<number>("n"),
+    db.prepare("SELECT area_id FROM flow_areas WHERE flow_id = ?").bind(flow.id).all<{ area_id: number }>(),
+    listAreaOptions(db),
   ]);
   const values: Record<string, string[]> = {};
   for (const c of index.categories) {
@@ -84,7 +87,8 @@ async function editorData(db: D1Database, flow: FlowRow, userId: number): Promis
       values,
       types: Core.TYPES.map((t: string) => ({ value: t, label: (Core.TYPE_LABELS as Record<string, string>)[t]! })),
       published: latest,
-      areas: areas ?? 0,
+      areaIds: areaRows.results.map((r) => r.area_id),
+      areaOptions,
     },
   };
 }
@@ -154,6 +158,7 @@ function EditorPage({
           device. */}
       <div class="editor-cols is-folded">
         <div class="editor-main">
+          <AreaPicker data={data} />
           <div class="editor-toolbar">
             <button type="button" class="button-secondary" data-add>
               Agregar paso
@@ -199,6 +204,41 @@ function EditorPage({
       <script type="module" src="/js/editor.js"></script>
       <script type="module" src="/js/table-scroll.js"></script>
     </section>
+  );
+}
+
+// The flow's areas, above the grid (DECISIONS, 2026-11-19): a drop-down of
+// checkboxes, the same data as in «Datos del flujo». editor.js saves each
+// change at once.
+function AreaPicker({ data }: { data: EditorData }) {
+  const chosen = data.areaOptions.filter((a) => data.areaIds.includes(a.id)).map((a) => a.name);
+  return (
+    <div class="editor-areas">
+      <span class="editor-areas-label" id="areas-label">
+        Áreas que lo ven
+      </span>
+      <details class="area-picker" id="area-picker">
+        <summary aria-describedby="areas-label">
+          <span data-area-summary>{chosen.length ? chosen.join(", ") : "Ninguna"}</span>
+        </summary>
+        <fieldset class="choice-list area-picker-list">
+          <legend class="visually-hidden">Áreas que lo ven</legend>
+          <p class="muted">Los Empleados de estas áreas verán el flujo publicado. Se guarda al marcar, sin «Guardar» y sin versión nueva.</p>
+          {data.areaOptions.length ? (
+            data.areaOptions.map((a) => (
+              <label>
+                <input type="checkbox" name="area" value={String(a.id)} checked={data.areaIds.includes(a.id)} /> {a.name}
+              </label>
+            ))
+          ) : (
+            <p class="muted">
+              Todavía no hay áreas. <a href="/areas/new">Crea una</a>.
+            </p>
+          )}
+        </fieldset>
+      </details>
+      <span class="muted" id="areas-status" role="status"></span>
+    </div>
   );
 }
 
@@ -248,7 +288,7 @@ editor.get("/:id{[0-9]+}/edit", "editor", async (c) => {
     <>
       {/* With no area (removed after the first publication), the flow
           form's own warning: no Empleado sees it. */}
-      Publicada la versión {published}. {data.areas ? "Ya la ven las personas de las áreas del flujo." : NO_AREAS_WARNING}{" "}
+      Publicada la versión {published}. {data.areaIds.length ? "Ya la ven las personas de las áreas del flujo." : NO_AREAS_WARNING}{" "}
       <a href={`/flows/${flow.id}`}>Ver el flujo</a>
     </>
   ) : restored && restored === data.published ? (

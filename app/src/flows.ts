@@ -87,13 +87,32 @@ export async function saveFlowDetails(db: D1Database, id: number, details: FlowD
   try {
     await db.batch([
       db.prepare("UPDATE flows SET name = ?, name_key = ?, objective = ?, colour = ? WHERE id = ?").bind(name, key, details.objective.trim(), details.colour, id),
-      db.prepare("DELETE FROM flow_areas WHERE flow_id = ?").bind(id),
-      ...[...new Set(details.areaIds)].map((areaId) => db.prepare("INSERT INTO flow_areas (flow_id, area_id) VALUES (?, ?)").bind(id, areaId)),
+      ...areaStatements(db, id, details.areaIds),
     ]);
   } catch (e) {
     const message = String(e);
     if (/UNIQUE/.test(message)) return { ok: false, error: `Ya existe un flujo con ese nombre. ${NAME_RULE}` };
-    if (/FOREIGN KEY/.test(message)) return { ok: false, error: "Una de las áreas elegidas ya no existe." };
+    if (/FOREIGN KEY/.test(message)) return { ok: false, error: AREA_GONE };
+    throw e;
+  }
+  return { ok: true };
+}
+
+const AREA_GONE = "Una de las áreas elegidas ya no existe.";
+
+const areaStatements = (db: D1Database, id: number, areaIds: number[]) => [
+  db.prepare("DELETE FROM flow_areas WHERE flow_id = ?").bind(id),
+  ...[...new Set(areaIds)].map((areaId) => db.prepare("INSERT INTO flow_areas (flow_id, area_id) VALUES (?, ?)").bind(id, areaId)),
+];
+
+// The areas alone, from the selector above the editor's grid (DECISIONS,
+// 2026-11-19): the same data as the flow form's, saved at once. Areas are
+// not part of the draft, so they need no Guardar and make no version.
+export async function saveFlowAreas(db: D1Database, id: number, areaIds: number[]): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    await db.batch(areaStatements(db, id, areaIds));
+  } catch (e) {
+    if (/FOREIGN KEY/.test(String(e))) return { ok: false, error: AREA_GONE };
     throw e;
   }
   return { ok: true };

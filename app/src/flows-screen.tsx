@@ -1,6 +1,6 @@
 import { Router } from "./access.tsx";
 import { AdminForm, AdminList, RowActions, yesNo } from "./admin.tsx";
-import { COLOURS, createFlow, getFlow, saveFlowDetails, type FlowDetails } from "./flows.ts";
+import { COLOURS, createFlow, getFlow, saveFlowAreas, saveFlowDetails, type FlowDetails } from "./flows.ts";
 
 // The flows list, the new flow form and the flow form (phases 1.5, 4.4).
 // Editors only (phase 4.2). Steps are edited, and imported, in the editor
@@ -67,7 +67,7 @@ function NewFlowPage({ value, error }: { value: string; error?: string }) {
     <AdminForm back={BACK} title="Nuevo flujo" error={error} action="/flows" submit="Crear flujo">
       <label for="flow-name">Nombre</label>
       <input id="flow-name" name="name" value={value} required maxlength={100} />
-      <p class="muted">Nace sin publicar. Al crearlo pasas a su editor, donde le das sus pasos; su objetivo, color y áreas van en «Datos del flujo».</p>
+      <p class="muted">Nace sin publicar. Al crearlo pasas a su editor, donde le das sus pasos y sus áreas; su objetivo y color van en «Datos del flujo».</p>
     </AdminForm>
   );
 }
@@ -162,7 +162,7 @@ function DetailsPage({
   );
 }
 
-const listAreaOptions = async (db: D1Database) => (await db.prepare("SELECT id, name FROM areas ORDER BY name_key").all<AreaOption>()).results;
+export const listAreaOptions = async (db: D1Database) => (await db.prepare("SELECT id, name FROM areas ORDER BY name_key").all<AreaOption>()).results;
 
 flowsScreen.get("/:id{[0-9]+}/details", "editor", async (c) => {
   const db = c.env.DB;
@@ -197,4 +197,22 @@ flowsScreen.post("/:id{[0-9]+}/details", "editor", async (c) => {
     return c.render(<DetailsPage flow={flow} values={values} areas={await listAreaOptions(db)} error={result.error} />, { title: flow.name });
   }
   return c.redirect(`/flows/${flow.id}/details?guardado=1`, 303);
+});
+
+// The selector above the editor's grid (DECISIONS, 2026-11-19), as JSON:
+// `{areaIds}`, the whole set. Saved at once; the answer carries the same
+// warning as the flow form when a published flow is left with no area.
+flowsScreen.post("/:id{[0-9]+}/areas", "editor", async (c) => {
+  const db = c.env.DB;
+  const flow = await flowOf(c);
+  if (!flow) return c.notFound();
+  const body = (await c.req.json().catch(() => null)) as { areaIds?: unknown } | null;
+  const ids = Array.isArray(body?.areaIds) ? body.areaIds : null;
+  if (!ids || !ids.every((n) => Number.isSafeInteger(n) && (n as number) > 0)) {
+    return c.json({ status: "invalid", error: "No se pudieron guardar las áreas." }, 400);
+  }
+  const result = await saveFlowAreas(db, flow.id, ids as number[]);
+  if (result.ok === false) return c.json({ status: "invalid", error: result.error }, 422);
+  const published = !!(await db.prepare("SELECT 1 FROM releases WHERE flow_id = ?").bind(flow.id).first());
+  return c.json({ status: "saved", warning: published && ids.length === 0 ? NO_AREAS_WARNING : null });
 });

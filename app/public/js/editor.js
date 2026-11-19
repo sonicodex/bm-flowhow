@@ -646,8 +646,97 @@ if (dataEl && table) {
   });
 
   window.addEventListener('beforeunload', (ev) => {
-    if (dirty() && !leaving) ev.preventDefault();
+    if ((dirty() || areasBusy) && !leaving) ev.preventDefault();
   });
+
+  // ---- The flow's areas, above the grid (DECISIONS, 2026-11-19): the
+  // same data as «Datos del flujo», saved at once on each change, with no
+  // Guardar and no version (POST /flows/:id/areas). One request at a time;
+  // a change made meanwhile is sent after it, with the whole set. ----
+
+  const picker = document.getElementById('area-picker');
+  const areaSummary = picker.querySelector('[data-area-summary]');
+  const areasStatus = document.getElementById('areas-status');
+  let areasBusy = false;
+  let areasAgain = false;
+
+  const checkedAreas = () => [...picker.querySelectorAll('input[name="area"]:checked')].map((b) => Number(b.value));
+  function showAreas(ids) {
+    const names = data.areaOptions.filter((a) => ids.includes(a.id)).map((a) => a.name);
+    areaSummary.textContent = names.length ? names.join(', ') : 'Ninguna';
+  }
+  function areasSay(text, kind = '') {
+    areasStatus.textContent = text;
+    areasStatus.className = kind === 'error' ? 'form-error' : kind === 'warning' ? 'form-warning' : 'muted';
+  }
+
+  async function saveAreas() {
+    if (areasBusy) {
+      areasAgain = true;
+      return;
+    }
+    areasBusy = true;
+    areasSay('Guardando las áreas…');
+    let answer;
+    do {
+      areasAgain = false;
+      const sent = checkedAreas();
+      try {
+        const res = await fetch(`/flows/${data.flowId}/areas`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ areaIds: sent }),
+        });
+        answer = await res.json();
+      } catch {
+        answer = { status: 'invalid', error: 'No se pudieron guardar las áreas: revisa la conexión y vuelve a intentarlo.' };
+      }
+      if (answer.status === 'saved') data.areaIds = sent;
+    } while (areasAgain);
+    areasBusy = false;
+    if (answer.status === 'saved') {
+      areasSay(answer.warning || 'Áreas guardadas.', answer.warning ? 'warning' : '');
+      return;
+    }
+    // What is shown goes back to what is saved.
+    for (const b of picker.querySelectorAll('input[name="area"]')) b.checked = data.areaIds.includes(Number(b.value));
+    showAreas(data.areaIds);
+    areasSay(answer.error || 'No se pudieron guardar las áreas.', 'error');
+  }
+
+  picker.addEventListener('change', () => {
+    showAreas(checkedAreas());
+    saveAreas();
+  });
+  // A drop-down: it closes on a click outside it, and with Escape.
+  document.addEventListener('click', (ev) => {
+    if (picker.open && !picker.contains(ev.target)) picker.open = false;
+  });
+  picker.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && picker.open) {
+      picker.open = false;
+      picker.querySelector('summary').focus();
+    }
+  });
+
+  // ---- The grid's height (DECISIONS, 2026-11-19): at most what is left of
+  // the window below the grid's top, so its horizontal bar is in view
+  // without scrolling the page; the rows scroll inside it, under a header
+  // that stays put. Never below a third of the window, for a short one. ----
+
+  const scroller = table.closest('.table-scroll');
+  const frame = scroller.parentElement;
+  function fitGrid() {
+    if (cols.hidden) return;
+    const top = frame.getBoundingClientRect().top + window.scrollY;
+    const edges = frame.offsetHeight - scroller.offsetHeight + (parseFloat(getComputedStyle(frame).marginBottom) || 0);
+    scroller.style.maxHeight = `${Math.max(window.innerHeight - top - edges, window.innerHeight / 3)}px`;
+  }
+  // What sits above the grid changes height (a message, the import box):
+  // the section's size changes with it. Setting the same height again
+  // changes nothing, so this does not loop.
+  new ResizeObserver(fitGrid).observe(document.querySelector('.editor'));
+  window.addEventListener('resize', fitGrid);
 
   // ---- Publish (SPEC §6 publish validations, §8; phase 5.7). What is
   // published is the saved draft this page has open (`base`): the panel
@@ -678,8 +767,9 @@ if (dataEl && table) {
       problems.scrollIntoView({ block: 'nearest' });
       return;
     }
-    if (!data.published && !data.areas) {
-      say(`<h2>Falta asignar un área</h2><p>La primera publicación necesita al menos un área: sin ella nadie vería el flujo. Asígnala en <a href="/flows/${data.flowId}/details">Datos del flujo</a> y vuelve aquí.</p>` + actions(''));
+    if (!data.published && !data.areaIds.length) {
+      say('<h2>Falta asignar un área</h2><p>La primera publicación necesita al menos un área: sin ella nadie vería el flujo. Elígela en «Áreas que lo ven», encima de la tabla, y vuelve a publicar.</p>' +
+        actions('<button type="button" class="button-primary" data-pick-areas>Elegir áreas</button>'));
       return;
     }
     const choice = data.published
@@ -725,6 +815,11 @@ if (dataEl && table) {
     if (t.closest('[data-close]')) say('');
     else if (t.closest('[data-save-publish]') && (await save())) openPublish();
     else if (t.closest('[data-confirm-publish]')) publish(t.closest('[data-confirm-publish]'));
+    else if (t.closest('[data-pick-areas]')) {
+      say('');
+      picker.open = true;
+      (picker.querySelector('input, a') || picker.querySelector('summary')).focus();
+    }
   });
 
   // ---- Template and export (SPEC §6; phase 5.6): built here, from the grid
