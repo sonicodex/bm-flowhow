@@ -14,6 +14,48 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.10: PWA
+
+- Decision:
+  - **Manifest** (`public/manifest.webmanifest`):
+    - Name «FlowHow», `es-CO`, standalone, opens on `/home`.
+    - Background and theme colours are the theme's `--color-bg` and
+      `--color-primary`, written as values: a manifest cannot read CSS
+      tokens. The page's `theme-color` meta repeats the primary colour.
+    - **No icons yet.** The only brand asset is the horizontal logotype,
+      and an app icon is the owner's to supply (see below). Until then
+      browsers do not offer to install the app; everything else works.
+  - **Service worker** (`public/sw.js`), registered on every page by
+    `js/sw-register.js`.
+    - It does no drawing; SPEC §9's "three screens run JavaScript of
+      their own" is about screens, and this registration draws nothing.
+    - **The shell:** styles, the iBrand font, logo, icons, every browser
+      module and the «Sin conexión» page. `test/pwa.test.ts` checks the
+      list against `public/`, so a new module cannot be forgotten.
+    - **Pages are never cached.** They carry the user's flows, progress
+      and session (SPEC: "no offline data"). Without a network, a page
+      request gets the «Sin conexión» page, which says nothing about the
+      user.
+    - Forms, the tour's JSON and other sites (Google Fonts) are left
+      alone.
+    - **Shell files are fetched network-first,** with the cache as the
+      fallback. They are not fingerprinted, and a stale `core.js` against
+      a newer server would break the tour. So the cache makes the shell
+      available offline; it does not make pages faster.
+    - The cache is named by a `VERSION` constant. Bumping it drops the old
+      cache.
+    - The assets serve `offline.html` at `/offline` and redirect the
+      `.html` address. A redirected response cannot answer a navigation,
+      so the worker caches `/offline`.
+  - **Checked in Chrome:**
+    - The worker activates and caches 27 files, no page among them.
+    - With the network cut for the page and for the worker, `/report`
+      showed «Sin conexión», styled and with the logo. Back online, the
+      report again.
+- Reason: phase 6 plan (plan_iteration_3), slice 6.10; SPEC §9,
+  Architecture.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.9: the progress report
 
 - Decision:

@@ -54,6 +54,11 @@ export const renderer = jsxRenderer(({ children, title }) => (
       <title>{`${title} · FlowHow`}</title>
       <link rel="stylesheet" href="/theme.css" />
       <link rel="stylesheet" href="/app.css" />
+      {/* PWA (SPEC §9, Architecture; phase 6.10): the manifest, and the service worker
+          that keeps the app shell, never data. */}
+      <link rel="manifest" href="/manifest.webmanifest" />
+      <meta name="theme-color" content="#28519D" />
+      <script type="module" src="/js/sw-register.js"></script>
     </head>
     <body>
       <header class="site-header">

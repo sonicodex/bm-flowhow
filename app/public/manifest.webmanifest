@@ -1,0 +1,12 @@
+{
+  "name": "FlowHow",
+  "short_name": "FlowHow",
+  "lang": "es-CO",
+  "dir": "ltr",
+  "start_url": "/home",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F5F5F5",
+  "theme_color": "#28519D",
+  "icons": []
+}
