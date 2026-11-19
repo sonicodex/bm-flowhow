@@ -9,11 +9,18 @@ Commands run from `app/`.
 
 ## 1. The remote D1
 
-- `wrangler.jsonc` has no `database_id`: the deployment-check database was
-  deleted (DECISIONS 2026-11-12). Create one with
-  `npx wrangler d1 create <name>` and put its `database_id` in the `DB`
-  binding, then `npm run types`.
+- The remote D1 is `flowhow-test` (`2fd74d7a-ff48-4db5-af49-9ec71d87fc18`),
+  created 2026-11-19. Its `database_id` is in the `DB` binding of
+  `wrangler.jsonc`. If it is ever recreated, run
+  `npx wrangler d1 create <name>`, put the new id there, then
+  `npm run types`.
+- Keep `"preview_database_id": "DB"` beside it. Wrangler keys the local
+  database by that id, and `DB` is where local state lived before there was
+  a `database_id`. Without it, every local command (`db:migrate`, `dev`,
+  `d1 execute --local`) opens a new, empty database. The tests are not
+  affected: they get a fresh database of their own.
 - Apply the migrations: `npx wrangler d1 migrations apply DB --remote`.
+  It asks nothing when it runs without a terminal, as in CI.
   From then on, a migration applied remotely is never edited. Changes go in
   a new file.
 - Migration `0005` deletes the placeholder user of phases 2 and 3. Remotely
@@ -76,6 +83,10 @@ With `npx wrangler tail` while using the app:
   Workers Paid, or fewer iterations. The iteration count is stored in each
   hash, so it can change without breaking stored passwords. That decision is
   the owner's: do not lower it silently.
+  - Measured 2026-11-19 on `flowhow-test.software-jpmb.workers.dev`, with
+    four failed logins (an unknown user runs the same PBKDF2):
+    21 to 34 ms of CPU, about 1 s of wall time (the deliberate wait). The
+    outcome was `ok` every time; none was cut.
 - The tour requests and, in phase 6, the progress report, as DECISIONS
   2026-11-12 (deployment check) asks.
 - The editor's writes on the largest real flow (Apertura de OT, 36

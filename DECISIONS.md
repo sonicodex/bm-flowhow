@@ -14,6 +14,35 @@ Entry format:
 
 ---
 
+## 2026-11-19 — First deployment (owner-authorised)
+
+- **The owner authorised it** and asked for DEPLOY.md step by step.
+- **Remote D1:** `flowhow-test` (`2fd74d7a-…`, region ENAM). All eight
+  migrations applied remotely.
+- **The Worker:** `flowhow-test`, deployed at
+  `https://flowhow-test.software-jpmb.workers.dev`.
+- **Not done, as the owner said:**
+  - `db:load` was not run remotely.
+  - `DEV_PASSWORD` was not uploaded. The Worker reads no secret.
+  - No user was created: the first Board user's password is the owner's
+    to type (`user:create --remote`).
+- **Local database kept** with `"preview_database_id": "DB"`. Adding the
+  `database_id` moved wrangler's local key, and every local command opened
+  a new, empty database; the owner's data was still on disk under the old
+  key. `DB` is that key. Two empty databases my checks had created under
+  the new keys were removed. Recorded in DEPLOY §1.
+- **Nothing depends on someone being there** (DEPLOY §6): `d1 migrations
+  apply --remote` and `deploy` asked nothing without a terminal. The D1 is
+  created once, like the first Board user.
+- **Smoke check without a user:** the root shows the login, and a wrong
+  password gets «Usuario o contraseña incorrectos.» (401, after the
+  one-second wait).
+- **`POST /login` CPU:** 21–34 ms over four failed attempts, outcome `ok`.
+  That is above the Free plan's nominal 10 ms. Workers Paid or fewer
+  iterations is the owner's call (DEPLOY §5).
+- Reason: owner's instruction; DEPLOY §1–§5.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.23: the reader opens each sibling of a parallel decision
 
 - Decision (SPEC §7, owner's change):
