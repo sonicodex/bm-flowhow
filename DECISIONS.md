@@ -14,6 +14,61 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.20: the branch is chosen on the diagram
+
+- Decision (plan_iteration_7, as proposed, with the owner's answers):
+  - **Targets:** while the step in view is a decision (the current one, or
+    one left behind and reached with «Anterior»), each step a branch
+    leads to is a target.
+    - It is a button inside the SVG (`role="button"`, `tabindex="0"`,
+      `data-branch`), named «Rama «Externa»: ¿El proveedor es la
+      litografía?», with «, ya recorrida» once walked.
+    - At rest, an open target has the flow's tint and strong outline. A
+      walked one keeps its plain look.
+    - The diagram is `role="group"` while it has targets.
+    - Twins (Apertura P34) share one target. It takes the first branch
+      still to take and is named «Rama «Sí» o «No»: …» (owner: the
+      decision is parallel, so either does the same).
+  - **Lighting:** hovering a target or giving it keyboard focus lights
+    the decision's edge to it, its arrow and its label.
+    - The edges and labels carry `data-branch-to`. The arrow swaps
+      through `data-arrow-rest` and `data-arrow-lit`, because CSS cannot
+      restyle a marker per use.
+  - **Taking a branch:** a click, Enter or Space takes it. The action,
+    the log and the server's check are unchanged.
+    - A held branch (6.18) sends nothing, and its note shows as a tooltip
+      below the target. Below, because the decision's own tooltip is
+      above, and the branch's edge and label are between them.
+    - On a target that is also a link step, the link's tooltip goes below
+      for the same reason.
+  - **Focus:** arriving at a decision puts focus on the first open
+    target. The focus chain now skips disabled controls; before, a
+    disabled «Siguiente» stopped it and nothing was focused.
+  - **The side panel** keeps the step's content and lists each branch
+    under «Elige la rama en el diagrama»: label · step, and «Falta» or
+    «Ya recorrida». It is a list, not buttons. «Ir a lo que falta por
+    visitar» stays a button there, because it is not a branch.
+  - **Tests:** a `diagram.test.js` case checks:
+    - targets with their names and branches;
+    - lightable edges and labels only for the decision in view;
+    - one target for twins;
+    - no targets without branches.
+  - **Checked in Chrome** (start and steps answered in the browser,
+    nothing written; run 5 still has no rows):
+    - Apertura P6: focus on P7. Hovering P13 lit its edge, arrow and
+      «Interna». Tab to P13 and Enter went into Instalaciones. Walking
+      on by clicking targets reached P14.
+    - Instalaciones P9: a real click on «Sí»'s target sent nothing and
+      showed the held tooltip below it.
+    - The same at 390×844, once the diagram is scrolled into view.
+  - **Seen, not changed:**
+    - On a phone the diagram sits below the step panel (§9), so the
+      targets need a scroll first.
+    - At Instalaciones P9 the «Sí» branch runs far down. The 6.21 frame
+      takes in the whole branch, so the zoom there is small.
+- Reason: SPEC §7 (owner's change); plan_iteration_7, slice 6.20.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.21: the tour zoom on by default, two steps behind and two ahead
 
 - Decision:
@@ -117,10 +172,11 @@ Entry format:
     - When a branch is held, `choose()` returns `{ moved: false, held }`
       and changes nothing. The branch is not «Ya recorrida», nothing is
       visited, and the server refuses it and logs nothing.
-    - The viewer asks before sending. It sends nothing, and below that
-      branch, with `role="status"`, it writes «Sí» lleva directo a
-      «Confirmar la fecha de instalación programada», donde se une con
-      «No». Recorre primero «No».
+    - The viewer asks before sending. It sends nothing, and ~~below that
+      branch~~ (superseded the same day by 6.20: in a tooltip below that
+      branch's target on the diagram), with `role="status"`, it writes «Sí»
+      lleva directo a «Confirmar la fecha de instalación programada», donde
+      se une con «No». Recorre primero «No».
       - A branch without a label is named by its step's title.
       - Several branches are listed with «y».
       - Focus stays on the branch. The note goes with the next action.

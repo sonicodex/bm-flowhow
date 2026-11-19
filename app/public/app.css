@@ -874,6 +874,72 @@ textarea:focus-visible,
   color: var(--color-text-muted);
 }
 
+/* The state of each branch, beside the diagram where it is chosen (phase
+   6.20): a list, not buttons. */
+.branch-states {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.branch-state {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  padding: var(--space-1) 0;
+  font-size: var(--text-sm);
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.branch-name {
+  flex: 1;
+}
+
+.branch-state > .small:last-child {
+  margin-left: auto;
+}
+
+/* Branch targets on the diagram (phase 6.20): the steps the decision in view
+   leads to. At rest, the flow's outline and tint say they can be chosen; a
+   taken one keeps its plain look. Hover and keyboard focus light its edge,
+   arrow and label (viewer.js toggles .lit and swaps the arrow). */
+.diagram .node.target {
+  cursor: pointer;
+  outline: var(--border-width) solid transparent;
+}
+
+.diagram .node.target:not(.taken) .node-shape {
+  fill: color-mix(in srgb, var(--flow) var(--flow-tint-mix), var(--color-surface));
+  stroke: var(--flow-strong);
+  stroke-width: calc(var(--border-width) * 1.5);
+}
+
+.diagram .node.target:not(.taken) .node-text {
+  fill: var(--color-text);
+}
+
+.diagram .node.target:hover .node-shape {
+  stroke: var(--flow-strong);
+  stroke-width: calc(var(--border-width) * 2.5);
+}
+
+.diagram .node.target:focus-visible {
+  filter: var(--shadow-focus-svg);
+}
+
+.diagram .edge.lit {
+  stroke: var(--flow-strong);
+  stroke-width: calc(var(--border-width) * 2.5);
+}
+
+.diagram .edge-label.lit {
+  fill: var(--color-text);
+  font-weight: var(--weight-bold);
+}
+
 /* Tour zoom (phase 6.8): the toggle in the progress bar, its icon in the
    text colour (SPEC §9: single-colour icons take currentColor). */
 .zoom-toggle {

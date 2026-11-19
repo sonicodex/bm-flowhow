@@ -143,10 +143,10 @@ if (data && cols) {
 
   // Why a branch was not entered (SPEC §7; phase 6.18): it goes straight to where the branches with
   // steps of their own join it, so those go first. Said where the choice was made.
-  const heldNote = (options, o, wait) => {
+  const heldText = (options, o, wait) => {
     const name = (x) => quoted(x.label || x.title);
     const others = new Intl.ListFormat('es', { type: 'conjunction' }).format(wait.map((k) => name(options[k])));
-    return `<p class="note held-note" role="status">${name(o)} lleva directo a ${quoted(o.title)}, donde se une con ${others}. Recorre primero ${others}.</p>`;
+    return `${name(o)} lleva directo a ${quoted(o.title)}, donde se une con ${others}. Recorre primero ${others}.`;
   };
 
   const exitsPanel = (tour) => {
@@ -155,15 +155,14 @@ if (data && cols) {
     const text = (o) => `${o.label ? `<strong>${esc(o.label)}</strong> · ` : ''}${esc(o.title)}`;
     // At the last step, or on a decision "Anterior" came back to (phase 3.6).
     if (tour.canChoose()) {
-      const held = state.held && state.held.at === tour.pos ? state.held : null;
-      const buttons = options.map((o) =>
-        `<button type="button" class="branch${o.taken ? ' taken' : ''}" data-choose="${o.index}">${text(o)}${o.taken ? `<span class="taken-tag">${DONE_ICON}Ya recorrida</span>` : ''}</button>` +
-        (held && held.exit === o.index ? heldNote(options, o, held.wait) : ''),
+      // The state of each branch; the choice is made on the diagram (SPEC §7; phase 6.20).
+      const rows = options.map((o) =>
+        `<li class="branch-state${o.taken ? ' taken' : ''}"><span class="branch-name">${text(o)}</span>${o.taken ? `<span class="taken-tag">${DONE_ICON}Ya recorrida</span>` : '<span class="muted small">Falta</span>'}</li>`,
       ).join('');
       const skip = tour.canSkip() ? '<button type="button" class="branch" data-skip>Ir a lo que falta por visitar</button>' : '';
       const again = options.some((o) => o.taken) ? '<p class="muted small">Puedes repetir una rama ya recorrida.</p>' : '';
-      const head = tour.atEnd() ? 'Elige una rama para continuar' : 'Puedes elegir otra rama: el recorrido seguirá desde aquí';
-      return `<div class="exits"><p class="label">${head}</p>${buttons}${skip}${again}</div>`;
+      const head = tour.atEnd() ? 'Elige la rama en el diagrama' : 'Puedes elegir otra rama en el diagrama: el recorrido seguirá desde aquí';
+      return `<div class="exits"><p class="label">${head}</p><ul class="branch-states">${rows}</ul>${skip}${again}</div>`;
     }
     const rows = options.map((o) => `<p class="exit-row">${text(o)}${o.visited && tour.atEnd() ? ' (ya visitado)' : ''}</p>`).join('');
     // The "next step" hint: secondary, so a phone leaves it out (SPEC §9).
@@ -180,7 +179,30 @@ if (data && cols) {
         id: current,
         items: categories.flatMap((category, index) => (step.tags[category] || []).map((value) => ({ category, index, value }))),
       },
+      branches: branchMarks(tour),
     };
+  };
+
+  // The branches of the decision in view, as targets on the diagram (SPEC §7;
+  // phase 6.20). One target per step a branch leads to; twins (two branches
+  // to one step) share it, take the first still to take, and are named
+  // together: «Rama «Sí» o «No»: Entregar con acta».
+  const branchMarks = (tour) => {
+    if (!tour.canChoose()) return undefined;
+    const byStep = new Map();
+    for (const o of tour.options()) {
+      if (!byStep.has(o.to)) byStep.set(o.to, []);
+      byStep.get(o.to).push(o);
+    }
+    const targets = {};
+    for (const [to, list] of byStep) {
+      const open = list.find((o) => !o.taken);
+      const labels = list.filter((o) => o.label).map((o) => quoted(o.label));
+      const taken = !open;
+      const name = `Rama ${labels.length ? labels.join(' o ') : 'sin nombre'}: ${list[0].title}${taken ? ', ya recorrida' : ''}`;
+      targets[to] = { exit: (open || list[0]).index, name, taken };
+    }
+    return { decision: tour.current().id, targets };
   };
 
   // From the diagram's coordinates to pixels in the drawn SVG. Read from its
@@ -301,7 +323,7 @@ if (data && cols) {
   // of with the arrow down; below it only when the diagram has no room
   // above. They live inside the diagram's scroll box, so they move with it.
   const TIP_GAP = 4;
-  const placeTip = (box, node, tip) => {
+  const placeTip = (box, node, tip, preferBelow = false) => {
     const b = box.getBoundingClientRect();
     const r = node.getBoundingClientRect();
     const anchor = r.left - b.left + box.scrollLeft + r.width / 2;
@@ -310,7 +332,7 @@ if (data && cols) {
     // Kept inside the diagram sideways; the arrow still points at the node.
     const x = Math.max(w / 2 + TIP_GAP, Math.min(anchor, box.scrollWidth - w / 2 - TIP_GAP));
     const top = r.top - b.top + box.scrollTop;
-    const below = top - h - TIP_GAP * 2 < 0;
+    const below = preferBelow || top - h - TIP_GAP * 2 < 0;
     tip.classList.toggle('below', below);
     tip.style.left = `${x}px`;
     tip.style.top = `${below ? top + r.height : top}px`;
@@ -333,7 +355,8 @@ if (data && cols) {
     tip.setAttribute('aria-hidden', 'true');
     tip.textContent = node.getAttribute('data-tip');
     box.append(tip);
-    placeTip(box, node, tip);
+    // On a branch target, below it: above are its edge and label, which light up (6.20).
+    placeTip(box, node, tip, !!node.closest('.node.target'));
   };
 
   // A tooltip on the decision names the branches still to walk, until one is
@@ -349,6 +372,26 @@ if (data && cols) {
     const names = new Intl.ListFormat('es', { type: 'conjunction' }).format(pending.map((p) => `«${p}»`));
     return pending.length === 1 ? `Falta la rama ${names}. Elígela para seguir.` : `Faltan las ramas ${names}. Elige una para seguir.`;
   };
+  // Why a branch was not entered (6.18), where it was chosen: on its target,
+  // below it, clear of the decision's own tooltip above (phase 6.20).
+  const showHeldTip = (box, tour) => {
+    box.querySelector('.tooltip-held')?.remove();
+    const held = state.held && state.held.at === tour.pos ? state.held : null;
+    if (!held) return;
+    const options = tour.options();
+    const o = options[held.exit];
+    const node = box.querySelector(`.node.target[data-id="${CSS.escape(o.to)}"]`);
+    if (!node) return;
+    const tip = document.createElement('div');
+    tip.className = 'tooltip tooltip-held';
+    tip.setAttribute('role', 'status');
+    tip.textContent = heldText(options, o, held.wait);
+    box.append(tip);
+    const top = placeTip(box, node, tip, true);
+    const bottom = top + tip.offsetHeight + TIP_GAP * 2;
+    if (bottom > box.scrollTop + box.clientHeight) box.scrollTop = bottom - box.clientHeight;
+  };
+
   // Room above the decision for the tooltip when the tour is zoomed.
   const TIP_ROOM = 72;
   const showReturnTip = (box, tour) => {
@@ -393,8 +436,13 @@ if (data && cols) {
     if (zoomed) zoomTo(box, layout, tour);
     else scrollToCurrent(box, layout, tour.current().id);
     showReturnTip(box, tour);
-    const target = (focus && cols.querySelector(focus)) || cols.querySelector('[data-choose]:not(.taken)') || cols.querySelector('[data-finish]') || cols.querySelector('[data-next]:not([disabled])');
-    if (target && !target.disabled) target.focus({ preventScroll: true });
+    showHeldTip(box, tour);
+    // The first of these that can take focus: the control just used, else
+    // the first branch still to take on the diagram (6.20), else the way on.
+    const target = [focus, '.node.target:not(.taken)', '.node.target', '[data-finish]', '[data-next]']
+      .map((sel) => (sel ? cols.querySelector(sel) : null))
+      .find((el) => el && !el.disabled);
+    if (target) target.focus({ preventScroll: true });
   };
 
   // `status.action` relabels the button: "Repetir recorrido" after a
@@ -586,7 +634,60 @@ if (data && cols) {
   cols.addEventListener('focusin', (ev) => showHoverTip(ev.target));
   cols.addEventListener('focusout', hideHoverTip);
 
+  // Takes branch `exit` of the decision in view, chosen on the diagram
+  // (SPEC §7; phase 6.20).
+  const chooseBranch = (exit) => {
+    if (!state || state.busy) return;
+    const tour = state.tour;
+    const at = tour.current().id;
+    const focus = `.node.target[data-id="${CSS.escape(tour.options()[exit].to)}"]`;
+    state.held = null;
+    // A branch that cannot be entered yet (phase 6.18): nothing is sent,
+    // nothing moves, and a tooltip on it says what to walk first.
+    const wait = tour.holdsBack(exit);
+    if (wait) {
+      state.held = { exit, wait, at: tour.pos };
+      state.message = '';
+      return renderTour(focus);
+    }
+    if (tour.atEnd()) act({ at, action: 'choose', exit });
+    else if (tour.current().chose === exit) {
+      // The branch chosen here before: only the view moves.
+      tour.choose(exit);
+      state.message = '';
+      renderTour();
+    } else act({ at, action: 'choose', exit, back: tour.pos });
+  };
+  const branchTarget = (el) => (state && el instanceof Element ? el.closest('.node.target') : null);
+
+  // Hovering or focusing a target lights its branch: the edge, its arrow and its label.
+  const light = (node, on) => {
+    if (!node) return;
+    const box = node.closest('svg');
+    for (const el of box ? box.querySelectorAll(`[data-branch-to="${CSS.escape(node.getAttribute('data-id'))}"]`) : []) {
+      el.classList.toggle('lit', on);
+      const arrow = el.getAttribute(on ? 'data-arrow-lit' : 'data-arrow-rest');
+      if (arrow) el.setAttribute('marker-end', arrow);
+    }
+  };
+  cols.addEventListener('pointerover', (ev) => light(branchTarget(ev.target), true));
+  cols.addEventListener('pointerout', (ev) => {
+    const node = branchTarget(ev.target);
+    if (node && !(ev.relatedTarget instanceof Node && node.contains(ev.relatedTarget)) && document.activeElement !== node) light(node, false);
+  });
+  cols.addEventListener('focusin', (ev) => light(branchTarget(ev.target), true));
+  cols.addEventListener('focusout', (ev) => light(branchTarget(ev.target), false));
+  cols.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Enter' && ev.key !== ' ') return;
+    const node = branchTarget(ev.target);
+    if (!node) return;
+    ev.preventDefault();
+    chooseBranch(Number(node.getAttribute('data-branch')));
+  });
+
   cols.addEventListener('click', (ev) => {
+    const node = branchTarget(ev.target);
+    if (node) return chooseBranch(Number(node.getAttribute('data-branch')));
     if (review) {
       const node = ev.target instanceof Element ? ev.target.closest('.node.clickable') : null;
       if (node) return selectNode(node);
@@ -631,25 +732,7 @@ if (data && cols) {
         state.message = '';
         renderTour('[data-next]');
       } else act({ at, action: 'next' }, '[data-next]');
-    } else if (b.hasAttribute('data-choose')) {
-      const exit = Number(b.getAttribute('data-choose'));
-      // A branch that cannot be entered yet (SPEC §7; phase 6.18): nothing is sent, nothing moves, and
-      // the note by the branch says what to walk first.
-      const wait = tour.holdsBack(exit);
-      if (wait) {
-        state.held = { exit, wait, at: tour.pos };
-        state.message = '';
-        return renderTour(`[data-choose="${exit}"]`);
-      }
-      if (tour.atEnd()) act({ at, action: 'choose', exit });
-      else if (tour.current().chose === exit) {
-        // The branch chosen here before: only the view moves.
-        tour.choose(exit);
-        state.message = '';
-        renderTour();
-      } else act({ at, action: 'choose', exit, back: tour.pos });
-    }
-    else if (b.hasAttribute('data-skip')) act({ at, action: 'skip' });
+    } else if (b.hasAttribute('data-skip')) act({ at, action: 'skip' });
     else if (b.hasAttribute('data-finish')) finish();
   });
 

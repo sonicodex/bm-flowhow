@@ -155,7 +155,17 @@ let seq = 0;
  * step. `clickable`: every step is a button that selects it (free review).
  * @typedef {{ state: (id: string) => string, walked: (from: string, to: string) => boolean,
  *   badges?: { id: string, items: { category: string, index: number, value: string }[] },
- *   clickable?: boolean }} TourMarks
+ *   clickable?: boolean, branches?: BranchMarks }} TourMarks
+ */
+
+/**
+ * The branches of the decision in view, chosen on the diagram (SPEC §7;
+ * phase 6.20). Each step a branch leads to is a target, a button inside the
+ * SVG: `exit` is the branch it takes (twins share one step: the first still
+ * to take), `name` its accessible name, `taken` when every branch to it was
+ * walked. The decision's edges to it, and their labels, carry
+ * `data-branch-to` so the viewer can light them.
+ * @typedef {{ decision: string, targets: Record<string, { exit: number, name: string, taken: boolean }> }} BranchMarks
  */
 
 /**
@@ -180,12 +190,16 @@ export function renderDiagram(layout, flow, tour, links = {}) {
   if (!layout.nodes.length) return `<p class="muted">Este flujo todavía no tiene pasos.</p>`;
   const id = ++seq;
   const marker = (kind) => `<marker id="arrow-${kind}${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="edge-arrow${kind ? ` ${kind}` : ''}" d="M0 0L10 5L0 10z"/></marker>`;
+  const branches = tour && tour.branches;
+  const branchOf = (n) => (branches ? branches.targets[n.id] : undefined);
+  // An edge of a branch of the decision in view: lit while its target is hovered or focused.
+  const branchTo = (e) => (branches && e.from === branches.decision && branches.targets[e.to] ? ` data-branch-to="${esc(e.to)}"` : '');
   const walked = (e) => !tour || tour.walked(e.from, e.to);
   const kind = (e) => (walked(e) ? '' : 'soft');
   const clickable = !!(tour && tour.clickable);
   // Steps that are links (never when every step is a button already).
   const href = (id) => (!clickable && links[id] && links[id].href) || '';
-  const interactive = clickable || layout.nodes.some((n) => href(n.id));
+  const interactive = clickable || layout.nodes.some((n) => href(n.id) || branchOf(n));
   // The active step's badges, drawn last; the canvas grows to hold them,
   // so none is cut by the edge (SPEC §7; phase 6.14).
   const active = tour && tour.badges && layout.nodes.find((n) => n.id === tour.badges.id);
@@ -202,9 +216,13 @@ export function renderDiagram(layout, flow, tour, links = {}) {
   // be hidden from assistive technology.
   let out = `<svg xmlns="http://www.w3.org/2000/svg" class="diagram flow-${slot}${tour ? ' touring' : ''}" viewBox="${vx} ${vy} ${vw} ${vh}" width="${vw}" height="${vh}" role="${interactive ? 'group' : 'img'}" aria-label="${esc(name)}">`;
   out += `<defs>${marker('')}${tour ? marker('soft') : ''}${parallelMarkers(id, !!tour)}</defs>`;
-  for (const e of layout.edges) out += `<path class="edge${walked(e) ? '' : ' soft'}" d="${edgePath(e.points)}" marker-end="url(#arrow-${kind(e)}${id})"/>`;
+  // A lit branch edge swaps to the strong arrow (data-arrow-lit); CSS cannot restyle a marker per use.
   for (const e of layout.edges) {
-    if (e.label && e.labelAt) out += `<text class="edge-label${walked(e) ? '' : ' soft'}" x="${num(e.labelAt.x)}" y="${num(e.labelAt.y)}" text-anchor="${esc(e.labelAt.anchor)}">${esc(e.label)}</text>`;
+    const lit = branchTo(e) ? ` data-arrow-rest="url(#arrow-${kind(e)}${id})" data-arrow-lit="url(#arrow-${id})"` : '';
+    out += `<path class="edge${walked(e) ? '' : ' soft'}" d="${edgePath(e.points)}" marker-end="url(#arrow-${kind(e)}${id})"${branchTo(e)}${lit}/>`;
+  }
+  for (const e of layout.edges) {
+    if (e.label && e.labelAt) out += `<text class="edge-label${walked(e) ? '' : ' soft'}" x="${num(e.labelAt.x)}" y="${num(e.labelAt.y)}" text-anchor="${esc(e.labelAt.anchor)}"${branchTo(e)}>${esc(e.label)}</text>`;
   }
   out += parallels(layout, id, tour ? (a, b) => tour.walked(a, b) || tour.walked(b, a) : null);
   for (const n of layout.nodes) {
@@ -213,12 +231,15 @@ export function renderDiagram(layout, flow, tour, links = {}) {
     // A link step's tooltip is the app's own (data-tip, drawn by the viewer;
     // phase 6.17), not the browser's: one look for every tooltip (SPEC §7).
     const tip = target ? `Lleva al flujo «${target.name}»` : '';
+    const branch = branchOf(n);
     const button = clickable
       ? ` tabindex="0" role="button" aria-label="${esc(`${Core.TYPE_LABELS[n.type] || n.type}: ${n.title || '(sin título)'}${tip ? `. ${tip}` : ''}`)}"${/\bselected\b/.test(state) ? ' aria-pressed="true"' : ' aria-pressed="false"'}`
-      : '';
+      : branch
+        ? ` tabindex="0" role="button" data-branch="${branch.exit}" aria-label="${esc(branch.name)}"`
+        : '';
     const to = href(n.id);
     if (to) out += `<a class="node-link" href="${esc(to)}" aria-label="${esc(`Enlace: ${n.title || '(sin título)'}. ${tip}`)}">`;
-    out += `<g class="node t-${esc(n.type)}${state ? ` ${esc(state)}` : ''}${clickable ? ' clickable' : ''}" data-id="${esc(n.id)}"${tip ? ` data-tip="${esc(tip)}"` : ''} transform="translate(${num(n.x - n.w / 2)} ${num(n.y - n.h / 2)})"${button}>`;
+    out += `<g class="node t-${esc(n.type)}${state ? ` ${esc(state)}` : ''}${clickable ? ' clickable' : ''}${branch ? ` target${branch.taken ? ' taken' : ''}` : ''}" data-id="${esc(n.id)}"${tip ? ` data-tip="${esc(tip)}"` : ''} transform="translate(${num(n.x - n.w / 2)} ${num(n.y - n.h / 2)})"${button}>`;
     out += `${tip ? '' : `<title>${esc(n.title)}</title>`}${shape(n)}${icon(n)}${label(n)}</g>`;
     if (to) out += '</a>';
   }

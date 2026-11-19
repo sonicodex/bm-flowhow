@@ -132,6 +132,34 @@ describe('renderDiagram', () => {
     assert.match(draw(APERTURA, 2), /data-id="P3" transform="[^"]*"><title>[^<]+<\/title>/);
   });
 
+  // Phase 6.20 (SPEC §7): the branch is chosen on the diagram.
+  it('makes the steps a decision leads to into targets, and marks the edges and labels of its branches', () => {
+    const L = layoutFlow(APERTURA);
+    const branches = {
+      decision: 'P6',
+      targets: { P7: { exit: 0, name: 'Rama «Externa»: ¿El proveedor es la litografía?', taken: false }, P13: { exit: 1, name: 'Rama «Interna»: Instalaciones, ya recorrida', taken: true } },
+    };
+    const svg = unesc(renderDiagram(L, { name: APERTURA.name, colour: 2 }, { state: () => '', walked: () => false, branches }));
+    // Each target is a button with its branch and its name; nothing else is.
+    assert.match(svg, /<g class="node t-decision target" data-id="P7" transform="[^"]*" tabindex="0" role="button" data-branch="0" aria-label="Rama «Externa»: ¿El proveedor es la litografía\?">/);
+    assert.match(svg, /<g class="node t-link target taken" data-id="P13" transform="[^"]*" tabindex="0" role="button" data-branch="1" aria-label="Rama «Interna»: Instalaciones, ya recorrida">/);
+    assert.strictEqual(svg.match(/role="button"/g).length, 2);
+    assert.match(svg, /role="group"/);
+    // The decision's edges to them, and their labels, can be lit; the arrow to swap to is named.
+    const edges = [...svg.matchAll(/<path class="edge soft"[^>]*data-branch-to="(P\d+)" data-arrow-rest="url\(#arrow-soft\d+\)" data-arrow-lit="url\(#arrow-\d+\)"\/>/g)].map((m) => m[1]);
+    assert.deepStrictEqual(edges.sort(), ['P13', 'P7']);
+    const labels = [...svg.matchAll(/<text class="edge-label soft"[^>]*data-branch-to="(P\d+)">([^<]*)<\/text>/g)].map((m) => `${m[1]}:${m[2]}`);
+    assert.deepStrictEqual(labels.sort(), ['P13:Interna', 'P7:Externa']);
+    // Edges of other decisions are not branches here.
+    assert.strictEqual(svg.match(/data-branch-to=/g).length, 4);
+    // Twins (P34: «Sí» and «No» to P35): one target.
+    const twins = unesc(renderDiagram(L, { name: APERTURA.name, colour: 2 }, { state: () => '', walked: () => false, branches: { decision: 'P34', targets: { P35: { exit: 0, name: 'Rama «Sí» o «No»: Entregar con acta', taken: false } } } }));
+    assert.strictEqual(twins.match(/role="button"/g).length, 1);
+    assert.strictEqual(twins.match(/<path [^>]*data-branch-to="P35"/g).length >= 1, true);
+    // Without branches, no targets and a picture.
+    assert.doesNotMatch(draw(APERTURA, 2), /target|data-branch/);
+  });
+
   // Phase 6.12 (SPEC §7, Layout).
   it('joins the steps of parallel branches with a double-headed connector, everywhere', () => {
     const L = layoutFlow(APERTURA);
