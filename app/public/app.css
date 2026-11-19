@@ -940,6 +940,62 @@ textarea:focus-visible,
   font-weight: var(--weight-bold);
 }
 
+/* A step of the way on, left out of the zoomed frame (phase 6.22): an
+   arrow at the frame's edge pointing at it; on a decision, a button that
+   takes that branch, with its label. viewer.js places and turns it. */
+.offframe {
+  position: absolute;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--flow) var(--flow-tint-mix), var(--color-surface));
+  border: var(--border-width) solid var(--flow-strong);
+  border-radius: var(--radius);
+  transform: translate(-50%, -50%);
+}
+
+span.offframe {
+  pointer-events: none;
+}
+
+button.offframe {
+  outline: var(--border-width) solid transparent;
+  cursor: pointer;
+}
+
+button.offframe:hover {
+  border-width: calc(var(--border-width) * 2);
+}
+
+button.offframe:focus-visible {
+  box-shadow: var(--shadow-focus);
+}
+
+.offframe-turn {
+  display: inline-flex;
+  color: var(--flow-strong);
+}
+
+.offframe-arrow {
+  width: var(--space-4);
+  height: var(--space-4);
+}
+
+/* On a phone the branches are not listed on a decision (SPEC §9; 6.22):
+   the choice is made on the diagram, which the list would push away. */
+@media (max-width: 760px) {
+  .viewer-side .branch-states,
+  .viewer-side .branch-again {
+    display: none;
+  }
+}
+
 /* Tour zoom (phase 6.8): the toggle in the progress bar, its icon in the
    text colour (SPEC §9: single-colour icons take currentColor). */
 .zoom-toggle {

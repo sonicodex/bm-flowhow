@@ -14,6 +14,60 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.22: a legible frame, and no branch list on a phone
+
+- Decision (SPEC §7 Layout, owner's change):
+  - **Phone:** at the phone breakpoint (760px), the panel of a decision
+    hides the branch list and «Puedes repetir una rama ya recorrida».
+    «Elige la rama en el diagrama» stays: it says where the choice is.
+    The skip button («Ir a lo que falta por visitar») stays, as it is not
+    a branch.
+  - **Minimum legible zoom:** step titles are drawn at `--text-sm`. The
+    frame never shows them smaller than `--text-xs`, so the minimum is
+    `--text-xs / --text-sm` (0.86 today), read from `theme.css` at run
+    time.
+  - **What goes in the frame:** the current step always. Then, while
+    the frame stays at or above that zoom, in this order:
+    1. the way on (the decision's branches, or the next step), nearest
+       first;
+    2. one step behind;
+    3. the step after;
+    4. a second step behind.
+
+    Whatever does not fit is left out. If only the current step fits and
+    it is still too wide, the diagram keeps the legible size and the card
+    scrolls sideways.
+  - **Arrows:** each step of the way on that is left out gets an arrow
+    at the frame's edge.
+    - It sits where the branch's own edge leaves the frame, turned the
+      way the edge runs. When the edge has no points, it follows the
+      straight line to the step.
+    - On a decision the arrow is a button: it carries the branch's
+      label, has the branch target's name, and taking it is the same as
+      clicking the target (held branches included; their tooltip goes
+      above the arrow).
+    - The target itself, out of sight, leaves the tab order. Focus goes
+      to the first open target in the frame, else to an arrow.
+    - Elsewhere the arrow only shows where the flow goes.
+    - The view follows by itself: taking the branch makes its step the
+      current one, which the next frame is built around.
+  - **Seen, not changed:** on a phone at Apertura P6, «Instalaciones»
+    sits partly under the decision. It falls half inside the frame while
+    its arrow marks it as out. It can still be clicked.
+  - **Checked in Chrome** (start and steps answered in the browser):
+    - Instalaciones P9: scale 1.15 on a laptop and 1.00 on a phone (it
+      was well below before), with the «Sí» arrow on its line. Clicking
+      it held and sent nothing. After «No» and back at P9, the arrow took
+      «Sí» and the view moved to «Confirmar la fecha…».
+    - Apertura P6 on a phone: 0.88 with an «Interna» arrow, and no
+      branch list.
+    - «Ver todo» removes the arrows and «Acercar» brings them back.
+  - Runs 9 to 11 and visits from 187 on were added while I was working.
+    They belong to the `empleado` account at a person's pace, and I left
+    them alone.
+- Reason: SPEC §7 Layout (owner's change), slice 6.22.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.20: the branch is chosen on the diagram
 
 - Decision (plan_iteration_7, as proposed, with the owner's answers):
@@ -61,7 +115,7 @@ Entry format:
     - Instalaciones P9: a real click on «Sí»'s target sent nothing and
       showed the held tooltip below it.
     - The same at 390×844, once the diagram is scrolled into view.
-  - **Seen, not changed:**
+  - **Seen, not changed:** (both fixed the same day by 6.22)
     - On a phone the diagram sits below the step panel (§9), so the
       targets need a scroll first.
     - At Instalaciones P9 the «Sí» branch runs far down. The 6.21 frame

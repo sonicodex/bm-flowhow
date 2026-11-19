@@ -388,6 +388,18 @@ describe("held branches and retries (phase 6.18)", () => {
     expect(src).toContain("lleva directo a ${quoted(o.title)}, donde se une con ${others}. Recorre primero ${others}.");
     expect(src).not.toContain("Antes de seguir, mira las otras.");
   });
+
+  it("phase 6.22: a phone's decision lists no branches, and the frame stops at a legible zoom", async () => {
+    const css = env.CSS_FILES["app.css"];
+    const phone = css.match(/@media \(max-width: 760px\) \{\s*\.viewer-side \.branch-states,\s*\.viewer-side \.branch-again \{\s*display: none;/);
+    expect(phone).not.toBeNull();
+    const src = ((await import("../public/js/viewer.js?raw")) as any).default as string;
+    // The smallest zoom: the titles' --text-sm shown no smaller than --text-xs.
+    expect(src).toContain("getPropertyValue('--text-xs')");
+    expect(src).toContain("getPropertyValue('--text-sm')");
+    // A branch left out is marked by an arrow that takes it.
+    expect(src).toMatch(/el\.setAttribute\('data-branch', String\(target\.exit\)\)/);
+  });
 });
 
 describe("review status (phase 3.4)", () => {

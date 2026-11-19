@@ -160,7 +160,7 @@ if (data && cols) {
         `<li class="branch-state${o.taken ? ' taken' : ''}"><span class="branch-name">${text(o)}</span>${o.taken ? `<span class="taken-tag">${DONE_ICON}Ya recorrida</span>` : '<span class="muted small">Falta</span>'}</li>`,
       ).join('');
       const skip = tour.canSkip() ? '<button type="button" class="branch" data-skip>Ir a lo que falta por visitar</button>' : '';
-      const again = options.some((o) => o.taken) ? '<p class="muted small">Puedes repetir una rama ya recorrida.</p>' : '';
+      const again = options.some((o) => o.taken) ? '<p class="muted small branch-again">Puedes repetir una rama ya recorrida.</p>' : '';
       const head = tour.atEnd() ? 'Elige la rama en el diagrama' : 'Puedes elegir otra rama en el diagrama: el recorrido seguirá desde aquí';
       return `<div class="exits"><p class="label">${head}</p><ul class="branch-states">${rows}</ul>${skip}${again}</div>`;
     }
@@ -229,54 +229,52 @@ if (data && cols) {
   const FRAME_STEPS = 2;
 
   // The steps framed with the current one (6.21). Behind: the steps walked
-  // into it, along the flow's edges; a step the tour jumped or was sent
-  // back from is not behind, it is elsewhere on the map. Ahead: on a
-  // decision, its branches; otherwise the next step and the one after it
-  // (the branches, when the next one is a decision).
-  const frameIds = (tour) => {
+  // into it, along the flow's edges, nearest first; a step the tour jumped
+  // or was sent back from is not behind, it is elsewhere on the map. Next:
+  // the current step's exits (a decision's branches). After: the step after
+  // those (the branches, when the next one is a decision).
+  const frameParts = (tour) => {
     const current = tour.current().id;
-    const ids = new Set([current]);
+    const behind = [];
     for (let k = tour.pos, n = 0; k > 0 && n < FRAME_STEPS; k--, n++) {
       const from = tour.trail[k - 1].id;
       if (!tour.exitsOf(from).some((e) => e.to === tour.trail[k].id)) break;
-      ids.add(from);
+      behind.push(from);
     }
-    if (tour.canChoose()) {
-      for (const e of tour.exitsOf(current)) ids.add(e.to);
-      return ids;
-    }
-    let front = [current];
-    for (let n = 0; n < FRAME_STEPS; n++) {
-      front = front.flatMap((id) => tour.exitsOf(id).map((e) => e.to));
-      for (const id of front) ids.add(id);
-    }
-    return ids;
+    const next = [...new Set(tour.exitsOf(current).map((e) => e.to))];
+    const after = tour.canChoose() ? [] : [...new Set(next.flatMap((id) => tour.exitsOf(id).map((e) => e.to)))].filter((id) => id !== current && !next.includes(id));
+    return { current, behind, next, after };
   };
+
   // Room beside the current step for its tag badges, and around the frame.
   const BADGE_ROOM = 96;
   const FRAME_PAD = 24;
   // How much a frame may be enlarged to fill the card.
   const MAX_SCALE = 2;
 
+  // The smallest zoom the frame may take (SPEC §9 Layout; phase 6.22): step
+  // titles no smaller than the app's smallest type, --text-xs against the
+  // titles' --text-sm. A step too far to fit at that size stays out.
+  const minScale = () => {
+    const root = getComputedStyle(document.documentElement);
+    const xs = parseFloat(root.getPropertyValue('--text-xs'));
+    const sm = parseFloat(root.getPropertyValue('--text-sm'));
+    return xs > 0 && sm > 0 ? xs / sm : 0.85;
+  };
+
   const zoomTo = (box, layout, tour) => {
     const svg = box.querySelector('svg');
     if (!svg) return;
-    const current = tour.current().id;
-    const ids = frameIds(tour);
-    const nodes = layout.nodes.filter((n) => ids.has(n.id));
-    if (!nodes.length) return;
+    box.querySelectorAll('.offframe').forEach((el) => el.remove());
+    const parts = frameParts(tour);
+    const { current } = parts;
+    const byId = new Map(layout.nodes.map((n) => [n.id, n]));
+    const here = byId.get(current);
+    if (!here) return;
     const step = tour.step();
     const tagged = Object.values(step.tags || {}).some((v) => v && v.length);
     const side = (n) => (n.id === current && tagged ? BADGE_ROOM : 0);
-    const x0 = Math.max(0, Math.min(...nodes.map((n) => n.x - n.w / 2 - side(n))) - FRAME_PAD);
-    const x1 = Math.min(layout.width, Math.max(...nodes.map((n) => n.x + n.w / 2 + side(n))) + FRAME_PAD);
     const room = (n) => (n.id === current && pendingBranches(tour).length ? TIP_ROOM : 0);
-    const y0 = Math.max(0, Math.min(...nodes.map((n) => n.y - n.h / 2 - room(n))) - FRAME_PAD);
-    const y1 = Math.min(layout.height, Math.max(...nodes.map((n) => n.y + n.h / 2)) + FRAME_PAD);
-    const w = x1 - x0;
-    const h = y1 - y0;
-    // Enlarged to the card's width, up to MAX_SCALE, and never taller than
-    // the room the card gives the diagram.
     const style = getComputedStyle(box);
     const roomW = box.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
     const padY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
@@ -286,12 +284,98 @@ if (data && cols) {
     const full = parseFloat(style.maxHeight) - padY;
     const onScreen = window.innerHeight - Math.max(0, box.getBoundingClientRect().top) - padY;
     const roomH = Math.max(full / 2, Math.min(full, onScreen));
-    const k = Math.max(0.1, Math.min(MAX_SCALE, roomW / w, roomH > 0 ? roomH / h : MAX_SCALE));
-    svg.setAttribute('viewBox', `${x0} ${y0} ${w} ${h}`);
-    svg.setAttribute('width', String(Math.round(w * k)));
-    svg.setAttribute('height', String(Math.round(h * k)));
+    const fit = (ids) => {
+      const nodes = ids.map((id) => byId.get(id)).filter(Boolean);
+      const x0 = Math.max(0, Math.min(...nodes.map((n) => n.x - n.w / 2 - side(n))) - FRAME_PAD);
+      const x1 = Math.min(layout.width, Math.max(...nodes.map((n) => n.x + n.w / 2 + side(n))) + FRAME_PAD);
+      const y0 = Math.max(0, Math.min(...nodes.map((n) => n.y - n.h / 2 - room(n))) - FRAME_PAD);
+      const y1 = Math.min(layout.height, Math.max(...nodes.map((n) => n.y + n.h / 2)) + FRAME_PAD);
+      const w = x1 - x0, h = y1 - y0;
+      return { x0, y0, w, h, k: Math.min(MAX_SCALE, roomW / w, roomH > 0 ? roomH / h : MAX_SCALE) };
+    };
+    // Taken in order of importance while the frame stays legible: the way on
+    // (nearest first), one step behind, the step after, two behind. A step
+    // of the way on that does not fit is marked by an arrow; the rest are
+    // left out quietly.
+    const dist = (id) => { const n = byId.get(id); return n ? Math.hypot(n.x - here.x, n.y - here.y) : 0; };
+    const near = (list) => [...list].sort((a, b) => dist(a) - dist(b));
+    const order = [...near(parts.next), ...parts.behind.slice(0, 1), ...near(parts.after), ...parts.behind.slice(1)];
+    const MIN = minScale();
+    let ids = [current];
+    let f = fit(ids);
+    const out = [];
+    for (const id of order) {
+      const g = fit([...ids, id]);
+      if (g.k >= MIN) { ids.push(id); f = g; }
+      else if (parts.next.includes(id)) out.push(id);
+    }
+    // Only the current step left and still too wide: the legible size, and
+    // the card scrolls sideways.
+    const k = Math.max(f.k, MIN);
+    svg.setAttribute('viewBox', `${f.x0} ${f.y0} ${f.w} ${f.h}`);
+    svg.setAttribute('width', String(Math.round(f.w * k)));
+    svg.setAttribute('height', String(Math.round(f.h * k)));
+    // Never shrunk back below the legible size by the card's width: it scrolls sideways instead.
+    svg.style.maxWidth = 'none';
     box.scrollTop = 0;
-    box.scrollLeft = 0;
+    box.scrollLeft = Math.max(0, (here.x - f.x0) * k - box.clientWidth / 2);
+    offFrame(box, svg, tour, layout, out.map((id) => byId.get(id)), here, f, k);
+  };
+
+  // A step of the way on left out of the frame (6.22): an arrow at the
+  // frame's edge, pointing at it. On a decision it is how that branch is
+  // taken, so it is a button named like the branch's target; otherwise it
+  // only shows where the flow goes. The target itself, out of sight, leaves
+  // the tab order.
+  const ARROW = '<svg class="offframe-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h10M8 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  // Where the edge from the current step to `n` leaves the frame (a little
+  // inside it), and its heading there; the straight line to `n` when the
+  // edge has no points.
+  const exitPoint = (layout, here, n, f, inset) => {
+    const edge = layout.edges.find((e) => e.from === here.id && e.to === n.id);
+    const pts = edge && edge.points && edge.points.length > 1 ? edge.points : [{ x: here.x, y: here.y }, { x: n.x, y: n.y }];
+    const inside = (p) => p.x >= f.x0 + inset && p.x <= f.x0 + f.w - inset && p.y >= f.y0 + inset && p.y <= f.y0 + f.h - inset;
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i];
+      if (!inside(a) || inside(b)) continue;
+      // Halve the segment down to the crossing.
+      let lo = 0, hi = 1;
+      for (let j = 0; j < 20; j++) { const m = (lo + hi) / 2; if (inside({ x: a.x + (b.x - a.x) * m, y: a.y + (b.y - a.y) * m })) lo = m; else hi = m; }
+      return { x: a.x + (b.x - a.x) * lo, y: a.y + (b.y - a.y) * lo, angle: (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI };
+    }
+    const last = pts[pts.length - 1];
+    return { x: Math.min(Math.max(last.x, f.x0 + inset), f.x0 + f.w - inset), y: Math.min(Math.max(last.y, f.y0 + inset), f.y0 + f.h - inset), angle: (Math.atan2(n.y - here.y, n.x - here.x) * 180) / Math.PI };
+  };
+
+  const offFrame = (box, svg, tour, layout, nodes, here, f, k) => {
+    const marks = state && state.tour === tour ? branchMarks(tour) : undefined;
+    const inset = 24 / k;
+    // The SVG's corner inside the scrolling box (an <svg> has no offsetLeft).
+    const sr = svg.getBoundingClientRect(), br = box.getBoundingClientRect();
+    const left = sr.left - br.left - box.clientLeft + box.scrollLeft;
+    const top = sr.top - br.top - box.clientTop + box.scrollTop;
+    for (const n of nodes) {
+      const at = exitPoint(layout, here, n, f, inset);
+      const x = left + (at.x - f.x0) * k;
+      const y = top + (at.y - f.y0) * k;
+      const angle = at.angle;
+      const target = marks && marks.targets[n.id];
+      const el = document.createElement(target ? 'button' : 'span');
+      el.className = 'offframe';
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      el.innerHTML = `<span class="offframe-turn" style="transform: rotate(${angle}deg)">${ARROW}</span>`;
+      if (target) {
+        el.setAttribute('type', 'button');
+        el.setAttribute('data-branch', String(target.exit));
+        el.setAttribute('data-offframe', n.id);
+        el.setAttribute('aria-label', target.name);
+        const label = tour.options()[target.exit].label;
+        if (label) el.insertAdjacentHTML('beforeend', `<span class="offframe-label">${esc(label)}</span>`);
+        svg.querySelector(`.node.target[data-id="${CSS.escape(n.id)}"]`)?.setAttribute('tabindex', '-1');
+      } else el.setAttribute('aria-hidden', 'true');
+      box.append(el);
+    }
   };
 
   // A resized window changes the room the frame is enlarged into.
@@ -380,14 +464,16 @@ if (data && cols) {
     if (!held) return;
     const options = tour.options();
     const o = options[held.exit];
-    const node = box.querySelector(`.node.target[data-id="${CSS.escape(o.to)}"]`);
+    // Its target, or the arrow standing in for it when it is out of the frame (6.22).
+    const inFrame = box.querySelector(`.node.target[data-id="${CSS.escape(o.to)}"]:not([tabindex="-1"])`);
+    const node = inFrame || box.querySelector(`.offframe[data-offframe="${CSS.escape(o.to)}"]`);
     if (!node) return;
     const tip = document.createElement('div');
     tip.className = 'tooltip tooltip-held';
     tip.setAttribute('role', 'status');
     tip.textContent = heldText(options, o, held.wait);
     box.append(tip);
-    const top = placeTip(box, node, tip, true);
+    const top = placeTip(box, node, tip, !!inFrame);
     const bottom = top + tip.offsetHeight + TIP_GAP * 2;
     if (bottom > box.scrollTop + box.clientHeight) box.scrollTop = bottom - box.clientHeight;
   };
@@ -439,7 +525,7 @@ if (data && cols) {
     showHeldTip(box, tour);
     // The first of these that can take focus: the control just used, else
     // the first branch still to take on the diagram (6.20), else the way on.
-    const target = [focus, '.node.target:not(.taken)', '.node.target', '[data-finish]', '[data-next]']
+    const target = [focus, '.node.target:not(.taken):not([tabindex="-1"])', '.offframe[data-branch]', '.node.target:not([tabindex="-1"])', '[data-finish]', '[data-next]']
       .map((sel) => (sel ? cols.querySelector(sel) : null))
       .find((el) => el && !el.disabled);
     if (target) target.focus({ preventScroll: true });
@@ -640,7 +726,8 @@ if (data && cols) {
     if (!state || state.busy) return;
     const tour = state.tour;
     const at = tour.current().id;
-    const focus = `.node.target[data-id="${CSS.escape(tour.options()[exit].to)}"]`;
+    const to = CSS.escape(tour.options()[exit].to);
+    const focus = `.node.target[data-id="${to}"]:not([tabindex="-1"]), .offframe[data-offframe="${to}"]`;
     state.held = null;
     // A branch that cannot be entered yet (phase 6.18): nothing is sent,
     // nothing moves, and a tooltip on it says what to walk first.
@@ -658,13 +745,15 @@ if (data && cols) {
       renderTour();
     } else act({ at, action: 'choose', exit, back: tour.pos });
   };
-  const branchTarget = (el) => (state && el instanceof Element ? el.closest('.node.target') : null);
+  // A branch target on the diagram, or the arrow standing in for one left out of the frame (6.22).
+  const branchTarget = (el) => (state && el instanceof Element ? el.closest('.node.target, .offframe[data-branch]') : null);
 
   // Hovering or focusing a target lights its branch: the edge, its arrow and its label.
   const light = (node, on) => {
     if (!node) return;
-    const box = node.closest('svg');
-    for (const el of box ? box.querySelectorAll(`[data-branch-to="${CSS.escape(node.getAttribute('data-id'))}"]`) : []) {
+    const box = node.closest('.diagram-scroll');
+    const id = node.getAttribute('data-id') || node.getAttribute('data-offframe') || '';
+    for (const el of box ? box.querySelectorAll(`[data-branch-to="${CSS.escape(id)}"]`) : []) {
       el.classList.toggle('lit', on);
       const arrow = el.getAttribute(on ? 'data-arrow-lit' : 'data-arrow-rest');
       if (arrow) el.setAttribute('marker-end', arrow);
@@ -680,7 +769,8 @@ if (data && cols) {
   cols.addEventListener('keydown', (ev) => {
     if (ev.key !== 'Enter' && ev.key !== ' ') return;
     const node = branchTarget(ev.target);
-    if (!node) return;
+    // A button (the off-frame arrow) clicks itself.
+    if (!node || node.tagName === 'BUTTON') return;
     ev.preventDefault();
     chooseBranch(Number(node.getAttribute('data-branch')));
   });
