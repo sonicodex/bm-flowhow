@@ -6,6 +6,58 @@ nunca se edita: los cambios generan una iteración nueva.
 
 ---
 
+## plan_iteration_4 — 2026-11-19
+
+Estado: **propuesta, pendiente de aprobación.** Hasta que se apruebe, la
+vigente sigue siendo `plan_iteration_3`.
+
+Agrega a la iteración 3 seis cortes de corrección de la fase 6, por las
+pruebas del dueño y su cambio a SPEC §7 (`63e82bc`). Lo demás no cambia.
+
+**Lo que hace hoy el motor (punto 4 del dueño).** No refleja la regla
+nueva. Decide por las ramas que *faltan*, así que el resultado depende del
+orden en que el usuario elige. En los flujos reales cambian tres
+decisiones, todas con una rama directa al punto de encuentro y otra larga:
+Apertura P31, Instalaciones P9 y P17. Hoy, si se elige primero la larga, el
+recorrido entra al punto de encuentro sin volver; con la regla nueva vuelve
+a la decisión. Las pruebas aleatorias (400 y 2000 grafos) solo comprueban
+que el recorrido termina y que el avance no retrocede: no miran la regla.
+
+**6.11 — La regla de las ramas seguidas, por la forma** (SPEC §7)
+- El motor recorre seguidas las ramas solo cuando todas las de la decisión
+  llegan al mismo punto de encuentro en un paso. En cualquier otro caso
+  vuelve a la decisión.
+- Las pruebas que fijaban el comportamiento por orden se reescriben.
+- Una prueba aleatoria nueva comprueba la regla misma: en cada decisión,
+  vuelve o no vuelve según su forma, elija el usuario en el orden que elija.
+
+**6.12 — Ramas paralelas en el diagrama** (SPEC §7, Layout)
+- Una flecha de doble punta une entre sí los pasos de las ramas que se
+  recorren seguidas. Sale en todas partes donde se dibuja el diagrama.
+- La condición es una sola función de `core.js`, compartida con el motor.
+
+**6.13 — Aviso fijo al volver a una decisión** (SPEC §7)
+- Un aviso sobre el diagrama dice que faltan ramas por recorrer. Se queda
+  hasta que se elige una rama.
+
+**6.14 — Convenciones y etiquetas dentro del lienzo** (SPEC §7)
+- La leyenda «Convenciones» encima del diagrama, en el recorrido y en el
+  repaso libre, donde salen las etiquetas. Un flujo sin categorías no la
+  muestra.
+- El lienzo se agranda lo necesario para que ninguna etiqueta quede cortada.
+
+**6.15 — Enlaces clickeables en el panorama** (SPEC §7)
+- Con acceso, el paso Enlace del panorama lleva al otro flujo, con un
+  tooltip que dice a dónde.
+
+**6.16 — Filtro en vivo en el reporte**
+- Sin botón «Filtrar»: la tabla se actualiza al cambiar un filtro, sin
+  recargar la página y sin mover el foco. Sin JavaScript, el botón vuelve.
+
+Preguntas abiertas: ver el mensaje al dueño del 2026-11-19 tras `63e82bc`.
+
+---
+
 ## plan_iteration_3 — 2026-11-19
 
 Estado: **aprobada. Esta es la iteración vigente.**
