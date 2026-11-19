@@ -342,6 +342,14 @@ Tour rules:
 - On a decision (any step with more than one exit), the user picks a branch.
   "Siguiente" is disabled until they choose. Every branch is selectable,
   including the ones already taken, which are marked "Ya recorrida".
+- **The branch is chosen on the diagram, not in a list beside it.** The steps
+  a decision leads to become targets: hovering one lights its edge and its
+  label, clicking one takes that branch. The choice is a move on the map, and
+  reading it in one place to click it in another makes the reader do the
+  matching. The same targets are reachable with Tab and taken with Enter, and
+  each carries its branch label, so nothing is lost without a mouse. The side
+  panel keeps the step's own content — type, title, description, tags — and
+  the state of each branch, but it is not where the choice is made.
 - **Branches that meet again are walked together, there and then.** When the
   paths out of a decision rejoin at a common step, the tour walks each
   remaining branch up to that meeting point and only then continues once along
@@ -418,14 +426,17 @@ Tour rules:
   so progress never goes backwards. Picking the wrong branch is a slip, not a
   sentence to walk the whole path again.
 - Progress bar: visited steps over total.
-- **When the tour goes back to a decision** because a branch ended, a notice
-  stays until a branch is chosen — not a passing message — saying there are
+- **Whenever the tour is at a decision that is not parallel, has branches
+  left to walk and has already had one walked**, a notice stays until a branch
+  is chosen — not a passing message — saying there are
   branches left to walk. Being moved somewhere without being told why is the
   moment people decide the app is broken. It is a **tooltip anchored to that
   decision's node**, dark with light text, the same shape as every other
   tooltip: a band at the top of the card explains nothing, because the thing
-  it explains is somewhere else on the screen. It names the branch still
-  pending.
+  it explains is somewhere else on the screen. It names the branches still
+  pending. How the user got back there makes no difference: sent back by the
+  tour, or carried back by a loop the flow itself draws, what they need to
+  know is the same.
 - The active step (current step in the tour, selected step in free review)
   shows its tags as badges on the diagram itself, next to the node, in
   addition to the side panel. A badge never falls outside the diagram's
@@ -493,10 +504,12 @@ Designed for desktop, usable on mobile.
   drawn, not only while the tour walks them — the same condition that makes
   the tour walk them together.
 - Tour zoom, on every screen size: during the tour the diagram zooms in on the
-  current step, framed together with the step the user came from and the next
-  step or branches, so the labels stay readable. A "Ver todo" / "Acercar"
-  toggle switches between this view and the whole diagram. Zoomed is the
-  default on a phone.
+  current step, framed together with a couple of steps behind it and a couple
+  ahead — the branches, when the current step is a decision — so the labels
+  stay readable. A "Ver todo" / "Acercar" toggle switches between this view
+  and the whole diagram. **Zoomed is the default everywhere**, not only on a
+  phone: the tour is about one step at a time, and opening on the whole map
+  makes the reader find the step before reading it.
   It is not a mobile feature. A small laptop, a low resolution, a projector
   and a reader who needs larger type all hit the same wall, and a reader who
   needs it on a desktop has no phone to fall back on.
