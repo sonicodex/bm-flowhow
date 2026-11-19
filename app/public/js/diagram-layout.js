@@ -23,7 +23,12 @@ import Core from './core.js';
  *   labelAt: { x: number, y: number, anchor: string } | null }} LayoutEdge
  */
 
-/** @typedef {{ width: number, height: number, nodes: LayoutNode[], edges: LayoutEdge[] }} DiagramLayout */
+/**
+ * `parallel`: the steps of parallel branches (SPEC §7; phase 6.12), one
+ * group per decision with two or more of them, each group left to right.
+ * The renderer joins neighbours in a group with a double-headed connector.
+ * @typedef {{ width: number, height: number, nodes: LayoutNode[], edges: LayoutEdge[], parallel: string[][] }} DiagramLayout
+ */
 
 // The prototype lays out with a wider side margin, so loops and side labels fit.
 const OPTIONS = { padX: 96 };
@@ -59,6 +64,10 @@ function pathToPoints(d) {
  */
 export function layoutFlow(flow) {
   const L = Core.layout(flow, OPTIONS);
+  const x = new Map(L.nodes.map((n) => [n.id, n.x]));
+  const parallel = Core.parallelBranches(flow)
+    .map((g) => g.steps.filter((id) => x.has(id)).sort((a, b) => x.get(a) - x.get(b)))
+    .filter((g) => g.length > 1);
   return {
     width: L.width,
     height: L.height,
@@ -71,5 +80,6 @@ export function layoutFlow(flow) {
       points: pathToPoints(e.d),
       labelAt: e.label ? { x: e.lp.x, y: e.lp.y, anchor: e.lp.anchor } : null,
     })),
+    parallel,
   };
 }

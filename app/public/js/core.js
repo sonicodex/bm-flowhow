@@ -915,9 +915,26 @@ var Core = (function () {
   };
   Tour.prototype.prev = function () { if (this.pos > 0) { this.pos--; return true; } return false; };
 
+  /* The parallel branches of a flow (SPEC §7; phase 6.12): for each parallel decision (see the Tour), its
+     meeting point and the steps of its one-step branches, in exit order. The diagram joins those steps
+     with a double-headed connector; branches that go straight to the meeting point have no step to join.
+     The same condition as the tour's, read from the same Tour, so the two cannot drift.
+     @param {{ steps: { id: string, exits: { label: string, to: string }[] }[] }} flow
+     @returns {{ decision: string, meet: string, steps: string[] }[]} */
+  function parallelBranches(flow) {
+    if (!flow.steps || !flow.steps.length) return [];
+    var t = new Tour(flow), out = [];
+    t.parallel.forEach(function (meet, d) {
+      var reach = t.reach.get(d);
+      var steps = t.exitsOf(d).filter(function (_, k) { return reach[k] === 'short'; }).map(function (e) { return e.to; });
+      out.push({ decision: d, meet: meet, steps: steps.filter(function (id, k) { return steps.indexOf(id) === k; }) });
+    });
+    return out;
+  }
+
   return {
     TYPES: TYPES, TYPE_LABELS: TYPE_LABELS, EXAMPLE: EXAMPLE, EXAMPLE_SUB: EXAMPLE_SUB, validateRefs: validateRefs, norm: norm, parseExits: parseExits, parseTags: parseTags, formatExits: formatExits, predecessorsText: predecessorsText, applyDependsOn: applyDependsOn,
-    compile: compile, validate: validate, textToTable: textToTable, tableToGrid: tableToGrid, fixedColumn: fixedColumn, gridToDraft: gridToDraft, parseTable: parseTable, toTSV: toTSV, wrapTitle: wrapTitle, layout: layout, Tour: Tour
+    compile: compile, parallelBranches: parallelBranches, validate: validate, textToTable: textToTable, tableToGrid: tableToGrid, fixedColumn: fixedColumn, gridToDraft: gridToDraft, parseTable: parseTable, toTSV: toTSV, wrapTitle: wrapTitle, layout: layout, Tour: Tour
   };
 })();
 export default Core;

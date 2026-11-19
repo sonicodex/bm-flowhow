@@ -14,6 +14,36 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.12: parallel branches drawn as parallel
+
+- Decision:
+  - **One condition:** `core.js` `parallelBranches(flow)` reads the
+    tour's own `Tour.parallel` (6.11). The connector and the tour cannot
+    drift.
+  - **Which steps are joined:** the steps of a parallel decision's
+    one-step branches. A branch straight to the meeting point has no step
+    to join:
+    - Apertura P34 (both straight there) draws nothing;
+    - Instalaciones P11 (one straight, one step) draws nothing, since one
+      step alone has nothing to be joined to.
+    - Drawn: Apertura P8↔P9 and P27↔P28↔P29.
+  - **The drawing:** `layoutFlow()` returns `parallel`, the groups left to
+    right. The renderer joins each pair of neighbours with a straight line,
+    side to side at the steps' height, 4 px clear of each, with an
+    arrowhead at both ends.
+    - It is drawn under the steps, with the title «Opciones alternativas».
+  - **Everywhere the diagram is drawn:** overview, tour, free review and
+    the editor's preview.
+    - During the tour it takes the soft tone until both steps are seen,
+      like the edges.
+  - **Not handled:** two parallel steps that do not share a row. The
+    layout always puts them on one row in the real flows. A pair whose
+    sides overlap is skipped rather than drawn backwards.
+  - **Checked in Chrome** on Apertura de OT: three connectors in the
+    overview and in the editor's preview.
+- Reason: SPEC §7, Layout (owner's change); plan_iteration_5, slice 6.12.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.11: the branch rule looks at the decision's shape
 
 - Decision:

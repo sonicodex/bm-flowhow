@@ -22,7 +22,9 @@ describe('renderDiagram', () => {
     assert.match(draw(INSTALACIONES, 1), /^<svg [^>]*class="diagram flow-1"/);
     assert.match(draw(APERTURA, 2), /^<svg [^>]*class="diagram flow-2"/);
     // The same flow with another slot differs only in that class.
-    assert.strictEqual(draw(APERTURA, 2).replace(/arrow-\d+/g, ''), draw(APERTURA, 7).replace('flow-7', 'flow-2').replace(/arrow-\d+/g, ''));
+    // Marker ids carry a per-diagram number (phase 6.12 added the parallel connector's).
+    const ids = (svg) => svg.replace(/(arrow-|par-(?:start|end)-(?:soft)?)\d+/g, '$1');
+    assert.strictEqual(ids(draw(APERTURA, 2)), ids(draw(APERTURA, 7).replace('flow-7', 'flow-2')));
   });
 
   it('writes no colour, type size, stroke or radius: those come from app.css', () => {
@@ -63,6 +65,28 @@ describe('renderDiagram', () => {
     const svg = draw(f, 3);
     assert.match(svg, /<g class="node t-subflow" data-id="B"[^>]*><title>b<\/title><rect class="node-shape"/);
     assert.match(svg, /c &lt;&amp;&gt; &quot;d&quot;/);
+  });
+
+  // Phase 6.12 (SPEC §7, Layout).
+  it('joins the steps of parallel branches with a double-headed connector, everywhere', () => {
+    const L = layoutFlow(APERTURA);
+    const at = (id) => L.nodes.find((n) => n.id === id);
+    const connectors = (svg) => [...svg.matchAll(/<path class="parallel( soft)?" d="M([\d.]+) ([\d.]+) L([\d.]+) ([\d.]+)" marker-start="url\(#par-start-(soft)?\d+\)" marker-end="url\(#par-end-(soft)?\d+\)"><title>Opciones alternativas<\/title><\/path>/g)];
+    // The overview: P8↔P9, P27↔P28, P28↔P29, from side to side.
+    const plain = connectors(draw(APERTURA, 2));
+    assert.strictEqual(plain.length, 3);
+    const [p8p9] = plain;
+    assert.strictEqual(Number(p8p9[2]), at('P8').x + at('P8').w / 2 + 4);
+    assert.strictEqual(Number(p8p9[4]), at('P9').x - at('P9').w / 2 - 4);
+    assert.strictEqual(Number(p8p9[3]), at('P8').y);
+    assert(plain.every((m) => !m[1]));
+    // The tour: soft until both steps are seen.
+    const seen = new Set(['P8', 'P9']);
+    const touring = connectors(renderDiagram(L, { name: APERTURA.name, colour: 2 }, { state: () => '', walked: (a, b) => seen.has(a) && seen.has(b) }));
+    assert.deepStrictEqual(touring.map((m) => [m[1] || '', m[6] || '', m[7] || '']), [['', '', ''], [' soft', 'soft', 'soft'], [' soft', 'soft', 'soft']]);
+    // Drawn under the steps.
+    const svg = draw(APERTURA, 2);
+    assert(svg.indexOf('class="parallel"') < svg.indexOf('<g class="node'));
   });
 
   it('marks the tour on the diagram: current, visited and dimmed steps, walked edges, badges', () => {

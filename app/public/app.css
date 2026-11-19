@@ -299,6 +299,18 @@ textarea:focus-visible,
   dominant-baseline: central;
 }
 
+/* Parallel branches (phase 6.12): a straight double-headed connector
+   between alternative steps, in the colour of the edges. */
+.diagram .parallel {
+  fill: none;
+  stroke: var(--flow-strong);
+  stroke-width: calc(var(--border-width) * 1.5);
+}
+
+.diagram .parallel.soft {
+  stroke: var(--color-edge);
+}
+
 /* ---- Diagram during the tour (phase 3.3) ----
    The current step is filled with the flow colour and lifted by a shadow,
    with no extra outline. Visited steps take the light tone, the flow colour

@@ -86,7 +86,19 @@ describe('layoutFlow on other documents', () => {
     assert.deepStrictEqual(layoutFlow(f).nodes.map((n) => n.type), ['start', 'subflow', 'end']);
   });
 
+  // Phase 6.12 (SPEC §7, Layout): parallel branches, from the tour's own rule.
+  it('groups the steps of parallel branches, left to right, and only those', () => {
+    assert.deepStrictEqual(layoutFlow(FLOWS['Apertura de OT']).parallel, [['P8', 'P9'], ['P27', 'P28', 'P29']]);
+    // P11 is parallel, but one branch goes straight to P12: one step alone has nothing to join.
+    assert.deepStrictEqual(layoutFlow(FLOWS.Instalaciones).parallel, []);
+    // P34 (both straight to P35) is parallel too, with no step at all.
+    assert.deepStrictEqual(
+      C.parallelBranches(FLOWS['Apertura de OT']).map((g) => [g.decision, g.meet, g.steps.join(' ')]),
+      [['P7', 'P10', 'P8 P9'], ['P26', 'P30', 'P27 P28 P29'], ['P34', 'P35', '']],
+    );
+  });
+
   it('returns an empty layout for a flow without steps', () => {
-    assert.deepStrictEqual(layoutFlow({ steps: [] }), { width: 0, height: 0, nodes: [], edges: [] });
+    assert.deepStrictEqual(layoutFlow({ steps: [] }), { width: 0, height: 0, nodes: [], edges: [], parallel: [] });
   });
 });

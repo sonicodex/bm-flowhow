@@ -95,6 +95,39 @@ function badges(n, items) {
   return out + '</g>';
 }
 
+// Parallel branches (SPEC §7, Layout; phase 6.12): neighbouring steps of a
+// group are joined side to side by a straight double-headed connector, so
+// they read as alternatives, not a sequence. Drawn wherever the diagram
+// is, under the steps. In the tour it goes soft until both steps are seen.
+const PARALLEL_GAP = 4;
+const parallelMarkers = (id, tour) =>
+  ['', ...(tour ? ['soft'] : [])]
+    .map((kind) => ['end', 'start'].map((side) => `<marker id="par-${side}-${kind}${id}" viewBox="0 0 10 10" refX="${side === 'end' ? 9 : 1}" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="edge-arrow${kind ? ` ${kind}` : ''}" d="M0 0L10 5L0 10z"/></marker>`).join(''))
+    .join('');
+
+/**
+ * @param {DiagramLayout} layout
+ * @param {number} id
+ * @param {((a: string, b: string) => boolean) | null} seen  both steps seen, during the tour
+ */
+function parallels(layout, id, seen) {
+  const at = new Map(layout.nodes.map((n) => [n.id, n]));
+  let out = '';
+  for (const group of layout.parallel || []) {
+    for (let i = 1; i < group.length; i++) {
+      const a = at.get(group[i - 1]);
+      const b = at.get(group[i]);
+      if (!a || !b) continue;
+      const from = { x: a.x + a.w / 2 + PARALLEL_GAP, y: a.y };
+      const to = { x: b.x - b.w / 2 - PARALLEL_GAP, y: b.y };
+      if (to.x <= from.x) continue;
+      const kind = seen && !(seen(a.id, b.id)) ? 'soft' : '';
+      out += `<path class="parallel${kind ? ' soft' : ''}" d="M${pt(from)} L${pt(to)}" marker-start="url(#par-start-${kind}${id})" marker-end="url(#par-end-${kind}${id})"><title>Opciones alternativas</title></path>`;
+    }
+  }
+  return out;
+}
+
 let seq = 0;
 
 /**
@@ -127,11 +160,12 @@ export function renderDiagram(layout, flow, tour) {
   // A picture, unless its steps are buttons: inside role="img" they would
   // be hidden from assistive technology.
   let out = `<svg xmlns="http://www.w3.org/2000/svg" class="diagram flow-${slot}${tour ? ' touring' : ''}" viewBox="0 0 ${layout.width} ${layout.height}" width="${layout.width}" height="${layout.height}" role="${clickable ? 'group' : 'img'}" aria-label="${esc(name)}">`;
-  out += `<defs>${marker('')}${tour ? marker('soft') : ''}</defs>`;
+  out += `<defs>${marker('')}${tour ? marker('soft') : ''}${parallelMarkers(id, !!tour)}</defs>`;
   for (const e of layout.edges) out += `<path class="edge${walked(e) ? '' : ' soft'}" d="${edgePath(e.points)}" marker-end="url(#arrow-${kind(e)}${id})"/>`;
   for (const e of layout.edges) {
     if (e.label && e.labelAt) out += `<text class="edge-label${walked(e) ? '' : ' soft'}" x="${num(e.labelAt.x)}" y="${num(e.labelAt.y)}" text-anchor="${esc(e.labelAt.anchor)}">${esc(e.label)}</text>`;
   }
+  out += parallels(layout, id, tour ? (a, b) => tour.walked(a, b) || tour.walked(b, a) : null);
   for (const n of layout.nodes) {
     const state = tour ? tour.state(n.id) : '';
     const button = clickable
