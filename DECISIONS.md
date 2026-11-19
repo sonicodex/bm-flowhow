@@ -14,6 +14,40 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.8: phone layout and tour zoom
+
+- Decision:
+  - **Phone layout (≤ 760 px, the prototype's breakpoint):**
+    - The step panel already went above the diagram (phase 3). Now it
+      takes its minimal form: type, title, description, the tag values
+      as chips without their category names, and the branch choices.
+    - The "next step" hint («Sigue con» / «Salidas») goes.
+    - A link's «Flujo» and «Contacto» keep their names: they are not tag
+      categories, and without them the two values would be unlabelled.
+    - The action buttons stay in the diagram card's bottom right corner,
+      side by side. The overview and the free review keep the same order.
+  - **Tour zoom, on every screen:**
+    - «Acercar» / «Ver todo» sits in the progress bar, with the zoom icon
+      in the text colour (a mask, like the close icon) and `aria-pressed`.
+    - Zoomed frames the current step with the step the user came from and
+      the next step or branches. When the current step has tags, the
+      frame leaves room beside it for their badges.
+    - The frame is enlarged to the card's width, up to twice its size,
+      and never taller than the room the card gives the diagram. On a
+      phone it is shrunk to fit instead.
+    - Zoomed is the default on a phone and «Ver todo» elsewhere. The
+      choice holds while the page is open and is not saved. A resized
+      window reframes it.
+    - Only the tour zooms. The overview and the free review show the
+      whole diagram, as SPEC §9 asks.
+  - **Checked in Chrome:**
+    - At 1280 px, zoomed on P6: the frame was enlarged 1.5 times.
+    - At 390 px the tour opened zoomed; P14's badges fit, with no
+      sideways page scroll.
+    - The test runs were removed from the local database afterwards.
+- Reason: phase 6 plan (plan_iteration_3), slice 6.8; SPEC §9, Layout.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Flow selector: the keyboard waits for Enter
 
 - Decision:

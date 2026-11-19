@@ -762,10 +762,46 @@ textarea:focus-visible,
   color: var(--color-text-muted);
 }
 
+/* Tour zoom (phase 6.8): the toggle in the progress bar, its icon in the
+   text colour (SPEC §9: single-colour icons take currentColor). */
+.zoom-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.icon-zoom {
+  width: var(--space-4);
+  height: var(--space-4);
+  background: currentColor;
+  mask: url("/icons/zoom.svg") center / contain no-repeat;
+}
+
+/* On a phone (SPEC §9, Layout) the step panel goes above the diagram in
+   its minimal form: type, title, description, tag values as chips and the
+   branch choices. The category names and the "next step" hint go. The
+   overview and the free review keep the same order. */
 @media (max-width: 760px) {
   .viewer-side {
     order: -1;
     flex-basis: 100%;
+    gap: var(--space-3);
+    padding: var(--space-6) var(--space-4);
+  }
+
+  .viewer-side .step-title {
+    font-size: var(--text-lg);
+  }
+
+  /* Only the tag list: a link's «Flujo» and «Contacto» keep their names. */
+  .viewer-side > .step-tags dt,
+  .viewer-side .exits-hint {
+    display: none;
+  }
+
+  .viewer-side > .step-tags {
+    flex-direction: row;
+    flex-wrap: wrap;
   }
 }
 

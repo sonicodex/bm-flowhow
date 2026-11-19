@@ -148,7 +148,8 @@ if (data && cols) {
       return `<div class="exits"><p class="label">${head}</p>${buttons}${skip}${again}</div>`;
     }
     const rows = options.map((o) => `<p class="exit-row">${text(o)}${o.visited && tour.atEnd() ? ' (ya visitado)' : ''}</p>`).join('');
-    return `<div class="exits"><p class="label">${options.length === 1 ? 'Sigue con' : 'Salidas'}</p>${rows}</div>`;
+    // The "next step" hint: secondary, so a phone leaves it out (SPEC §9).
+    return `<div class="exits exits-hint"><p class="label">${options.length === 1 ? 'Sigue con' : 'Salidas'}</p>${rows}</div>`;
   };
 
   const marks = (tour, categories) => {
@@ -172,6 +173,61 @@ if (data && cols) {
     box.scrollTop = Math.max(0, node.y * k - box.clientHeight / 2);
   };
 
+  // ---- Tour zoom (SPEC §9, Layout; phase 6.8): on every screen, the
+  // diagram can frame the current step with the one the user came from and
+  // the next ones, so the labels stay readable. Zoomed is the default on a
+  // phone; the choice holds for the rest of the visit to this page. ----
+  const PHONE = window.matchMedia('(max-width: 760px)');
+  let zoomed = PHONE.matches;
+  // Room beside the current step for its tag badges, and around the frame.
+  const BADGE_ROOM = 96;
+  const FRAME_PAD = 24;
+  // How much a frame may be enlarged to fill the card.
+  const MAX_SCALE = 2;
+
+  const zoomTo = (box, layout, tour) => {
+    const svg = box.querySelector('svg');
+    if (!svg) return;
+    const current = tour.current().id;
+    const ids = new Set([current, ...tour.options().map((o) => o.to)]);
+    if (tour.pos > 0) ids.add(tour.trail[tour.pos - 1].id);
+    const nodes = layout.nodes.filter((n) => ids.has(n.id));
+    if (!nodes.length) return;
+    const step = tour.step();
+    const tagged = Object.values(step.tags || {}).some((v) => v && v.length);
+    const side = (n) => (n.id === current && tagged ? BADGE_ROOM : 0);
+    const x0 = Math.max(0, Math.min(...nodes.map((n) => n.x - n.w / 2 - side(n))) - FRAME_PAD);
+    const x1 = Math.min(layout.width, Math.max(...nodes.map((n) => n.x + n.w / 2 + side(n))) + FRAME_PAD);
+    const y0 = Math.max(0, Math.min(...nodes.map((n) => n.y - n.h / 2)) - FRAME_PAD);
+    const y1 = Math.min(layout.height, Math.max(...nodes.map((n) => n.y + n.h / 2)) + FRAME_PAD);
+    const w = x1 - x0;
+    const h = y1 - y0;
+    // Enlarged to the card's width, up to MAX_SCALE, and never taller than
+    // the room the card gives the diagram.
+    const style = getComputedStyle(box);
+    const roomW = box.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    const roomH = parseFloat(style.maxHeight) - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+    const k = Math.max(0.1, Math.min(MAX_SCALE, roomW / w, roomH > 0 ? roomH / h : MAX_SCALE));
+    svg.setAttribute('viewBox', `${x0} ${y0} ${w} ${h}`);
+    svg.setAttribute('width', String(Math.round(w * k)));
+    svg.setAttribute('height', String(Math.round(h * k)));
+    box.scrollTop = 0;
+    box.scrollLeft = 0;
+  };
+
+  // A resized window changes the room the frame is enlarged into.
+  let resizing = 0;
+  window.addEventListener('resize', () => {
+    cancelAnimationFrame(resizing);
+    resizing = requestAnimationFrame(() => {
+      const box = document.getElementById('diagram');
+      if (state && zoomed && box) zoomTo(box, state.layout, state.tour);
+    });
+  });
+
+  const zoomToggle = () =>
+    `<button type="button" class="button-link zoom-toggle" data-zoom aria-pressed="${zoomed}"><span class="icon-zoom" aria-hidden="true"></span>${zoomed ? 'Ver todo' : 'Acercar'}</button>`;
+
   const renderTour = (focus) => {
     const { tour, flow: toured, layout } = state;
     const total = toured.steps.length;
@@ -187,13 +243,15 @@ if (data && cols) {
       `<div class="tour-progress"><span>Pasos visitados: ${seen} de ${total}</span>` +
       `<div class="bar" role="progressbar" aria-label="Pasos visitados" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${seen}"><div style="width:${Math.round((seen / total) * 100)}%"></div></div>` +
       // Back to the overview; the run stays open (phase 3.5).
-      `<button type="button" class="button-link" data-overview>Ver el flujo completo</button></div>` +
+      `${zoomToggle()}<button type="button" class="button-link" data-overview>Ver el flujo completo</button></div>` +
       `<div class="diagram-scroll" id="diagram">${renderDiagram(layout, { name, colour }, marks(tour, toured.categories))}</div>` +
       `<div class="diagram-actions"><p class="tour-message" role="status">${esc(state.message)}</p>` +
       `<button type="button" class="button-secondary" data-prev${tour.pos === 0 ? ' disabled' : ''}>Anterior</button>${primary}</div></div>` +
       `<aside class="card viewer-side">${tour.atEnd() ? noteFor(tour.current().note) : ''}${details(step, toured.categories)}${linkPanel(step)}${exitsPanel(tour)}</aside>`;
     if (state.busy) cols.querySelectorAll('button').forEach((b) => { b.disabled = true; });
-    scrollToCurrent(document.getElementById('diagram'), layout, tour.current().id);
+    const box = document.getElementById('diagram');
+    if (zoomed) zoomTo(box, layout, tour);
+    else scrollToCurrent(box, layout, tour.current().id);
     const target = (focus && cols.querySelector(focus)) || cols.querySelector('[data-choose]:not(.taken)') || cols.querySelector('[data-finish]') || cols.querySelector('[data-next]:not([disabled])');
     if (target && !target.disabled) target.focus({ preventScroll: true });
   };
@@ -403,6 +461,10 @@ if (data && cols) {
     if (b.hasAttribute('data-overview')) {
       if (!state.busy) showOverview([]);
       return;
+    }
+    if (b.hasAttribute('data-zoom')) {
+      zoomed = !zoomed;
+      return renderTour('[data-zoom]');
     }
     const tour = state.tour;
     const at = tour.current().id;
