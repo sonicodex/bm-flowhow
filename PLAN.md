@@ -6,6 +6,20 @@ nunca se edita: los cambios generan una iteración nueva.
 
 ---
 
+## plan_iteration_7 — 2026-11-19
+
+Estado: **aprobada. Esta es la iteración vigente.**
+
+Es `plan_iteration_6` tal cual, con 6.20 aprobado como se propuso y las
+respuestas del dueño:
+
+1. **Ramas gemelas:** un solo objetivo, que toma la primera rama pendiente
+   y se nombra «Rama «Sí» o «No»». La decisión es paralela, así que da
+   igual cuál se tome.
+2. **Orden:** 6.21 primero; luego 6.20.
+
+Al terminar, la etiqueta `phase-6` se mueve al último commit.
+
 ## plan_iteration_6 — 2026-11-19
 
 Estado: **propuesta.** `plan_iteration_5` sigue vigente hasta que el dueño
