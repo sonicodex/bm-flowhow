@@ -3,7 +3,9 @@
 // action and a tour survives a reload. Shared by the server and the browser.
 //
 // One log row per action, taken at the step the tour stood on:
-//   - choose: a branch of a decision (a step with several exits);
+//   - choose: a branch of a decision (a step with several exits); or, on a
+//             step of a parallel decision, the next sibling step to open
+//             (phase 6.23), with the decision's exit index;
 //   - skip:   "Ir a lo que falta por visitar" at a decision;
 //   - next:   any other step.
 // `exit` is the index of the exit followed, and null when the tour did not
@@ -38,7 +40,12 @@ export function apply(tour, action) {
   const decision = tour.exitsOf(at).length > 1;
   if (action.action === 'choose') {
     const i = action.exit;
-    if (!decision || !Number.isInteger(i) || !tour.choose(i).moved) return { ok: false };
+    if (!Number.isInteger(i)) return { ok: false };
+    if (!decision) {
+      if (!tour.openSibling(i).moved) return { ok: false };
+      return { ok: true, row: { step: at, exit: /** @type {number} */ (i) } };
+    }
+    if (!tour.choose(i).moved) return { ok: false };
     return { ok: true, row: { step: at, exit: /** @type {number} */ (i) } };
   }
   if (action.action === 'skip') {
@@ -90,8 +97,12 @@ export function replay(flow, rows) {
       continue;
     }
     const decision = tour.atEnd() && tour.exitsOf(tour.current().id).length > 1;
+    // On a sibling step with others to open, "Siguiente" does not move: the row opened one (6.23).
+    const sibling = !decision && row.exit !== null && tour.siblings();
     /** @type {Action} */
-    const action = !decision
+    const action = sibling
+      ? { at: row.step, action: 'choose', exit: row.exit }
+      : !decision
       ? { at: row.step, action: 'next' }
       : row.exit === null
         ? { at: row.step, action: 'skip' }

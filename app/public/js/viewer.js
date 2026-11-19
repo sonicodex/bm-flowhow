@@ -105,7 +105,7 @@ if (data && cols) {
     const title = (stepId) => quoted(state.tour.byId.get(stepId).title);
     // Branches that meet again (phase 3.5); one-step ones walked in a row (3.6).
     const option = (d, k) => { const e = state.tour.exitsOf(d)[k]; return quoted(e.label || state.tour.byId.get(e.to).title); };
-    if (note.alt) return `<p class="note">Otra manera: ${option(note.alt, note.exit)} (${note.n} de ${note.total}).</p>`;
+    if (note.alt) return `<p class="note">${note.n === 1 ? 'Una manera' : 'Otra manera'}: ${option(note.alt, note.exit)} (${note.n} de ${note.total}).</p>`;
     if (note.alsoDirect) {
       const names = note.exits.map((k) => option(note.alsoDirect, k));
       const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}` : names[0];
@@ -164,6 +164,16 @@ if (data && cols) {
       const head = tour.atEnd() ? 'Elige la rama en el diagrama' : 'Puedes elegir otra rama en el diagrama: el recorrido seguirá desde aquí';
       return `<div class="exits"><p class="label">${head}</p><ul class="branch-states">${rows}</ul>${skip}${again}</div>`;
     }
+    // A sibling step of a parallel decision, with others to open (SPEC §7; phase 6.23).
+    const sib = tour.siblings();
+    if (sib) {
+      const steps = tour.optionsOf(sib.decision).filter((o) => o.taken || sib.exits.includes(o.index));
+      const rows = steps.map((o) =>
+        `<li class="branch-state${o.taken ? ' taken' : ''}"><span class="branch-name">${text(o)}</span>${o.taken ? `<span class="taken-tag">${DONE_ICON}Ya vista</span>` : '<span class="muted small">Falta</span>'}</li>`,
+      ).join('');
+      const head = sib.exits.length === 1 ? 'Abre en el diagrama la otra manera para seguir' : 'Abre en el diagrama las otras maneras para seguir';
+      return `<div class="exits"><p class="label">${head}</p><ul class="branch-states">${rows}</ul></div>`;
+    }
     const rows = options.map((o) => `<p class="exit-row">${text(o)}${o.visited && tour.atEnd() ? ' (ya visitado)' : ''}</p>`).join('');
     // The "next step" hint: secondary, so a phone leaves it out (SPEC §9).
     return `<div class="exits exits-hint"><p class="label">${options.length === 1 ? 'Sigue con' : 'Salidas'}</p>${rows}</div>`;
@@ -188,9 +198,11 @@ if (data && cols) {
   // to one step) share it, take the first still to take, and are named
   // together: «Rama «Sí» o «No»: Entregar con acta».
   const branchMarks = (tour) => {
-    if (!tour.canChoose()) return undefined;
+    const choice = choiceOf(tour);
+    if (!choice) return undefined;
     const byStep = new Map();
-    for (const o of tour.options()) {
+    for (const o of choice.options) {
+      if (choice.only && !choice.only.includes(o.index)) continue;
       if (!byStep.has(o.to)) byStep.set(o.to, []);
       byStep.get(o.to).push(o);
     }
@@ -202,7 +214,16 @@ if (data && cols) {
       const name = `Rama ${labels.length ? labels.join(' o ') : 'sin nombre'}: ${list[0].title}${taken ? ', ya recorrida' : ''}`;
       targets[to] = { exit: (open || list[0]).index, name, taken };
     }
-    return { decision: tour.current().id, targets };
+    return { decision: choice.decision, targets };
+  };
+
+  // What can be chosen on the diagram: the branches of the decision in view
+  // (6.20), or, on a sibling step of a parallel decision, the siblings still
+  // to open (6.23). Options are that decision's, by its exit index.
+  const choiceOf = (tour) => {
+    if (tour.canChoose()) return { decision: tour.current().id, options: tour.options(), only: null };
+    const sib = tour.siblings();
+    return sib ? { decision: sib.decision, options: tour.optionsOf(sib.decision), only: sib.exits } : null;
   };
 
   // From the diagram's coordinates to pixels in the drawn SVG. Read from its
@@ -236,13 +257,18 @@ if (data && cols) {
   const frameParts = (tour) => {
     const current = tour.current().id;
     const behind = [];
-    for (let k = tour.pos, n = 0; k > 0 && n < FRAME_STEPS; k--, n++) {
+    // A sibling opened from another (6.23) came from its decision, not from the step before it.
+    const alt = tour.current().note && tour.current().note.alt;
+    if (alt) behind.push(alt);
+    else for (let k = tour.pos, n = 0; k > 0 && n < FRAME_STEPS; k--, n++) {
       const from = tour.trail[k - 1].id;
       if (!tour.exitsOf(from).some((e) => e.to === tour.trail[k].id)) break;
       behind.push(from);
     }
-    const next = [...new Set(tour.exitsOf(current).map((e) => e.to))];
-    const after = tour.canChoose() ? [] : [...new Set(next.flatMap((id) => tour.exitsOf(id).map((e) => e.to)))].filter((id) => id !== current && !next.includes(id));
+    // On a sibling with others to open, the way on is those siblings (6.23).
+    const sib = tour.siblings();
+    const next = sib ? sib.exits.map((k) => tour.exitsOf(sib.decision)[k].to) : [...new Set(tour.exitsOf(current).map((e) => e.to))];
+    const after = tour.canChoose() ? [] : [...new Set(next.flatMap((id) => tour.exitsOf(id).map((e) => e.to)))].filter((id) => id !== current && !next.includes(id) && !(sib && id === sib.decision));
     return { current, behind, next, after };
   };
 
@@ -363,8 +389,13 @@ if (data && cols) {
     const sr = svg.getBoundingClientRect(), br = box.getBoundingClientRect();
     const left = sr.left - br.left - box.clientLeft + box.scrollLeft;
     const top = sr.top - br.top - box.clientTop + box.scrollTop;
+    // The step being read (with its badges), in the same coordinates.
+    const cr = svg.querySelector('.node.current')?.getBoundingClientRect();
+    const cur = cr && { left: cr.left - br.left - box.clientLeft + box.scrollLeft, right: cr.right - br.left - box.clientLeft + box.scrollLeft, top: cr.top - br.top - box.clientTop + box.scrollTop, bottom: cr.bottom - br.top - box.clientTop + box.scrollTop };
     for (const n of nodes) {
-      const at = exitPoint(layout, here, n, f, inset);
+      // A sibling's edge comes from its decision (6.23), not from the step in view.
+      const from = marks && marks.decision !== here.id ? layout.nodes.find((x) => x.id === marks.decision) || here : here;
+      const at = exitPoint(layout, from, n, f, inset);
       const x = left + (at.x - f.x0) * k;
       const y = top + (at.y - f.y0) * k;
       const angle = at.angle;
@@ -379,11 +410,22 @@ if (data && cols) {
         el.setAttribute('data-branch', String(target.exit));
         el.setAttribute('data-offframe', n.id);
         el.setAttribute('aria-label', target.name);
-        const label = tour.options()[target.exit].label;
+        const label = choiceOf(tour).options[target.exit].label;
         if (label) el.insertAdjacentHTML('beforeend', `<span class="offframe-label">${esc(label)}</span>`);
         svg.querySelector(`.node.target[data-id="${CSS.escape(n.id)}"]`)?.setAttribute('tabindex', '-1');
       } else el.setAttribute('aria-hidden', 'true');
       box.append(el);
+      // Whole inside the part of the card on screen, label included, however
+      // near the edge its point falls.
+      const hw = el.offsetWidth / 2 + 4, hh = el.offsetHeight / 2 + 4;
+      const cx = Math.min(Math.max(x, box.scrollLeft + hw), box.scrollLeft + box.clientWidth - hw);
+      let cy = Math.min(Math.max(y, box.scrollTop + hh), box.scrollTop + box.clientHeight - hh);
+      // Never over the step being read: above it, or else below it.
+      if (cur && cx + hw > cur.left && cx - hw < cur.right && cy + hh > cur.top && cy - hh < cur.bottom) {
+        cy = cur.top - hh >= box.scrollTop ? cur.top - hh : cur.bottom + hh;
+      }
+      el.style.left = `${cx}px`;
+      el.style.top = `${cy}px`;
       // A step is in the frame or out of it, never half seen (6.22): out,
       // it is not drawn, and the edge to it ends at the arrow, without a head.
       svg.querySelector(`.node[data-id="${CSS.escape(n.id)}"]`)?.classList.add('out-of-frame');
@@ -518,7 +560,8 @@ if (data && cols) {
     const seen = tour.visited.size;
     const step = tour.step();
     const finish = tour.canFinish();
-    const choice = tour.needsChoice();
+    // On a sibling step, "Siguiente" waits until every sibling is opened (6.23).
+    const choice = tour.needsChoice() || !!tour.siblings();
     const primary = finish
       ? '<button type="button" class="button-primary" data-finish>Terminar recorrido</button>'
       : `<button type="button" class="button-primary" data-next${choice ? ' disabled' : ''}>Siguiente</button>`;
@@ -742,12 +785,14 @@ if (data && cols) {
     if (!state || state.busy) return;
     const tour = state.tour;
     const at = tour.current().id;
-    const to = CSS.escape(tour.options()[exit].to);
+    const choice = choiceOf(tour);
+    if (!choice) return;
+    const to = CSS.escape(choice.options[exit].to);
     const focus = `.node.target[data-id="${to}"]:not([tabindex="-1"]), .offframe[data-offframe="${to}"]`;
     state.held = null;
     // A branch that cannot be entered yet (phase 6.18): nothing is sent,
     // nothing moves, and a tooltip on it says what to walk first.
-    const wait = tour.holdsBack(exit);
+    const wait = choice.only ? null : tour.holdsBack(exit);
     if (wait) {
       state.held = { exit, wait, at: tour.pos };
       state.message = '';

@@ -33,7 +33,8 @@ L.edges.forEach(e=>console.log(e.from,'->',e.to,e.back?'(back)':'',e.label,e.d))
 assert(!overlaps(L));
 });
 // tour: always first option
-function run(flow,pick){const t=new C.Tour(flow);let guard=0;while(guard++<5000){if(t.canFinish())break;if(t.canSkip()){t.skip();continue;}let r=t.next();if(r.needChoice){const all=t.options();const o=all.filter(x=>!x.taken);const from=o.length?o:all;r=t.choose(from[pick(from.length)].index);}if(r.done)break;}return t;}
+// Opens the sibling steps of a parallel decision before "Siguiente" (phase 6.23); never picks a held branch.
+function run(flow,pick){const t=new C.Tour(flow);let guard=0;while(guard++<5000){if(t.canFinish())break;if(t.canSkip()){t.skip();continue;}let r=t.next();if(r.needSibling){const ks=t.siblings().exits;r=t.openSibling(ks[pick(ks.length)]);}if(r.needChoice){const all=t.options().filter(x=>t.holdsBack(x.index)===null);const o=all.filter(x=>!x.taken);const from=o.length?o:all;r=t.choose(from[pick(from.length)].index);}if(r.done)break;}return t;}
 it("tour: always the first or the last option completes", () => {
 let t=run(f,()=>0);assert(t.complete());t=run(f,n=>n-1);assert(t.complete());
 });
@@ -49,7 +50,7 @@ it("random graphs: no overlaps, tours complete and never hang", () => {
 let seed=7;const rnd=()=>(seed=(seed*1103515245+12345)%2147483648)/2147483648;
 for(let k=0;k<400;k++){const n=2+Math.floor(rnd()*14);const steps=[];for(let i=0;i<n;i++){const ex=[];const m=Math.floor(rnd()*3);for(let j=0;j<m;j++)ex.push('L'+j+':S'+Math.floor(rnd()*n));steps.push({id:'S'+i,type:i===0?'start':(rnd()<.1?'start':'activity'),title:'Paso '+i,exits:ex.join('|'),tags:{}});}
  const fl=C.compile({name:'r',categories:[],steps});const LL=C.layout(fl);assert(!overlaps(LL),'overlap '+k);const tt=run(fl,x=>Math.floor(rnd()*x));assert(tt.complete(),'incomplete '+k);
- const t2=new C.Tour(fl);for(let g=0;g<300;g++){let r=t2.next();if(r.needChoice){const o=t2.options();r=t2.choose(o[Math.floor(rnd()*o.length)].index);}if(r.done)break;}}
+ const t2=new C.Tour(fl);for(let g=0;g<300;g++){let r=t2.next();if(r.needSibling){const ks=t2.siblings().exits;r=t2.openSibling(ks[Math.floor(rnd()*ks.length)]);}if(r.needChoice){const o=t2.options();r=t2.choose(o[Math.floor(rnd()*o.length)].index);}if(r.done)break;}}
 });
 it("follow the flow: No first walks the loop back to the decision", () => {
 // follow the flow: No first walks the loop back to the decision
@@ -191,21 +192,38 @@ it("nested decisions: the inner one closes at its meeting point, then the outer 
   assert.strictEqual(ids(w), 'S D1 D2 P P2 D2 Q R D1 Y Y2 M E');
 });
 
-// Phase 3.6: one-step branches are walked one after another (SPEC §7).
-it("one-step branches are walked one after another, the user picking the first (Apertura P26)", () => {
+// Phase 3.6: one-step branches are walked one after another (SPEC §7). Phase 6.23: the reader opens
+// each of them; "Siguiente" waits until every sibling has been opened.
+it("one-step branches: the reader opens each sibling, and «Siguiente» waits for all of them (Apertura P26)", () => {
   const rows = [['S', 'start', 'D'], ['D', 'decision', 'a:A | b:B | c:C'], ['A', 'activity', 'M'], ['B', 'activity', 'M'], ['C', 'activity', 'M'], ['M', 'activity', 'E'], ['E', 'end', '']];
   const w = new C.Tour(flowOf(rows));
   assert.deepStrictEqual(w.reach.get('D'), ['short', 'short', 'short']);
   w.next();
   assert(w.needsChoice());
   w.choose(1);
+  assert.deepStrictEqual([w.current().id, w.current().note], ['B', { alt: 'D', exit: 1, n: 1, total: 3 }]);
+  // The first does not carry the tour through the rest.
+  const trail = w.trail.length;
+  assert.deepStrictEqual(w.next(), { needSibling: true });
+  assert.strictEqual(w.trail.length, trail);
+  assert.deepStrictEqual(w.siblings(), { decision: 'D', exits: [0, 2] });
+  // Only a sibling still to open can be opened.
+  assert.deepStrictEqual(w.openSibling(1), { moved: false });
+  assert(w.openSibling(2).moved);
+  assert.deepStrictEqual([w.current().id, w.current().note], ['C', { alt: 'D', exit: 2, n: 2, total: 3 }]);
+  assert.deepStrictEqual(w.siblings(), { decision: 'D', exits: [0] });
+  assert(w.openSibling(0).moved);
+  assert.deepStrictEqual([w.current().id, w.current().note], ['A', { alt: 'D', exit: 0, n: 3, total: 3 }]);
+  // All opened: "Siguiente" goes on to the meeting point, once.
+  assert.strictEqual(w.siblings(), null);
   w.next();
-  assert.deepStrictEqual([w.current().id, w.current().note], ['A', { alt: 'D', exit: 0, n: 2, total: 3 }]);
+  assert(w.current().id === 'M' && once(w, 'M'));
   w.next();
-  assert.deepStrictEqual([w.current().id, w.current().note], ['C', { alt: 'D', exit: 2, n: 3, total: 3 }]);
-  w.next(); w.next();
   assert(w.current().id === 'E' && w.canFinish());
-  assert.strictEqual(ids(w), 'S D B A C M E');
+  assert.strictEqual(ids(w), 'S D B C A M E');
+  // A step seen again with «Anterior» opens nothing: only the last one does.
+  w.prev(); w.prev();
+  assert.strictEqual(w.siblings(), null);
 });
 
 it("a one-step branch and a path of its own: back to the decision, whichever is picked first", () => {
@@ -250,12 +268,18 @@ it("Instalaciones P17: back to the decision whichever is picked first; P11 (stra
   assert(w.current().id === 'M' && once(w, 'M'));
   w.next();
   assert(w.current().id === 'E' && w.canFinish());
-  // Instalaciones P11: «Sí» straight there, «No» one step. Picking «Sí» walks «No» right away.
+  // Instalaciones P11: «Sí» straight there, «No» one step. Phase 6.23: «Sí» is held until «No», the
+  // step to open, has been opened; then "Siguiente" takes «Sí» along into M.
   w = new C.Tour(flowOf([['S', 'start', 'D'], ['D', 'decision', 'Sí:M | No:A'], ['A', 'activity', 'M'], ['M', 'end', '']]));
-  w.next(); w.choose(0);
-  assert.deepStrictEqual([w.current().id, w.current().note], ['A', { alt: 'D', exit: 1, n: 2, total: 2 }]);
+  assert(w.parallel.has('D'));
   w.next();
-  assert(w.current().id === 'M' && w.canFinish() && once(w, 'M'));
+  assert.deepStrictEqual(w.choose(0), { moved: false, held: { to: 'M', wait: [1] } });
+  w.choose(1);
+  assert.deepStrictEqual([w.current().id, w.current().note], ['A', { alt: 'D', exit: 1, n: 1, total: 2 }]);
+  assert.strictEqual(w.siblings(), null);
+  w.next();
+  assert.deepStrictEqual([w.current().id, w.current().note], ['M', { alsoDirect: 'D', exits: [0] }]);
+  assert(w.canFinish() && once(w, 'M'));
 });
 
 // Phase 3.6: "Anterior" can undo a choice (SPEC §7).

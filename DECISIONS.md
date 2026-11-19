@@ -14,6 +14,77 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.23: the reader opens each sibling of a parallel decision
+
+- Decision (SPEC §7, owner's change):
+  - **Engine** (`core.js`):
+    - **«Siguiente» waits:** on the step of a parallel decision being read,
+      `next()` no longer carries the tour into the next sibling. While
+      sibling steps are still to open it returns `{ needSibling: true }`
+      and does not move.
+    - **New methods:**
+      - `siblings()` gives the decision and the exits still to open.
+      - `openSibling(k)` opens one, from the step being read. It goes
+        back to the decision on the path and enters that sibling.
+    - **Notes:** each sibling says which it is. The first now does too:
+      «Una manera: «X» (1 de 3)», then «Otra manera: … (2 de 3)».
+    - **When all are opened,** «Siguiente» goes to the meeting point
+      once.
+    - **Unchanged:**
+      - Branches that go straight to the meeting point have no step to
+        open. They are taken on entering it, as before.
+      - Twins (P34) have no sibling steps, so nothing changes for them.
+  - **A branch straight to the meeting point waits** (Instalaciones P11):
+    picking «Sí» (straight to P12) while «No»'s step P14 is still
+    unopened is held as in 6.18: nothing sent, and the tooltip names
+    «No».
+    - Before, picking «Sí» walked «No» by itself, which is the
+      carrying-along the SPEC now rules out.
+    - Once P14 is opened, «Siguiente» goes to P12 and takes «Sí» along
+      («La opción «Sí» lleva directo a este paso.»).
+  - **Log:**
+    - Opening a sibling is a `choose` row at the step being read, with
+      the decision's exit index. No schema or route change.
+    - Replay reads a row at a sibling with siblings left as an opening,
+      since «Siguiente» cannot move there.
+    - The server refuses `next` there.
+    - Runs logged under the old rule, where «Siguiente» carried the tour
+      from one sibling to the next, no longer replay. They restart with
+      the «Las reglas del recorrido cambiaron…» notice, as in earlier
+      slices. The `empleado`'s open run 11 is one of them: it stops at
+      Apertura P8. I left its data alone.
+  - **Viewer:**
+    - On a sibling step with others to open, those siblings are the
+      diagram's targets. They carry the decision's edges and labels, so
+      hovering lights them as in 6.20.
+    - «Siguiente» is disabled. The panel says «Abre en el diagrama las
+      otras maneras para seguir» and lists each sibling as «Falta» or
+      «Ya vista». On a phone the list is hidden, as on a decision (6.22).
+    - The frame (6.21/6.22) takes the decision as the step behind and the
+      siblings as the way on.
+    - An arrow for a sibling left out follows the decision's edge.
+  - **Off-frame arrows, all slices:**
+    - They stay whole inside the part of the card on screen.
+    - They never cover the step being read: they move above it, or else
+      below it.
+    - Seen on a phone at P26, where only the current step fits.
+  - **Tests:**
+    - `core.test.js`: the P26 and P11 cases rewritten for the new rule,
+      and «Anterior» opens nothing.
+    - The walkers (`run`, the random graphs, `nextAction`) open siblings
+      and skip held branches.
+    - `tour.test.ts`: P26 through the server, covering the refused
+      `next`, the logged openings, the replay and one P30.
+  - **Checked in Chrome** (start and steps answered in the browser,
+    nothing written):
+    - Apertura P7: P9 then P8, the latter with Enter, then «Siguiente»
+      to P10.
+    - Apertura P26: P28, P29, P27 (1, 2 and 3 of 3), then P30.
+    - Instalaciones P11: «Sí» held, «No», then P12.
+    - The same at 390×844.
+- Reason: SPEC §7 (owner's change), slice 6.23.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.22: a legible frame, and no branch list on a phone
 
 - Decision (SPEC §7 Layout, owner's change):

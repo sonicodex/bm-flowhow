@@ -53,6 +53,9 @@ function nextAction(tour: any, prefer?: (step: string) => number | undefined): A
   const step = tour.current().id;
   if (tour.canFinish()) return null;
   if (tour.canSkip()) return { at: step, action: "skip" };
+  // A parallel decision's sibling steps are opened one by one (phase 6.23).
+  const siblings = tour.siblings();
+  if (siblings) return { at: step, action: "choose", exit: siblings.exits[0] };
   if (!tour.needsChoice()) return { at: step, action: "next" };
   const options = (tour.options() as { index: number; taken: boolean }[]).filter((o) => tour.holdsBack(o.index) === null);
   const exit = prefer?.(step) ?? (options.find((o) => !o.taken) ?? options[0]!).index;
@@ -387,6 +390,31 @@ describe("held branches and retries (phase 6.18)", () => {
     const src = (viewer as any).default as string;
     expect(src).toContain("lleva directo a ${quoted(o.title)}, donde se une con ${others}. Recorre primero ${others}.");
     expect(src).not.toContain("Antes de seguir, mira las otras.");
+  });
+
+  it("phase 6.23: Apertura P26, each sibling is opened from the one being read; «Siguiente» waits for all", async () => {
+    const s = await setup();
+    await startTour(db(), s.user, s.flowId, at(0));
+    const t = await walk(s, 0, { stop: until("P26") });
+    let tour = replay(s.flow, await logOf(s.user));
+    expect(tour.parallel.get("P26")).toBe("P30");
+    expect((await takeStep(db(), s.user, s.flowId, { at: "P26", action: "choose", exit: 1 }, at(t + 1))).ok).toBe(true);
+    tour = replay(s.flow, await logOf(s.user));
+    expect(tour.current().id).toBe("P28");
+    // «Siguiente» is refused while siblings are left; nothing is logged.
+    expect((await takeStep(db(), s.user, s.flowId, { at: "P28", action: "next" }, at(t + 2))).ok).toBe(false);
+    expect(tour.siblings()).toEqual({ decision: "P26", exits: [0, 2] });
+    // Opening one: logged at the step being read, with the decision's exit index, and replayed.
+    expect(await takeStep(db(), s.user, s.flowId, { at: "P28", action: "choose", exit: 2 }, at(t + 3))).toEqual({ ok: true, row: { step: "P28", exit: 2 } });
+    expect((await takeStep(db(), s.user, s.flowId, { at: "P29", action: "choose", exit: 0 }, at(t + 4))).ok).toBe(true);
+    tour = replay(s.flow, await logOf(s.user));
+    expect(tour.current().id).toBe("P27");
+    expect(tour.current().note).toEqual({ alt: "P26", exit: 0, n: 3, total: 3 });
+    expect(tour.siblings()).toBeNull();
+    expect((await takeStep(db(), s.user, s.flowId, { at: "P27", action: "next" }, at(t + 5))).ok).toBe(true);
+    tour = replay(s.flow, await logOf(s.user));
+    expect(tour.current().id).toBe("P30");
+    expect(tour.trail.filter((x: any) => x.id === "P30")).toHaveLength(1);
   });
 
   it("phase 6.22: a phone's decision lists no branches, and the frame stops at a legible zoom", async () => {

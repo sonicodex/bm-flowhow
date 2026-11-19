@@ -742,6 +742,8 @@ var Core = (function () {
     if (!pending.length || this.parallel.get(d) !== to) return this._back(i, note);
     var total = (this.meet.get(d) || []).filter(function (x) { return x === to; }).length;
     var step = pending.filter(function (k) { return reach[k] === 'short'; })[0];
+    // The reader opens each sibling step (SPEC §7; phase 6.23): "Siguiente" does not carry the tour
+    // into the next one. Only reached from choose() now, where a choice must never do nothing.
     this.path.length = i + 1;
     if (step !== undefined) {
       this.taken.add(d + '#' + step);
@@ -866,12 +868,7 @@ var Core = (function () {
     this._goto(next, reason);
     return { moved: true };
   };
-  Tour.prototype.options = function () {
-    var self = this;
-    return this.exitsOf(this.current().id).map(function (e, i) {
-      return { index: i, label: e.label, to: e.to, title: self.byId.get(e.to).title, visited: self.visited.has(e.to), taken: self.taken.has(self.current().id + '#' + i) };
-    });
-  };
+  Tour.prototype.options = function () { return this.optionsOf(this.current().id); };
   /* The branches still to walk at the decision the tour stands on, as exit indices, when the user is to be
      told so (SPEC §7; phase 6.19): a decision that is not parallel, with a branch already walked and some
      left. How the tour got back there makes no difference: a dead end, a held meeting point, a skip, or a
@@ -921,7 +918,15 @@ var Core = (function () {
     // Held at another decision (an outer one): back there, saying where it joins. Held at this one, a
     // parallel decision walks on to its next branch.
     else if (hold >= 0) r = this._hold(hold, e.to, { joinAt: e.to });
-    else { this._goto(e.to, null); this.stale = 0; r = { moved: true }; }
+    else {
+      // A sibling step of a parallel decision says which of them it is (phase 6.23).
+      var meet = this.parallel.get(d), note = null;
+      if (meet && (this.reach.get(d) || [])[i] === 'short') {
+        var total = (this.meet.get(d) || []).filter(function (x) { return x === meet; }).length;
+        note = { alt: d, exit: i, n: total - this._pendingAt(d, meet).length, total: total };
+      }
+      this._goto(e.to, note); this.stale = 0; r = { moved: true };
+    }
     this._save();
     return r;
   };
@@ -961,7 +966,13 @@ var Core = (function () {
     if (hold < 0 || path[hold] !== d) return null;
     var self = this, taken = function (k) { return k === i || self.taken.has(d + '#' + k); };
     var pending = (this.meet.get(d) || []).map(function (x, k) { return x === e.to && !taken(k) ? k : -1; }).filter(function (k) { return k >= 0; });
-    if (this.parallel.get(d) === e.to) return null;
+    var reach0 = this.reach.get(d) || [];
+    // Parallel: a branch straight to the meeting point waits for the sibling steps still to open, which
+    // the reader opens one by one (phase 6.23).
+    if (this.parallel.get(d) === e.to) {
+      var steps = pending.filter(function (k) { return reach0[k] === 'short'; });
+      return steps.length ? steps : null;
+    }
     // Only branches with steps of their own to walk are waited for; one that goes straight there too is
     // taken on entering (see _enterOwn).
     var reach = this.reach.get(d) || [];
@@ -979,10 +990,45 @@ var Core = (function () {
     if (!ex.length) return this._return({ endAt: cur });
     if (ex.length > 1) return { needChoice: true };
     if (this._stuck()) return this._return({ loopTo: ex[0].to, from: cur });
+    if (this.siblings()) return { needSibling: true };
     var hold = this._holdFor(ex[0].to);
     if (hold >= 0) return this._hold(hold, ex[0].to, { joinAt: ex[0].to });
     this._goto(ex[0].to, null);
     return { moved: true };
+  };
+  /* On a step of a parallel decision, the sibling steps still to open, or null (SPEC §7; phase 6.23):
+     the reader opens each with a click, and "Siguiente" waits until all of them have been. Branches
+     that go straight to the meeting point have no step to open; they are taken on entering it. */
+  Tour.prototype.siblings = function () {
+    if (!this.atEnd()) return null;
+    var ex = this.exitsOf(this.current().id);
+    if (ex.length !== 1) return null;
+    var hold = this._holdFor(ex[0].to);
+    if (hold < 0) return null;
+    var d = this.path[hold], reach = this.reach.get(d) || [];
+    if (hold !== this.path.length - 2 || this.parallel.get(d) !== ex[0].to) return null;
+    var open = this._pendingAt(d, ex[0].to).filter(function (k) { return reach[k] === 'short'; });
+    return open.length ? { decision: d, exits: open } : null;
+  };
+  /* Opens sibling step k (an exit index of the decision) from the step being read. */
+  Tour.prototype.openSibling = function (k) {
+    var s = this.siblings();
+    if (!s || s.exits.indexOf(k) < 0) return { moved: false };
+    var d = s.decision, to = this.exitsOf(this.current().id)[0].to;
+    var total = (this.meet.get(d) || []).filter(function (x) { return x === to; }).length;
+    this.path.length = this.path.length - 1;
+    this.taken.add(d + '#' + k);
+    this._goto(this.exitsOf(d)[k].to, { alt: d, exit: k, n: total - this._pendingAt(d, to).length, total: total });
+    this.stale = 0;
+    this._save();
+    return { moved: true };
+  };
+  /* The options of decision d, as options() gives them for the step in view. */
+  Tour.prototype.optionsOf = function (d) {
+    var self = this;
+    return this.exitsOf(d).map(function (e, i) {
+      return { index: i, label: e.label, to: e.to, title: self.byId.get(e.to).title, visited: self.visited.has(e.to), taken: self.taken.has(d + '#' + i) };
+    });
   };
   Tour.prototype.prev = function () { if (this.pos > 0) { this.pos--; return true; } return false; };
 
