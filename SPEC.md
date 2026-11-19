@@ -185,17 +185,14 @@ belongs to, so it can filter and highlight the diagram by category.
 ### Example step table (illustrative data)
 
 ```
-ID  TYPE      FLUJO        TITLE               DESCRIPTION                      RESPONSABLE      HERRAMIENTA  EXITS
-P1  start                  Recibir solicitud   Llega el pedido del cliente.     Ventas           Correo       P2
-P2  activity               Revisar inventario  Se consulta si hay existencias.  Almacén          ERP          P3
-P3  decision               ¿Hay existencias?   Define si se compra o despacha.  Almacén          ERP          Sí:P5, No:P4
-P4  activity               Comprar material    Se genera la orden de compra.    Compras          ERP, Correo  P2
-P5  activity               Despachar pedido    Se alista y se envía.            Almacén, Ventas               P6
-P6  link      Facturación  Pasar a facturación  Continúa en el flujo de facturación.                          P7
-
-A `link` or `subflow` row carries its contact in the `CONTACTO` column, which
-is empty for every other type.
-P7  end                    Pedido cerrado
+ID  TYPE      FLUJO        CONTACTO             TITLE               DESCRIPTION                      RESPONSABLE      HERRAMIENTA  EXITS
+P1  start                                       Recibir solicitud   Llega el pedido del cliente.     Ventas           Correo       P2
+P2  activity                                    Revisar inventario  Se consulta si hay existencias.  Almacén          ERP          P3
+P3  decision                                    ¿Hay existencias?   Define si se compra o despacha.  Almacén          ERP          Sí:P5, No:P4
+P4  activity                                    Comprar material    Se genera la orden de compra.    Compras          ERP, Correo  P2
+P5  activity                                    Despachar pedido    Se alista y se envía.            Almacén, Ventas               P6
+P6  link      Facturación  Jefe de facturación  Pasar a facturación  Continúa en el flujo de facturación.            P7
+P7  end                                         Pedido cerrado
 ```
 
 "Responsable" and "Herramienta" are example categories. Each category is a column.
@@ -209,6 +206,10 @@ writing always uses the comma.
 `FLUJO` carries the name of the flow a `link` or a `subflow` step points at, and
 is empty for every other type. A `link` or `subflow` without it is an error:
 the step would point nowhere.
+
+`CONTACTO` sits right after `FLUJO` and carries that step's contact. It is
+empty for every other type, and a value on one of them is ignored with a
+warning, the same way `FLUJO` is.
 
 ## 6. Editor (Board only)
 
@@ -371,9 +372,12 @@ Tour rules:
   until the subflow is complete in this sense.
 - **On a `link` step** the side panel names the other flow and its contact —
   the job title to deal with — whether or not the user can open it. With
-  access, "Ir a «X»" opens that flow's viewer **from its start**, as a tour of
-  its own: the two flows are peers, not parent and child, so there is no
-  breadcrumb and no automatic return. The tour being left is not lost; it
+  access, "Ir a «X»" opens that flow's viewer as a tour of its own: the two
+  flows are peers, not parent and child, so there is no breadcrumb and no
+  automatic return. It starts **at the beginning of X**, because someone sent
+  to an unfamiliar flow needs to see it whole — unless they already have a
+  tour open there, which continues where they left it. Arriving never
+  destroys progress; "Empezar de nuevo" is theirs to choose. The tour being left is not lost; it
   stays unfinished and the home screen keeps listing it as pending, with the
   step it was on.
 - A `link` with exits also continues inside its own flow: going to the other
