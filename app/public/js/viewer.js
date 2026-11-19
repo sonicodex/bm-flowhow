@@ -228,6 +228,17 @@ if (data && cols) {
   const zoomToggle = () =>
     `<button type="button" class="button-link zoom-toggle" data-zoom aria-pressed="${zoomed}"><span class="icon-zoom" aria-hidden="true"></span>${zoomed ? 'Ver todo' : 'Acercar'}</button>`;
 
+  // SPEC §7 (phase 6.13): when the tour went back to a decision, for
+  // whatever reason, a notice stays on the diagram until a branch is
+  // chosen. The side panel says why; this says what is left. Being moved
+  // without being told is when people decide the app is broken.
+  const RETURN_NOTICE = 'Faltan ramas por recorrer en esta decisión. Elige una para seguir.';
+  const returnNotice = (tour) => {
+    const note = tour.current().note;
+    if (!tour.atEnd() || !note || !note.returned || !tour.canChoose()) return '';
+    return `<p class="tour-return" role="status"><img class="icon" src="/icons/alert.svg" alt="" width="18" height="18"><span>${RETURN_NOTICE}</span></p>`;
+  };
+
   const renderTour = (focus) => {
     const { tour, flow: toured, layout } = state;
     const total = toured.steps.length;
@@ -244,6 +255,7 @@ if (data && cols) {
       `<div class="bar" role="progressbar" aria-label="Pasos visitados" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${seen}"><div style="width:${Math.round((seen / total) * 100)}%"></div></div>` +
       // Back to the overview; the run stays open (phase 3.5).
       `${zoomToggle()}<button type="button" class="button-link" data-overview>Ver el flujo completo</button></div>` +
+      returnNotice(tour) +
       `<div class="diagram-scroll" id="diagram">${renderDiagram(layout, { name, colour }, marks(tour, toured.categories))}</div>` +
       `<div class="diagram-actions"><p class="tour-message" role="status">${esc(state.message)}</p>` +
       `<button type="button" class="button-secondary" data-prev${tour.pos === 0 ? ' disabled' : ''}>Anterior</button>${primary}</div></div>` +

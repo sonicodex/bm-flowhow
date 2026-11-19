@@ -623,6 +623,22 @@ textarea:focus-visible,
   font-size: var(--text-sm);
 }
 
+/* The notice when the tour went back to a decision (phase 6.13): a band
+   across the top of the diagram that stays until a branch is chosen,
+   marked like every warning, with the alert icon and a yellow edge. */
+.tour-return {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  background: var(--color-bg);
+  border-bottom: var(--border-width) solid var(--color-border);
+  border-left: calc(var(--border-width) * 3) solid var(--color-status-alert);
+}
+
 .tour-progress .bar {
   flex: 1 1 120px;
   height: calc(var(--space-1) * 1.5);

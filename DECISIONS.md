@@ -14,6 +14,35 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.13: a notice on the diagram when the tour goes back to a decision
+
+- Decision:
+  - **When:** the tour went back to a decision, for any reason (owner's
+    answer): a branch ended, a path looped without closing, a branch was
+    held at a meeting point, or «Ir a lo que falta por visitar». That is
+    every engine note with `returned`.
+  - **What:** a band across the top of the diagram card, under the
+    progress bar: «Faltan ramas por recorrer en esta decisión. Elige una
+    para seguir.»
+    - It has the alert icon and the yellow edge of every warning, and
+      `role="status"`.
+    - The side panel keeps saying why («Esa rama terminó en …»).
+  - **How long:** while that decision is the step in view and awaits a
+    choice; choosing a branch removes it.
+    - A reload or a return to the page shows it again: it comes from the
+      engine's note, which the run's log replays.
+    - Looking back with «Anterior» does not show it on steps left behind.
+  - **Checked in Chrome** on Instalaciones: P5 «No» to P30, «Siguiente»
+    back to P5, where the band shows. It survived a reload and went away
+    on choosing «Sí».
+  - **A slip of mine, undone:** the check continued an open run of the
+    owner's on Instalaciones (run 5, started by the owner with no step
+    yet), because «Iniciar» continues an open run. The six visits it added
+    (88 to 93) were deleted; run 5 is as the owner left it. From now on
+    browser checks look for the user's open runs first.
+- Reason: SPEC §7 (owner's change); plan_iteration_5, slice 6.13.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.12: parallel branches drawn as parallel
 
 - Decision:
