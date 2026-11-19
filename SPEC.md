@@ -346,6 +346,20 @@ Tour rules:
   paths out of a decision rejoin at a common step, the tour walks each
   remaining branch up to that meeting point and only then continues once along
   the shared path.
+- **A branch that leads back to its own decision is a retry, not another
+  road.** It does not count as one of the branches that meet, so it never
+  holds the others back: waiting for it is waiting for the user to come
+  through the same decision again, which is not a path to walk but the same
+  question asked twice.
+- **A branch counts as walked only once the tour has entered it.** Marking it
+  "Ya recorrida" while holding the user at the decision claims something that
+  did not happen, and the user has to choose it a second time to make it
+  true.
+- **The tour never answers a choice by doing nothing.** When the branch the
+  user picked cannot be entered yet because another branch has still to reach
+  the meeting point, say so where the choice was made and name what to walk
+  first. The return tooltip is not used here: the tour never left the
+  decision, so there is nothing to explain about coming back.
 - **Going back to the decision in between is for choices that matter.** The
   tour walks the branches one after another without returning only when
   **every** branch of that decision reaches the meeting point in a single
