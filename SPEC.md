@@ -197,7 +197,13 @@ the step would point nowhere.
 
 ## 6. Editor (Board only)
 
-- **Flow form:** name, objective, assigned areas.
+- **Flow form:** name, objective, colour, assigned areas. The areas are also
+  edited above the grid, in the editor: publishing asks for one, and sending
+  the admin to another page in the middle of the work to answer is what makes
+  people lose their place. Name, objective and colour stay on the form only;
+  they are set once, and anything put above the grid costs it height.
+- None of those four is part of the draft. Changing one takes effect at once
+  and creates no version.
 - **Step grid:** one row per step, spreadsheet-like, with selectors for type,
   tags and exits. Exits are edited inside the step row; there is no separate
   edges table.
