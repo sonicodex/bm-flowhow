@@ -48,6 +48,9 @@ Entry format:
 - Spec sections affected: §6 (Flow form lists the areas; they are now
   also edited above the grid). Proposed to the owner: add «and above the
   grid» to the Flow form line.
+  - Done by the owner in `fca0c53`: §6 now says the areas are also edited
+    above the grid, and that none of the flow form's four fields is part
+    of the draft.
 
 ## 2026-11-17 — Phase 5.10, revised: labels only in the decision; the grid scans again (SPEC §6)
 
