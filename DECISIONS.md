@@ -14,6 +14,40 @@ Entry format:
 
 ---
 
+## 2026-11-19 — Phase 6.19: the return tooltip at any decision with branches left
+
+- Decision:
+  - **When** (owner's change to SPEC §7): the tour stands on a decision
+    (the last trail entry, not one viewed again with «Anterior») that is
+    not parallel, has at least one branch taken and some left. How it got
+    there makes no difference: a dead end, a held meeting point, «Ir a lo
+    que falta por visitar», or a loop the flow draws (Apertura P31's
+    «No»).
+    - 6.17 asked for the engine's `returned` note, which a loop the flow
+      draws never sets.
+  - The condition is `Tour.branchesLeft()` in `core.js`. It gives the exit
+    indices left, or []. The viewer names those branches and makes room
+    for the tooltip in the zoomed frame, as before.
+  - The side panel explains a return only when the tour sent the user back.
+    After a loop the flow draws there is nothing to explain there; the
+    tooltip names what is left.
+  - **Tests:** a `core.test.js` case covers:
+    - the example's P3, with the same shape as P31, after its loop: no
+      note, and the tooltip on;
+    - viewing it again with «Anterior»: off;
+    - a dead end;
+    - all branches walked: off;
+    - a parallel decision: never.
+  - **Checked in Chrome** on Apertura P31. The tour start and every step
+    were answered in the browser, so nothing was written. Nothing showed
+    at P31 the first time. After «No», P32 and back to P31, the tooltip
+    read «Falta la rama «Sí». Elígela para seguir.», with no note in the
+    panel. It was gone after «Sí».
+  - Runs 9 and 10 (`empleado`, Apertura, 21:12 to 21:15 UTC) are the
+    owner's: run 8 closed under 6.18's rules and was restarted.
+- Reason: SPEC §7 (owner's change); slice 6.19.
+- Spec sections affected: none.
+
 ## 2026-11-19 — Phase 6.18: a branch back to its own decision is a retry; a held branch is not taken
 
 - Decision:

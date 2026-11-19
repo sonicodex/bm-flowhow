@@ -872,6 +872,18 @@ var Core = (function () {
       return { index: i, label: e.label, to: e.to, title: self.byId.get(e.to).title, visited: self.visited.has(e.to), taken: self.taken.has(self.current().id + '#' + i) };
     });
   };
+  /* The branches still to walk at the decision the tour stands on, as exit indices, when the user is to be
+     told so (SPEC §7; phase 6.19): a decision that is not parallel, with a branch already walked and some
+     left. How the tour got back there makes no difference: a dead end, a held meeting point, a skip, or a
+     loop the flow itself draws. Otherwise []. */
+  Tour.prototype.branchesLeft = function () {
+    if (!this.atEnd()) return [];
+    var d = this.current().id, self = this, ex = this.exitsOf(d);
+    if (ex.length < 2 || this.parallel.has(d)) return [];
+    var taken = ex.map(function (_, k) { return self.taken.has(d + '#' + k); });
+    if (!taken.some(Boolean)) return [];
+    return taken.map(function (t, k) { return t ? -1 : k; }).filter(function (k) { return k >= 0; });
+  };
   Tour.prototype.needsChoice = function () {
     return this.atEnd() && this.exitsOf(this.current().id).length > 1;
   };

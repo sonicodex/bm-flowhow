@@ -305,13 +305,14 @@ if (data && cols) {
     placeTip(box, node, tip);
   };
 
-  // When the tour went back to a decision, for whatever reason, a tooltip
-  // on that decision names the branches still to walk, until one is chosen
-  // (SPEC §7; phase 6.17, replacing 6.13's band). The side panel says why.
+  // A tooltip on the decision names the branches still to walk, until one is
+  // chosen (SPEC §7; phase 6.17, replacing 6.13's band; when, phase 6.19).
+  // The side panel says why the tour is there, when it was sent back.
+  // Whenever the tour stands on a decision that is not parallel, with a branch walked and others left,
+  // however it got there (SPEC §7; phase 6.19).
   const pendingBranches = (tour) => {
-    const note = tour.current().note;
-    if (!tour.atEnd() || !note || !note.returned || !tour.canChoose()) return [];
-    return tour.options().filter((o) => !o.taken).map((o) => o.label || o.title);
+    const options = tour.options();
+    return tour.branchesLeft().map((k) => options[k].label || options[k].title);
   };
   const returnText = (pending) => {
     const names = new Intl.ListFormat('es', { type: 'conjunction' }).format(pending.map((p) => `«${p}»`));

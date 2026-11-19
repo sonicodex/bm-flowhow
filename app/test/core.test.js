@@ -306,6 +306,34 @@ it("branches that never meet keep the dead-end return (Instalaciones P5)", () =>
   assert.strictEqual(ids(w), 'S D X D Y E');
 });
 
+// Phase 6.19 (SPEC §7): the return tooltip shows at any decision that is not parallel, with a branch walked
+// and others left, however the tour got there.
+it("branches left: after a loop the flow draws, as after a dead end; never on a fresh or parallel decision", () => {
+  // The example's P3 (Apertura P31's shape): «No» loops back through P4 and P2, with no return note.
+  let w = new C.Tour(f); w.next(); w.next();
+  assert.deepStrictEqual(w.branchesLeft(), []);
+  w.choose(1); w.next(); w.next();
+  assert(w.current().id === 'P3' && w.current().note === null);
+  assert.deepStrictEqual(w.branchesLeft(), [0]);
+  // Viewing it again with «Anterior» is not standing on it.
+  w.prev();
+  assert.deepStrictEqual(w.branchesLeft(), []);
+  w.next(); w.choose(0);
+  assert.deepStrictEqual(w.branchesLeft(), []);
+  // Sent back by a dead end: the same.
+  w = new C.Tour(flowOf([['S', 'start', 'D'], ['D', 'decision', 'a:X | b:Y | c:Z'], ['X', 'end', ''], ['Y', 'end', ''], ['Z', 'end', '']]));
+  w.next(); w.choose(1); w.next();
+  assert(w.current().note.returned && w.current().note.endAt === 'Y');
+  assert.deepStrictEqual(w.branchesLeft(), [0, 2]);
+  // All walked: nothing left to name.
+  w.choose(0); w.next(); w.choose(2);
+  w = new C.Tour(flowOf([['S', 'start', 'D'], ['D', 'decision', 'a:A | b:B | c:C'], ['A', 'activity', 'M'], ['B', 'activity', 'M'], ['C', 'activity', 'M'], ['M', 'end', '']]));
+  // A parallel decision walks its branches in a row: never.
+  assert(w.parallel.has('D'));
+  w.next(); w.choose(0);
+  assert.deepStrictEqual(w.branchesLeft(), []);
+});
+
 // Phase 3.6: the random graphs again, now walked by someone who keeps going back with "Anterior" and
 // picking another branch at random. Rewinding restores the saved state (path, pending starts, cycle
 // counter), the same state the orphaned inner decision of phase 3.5 lived in.
