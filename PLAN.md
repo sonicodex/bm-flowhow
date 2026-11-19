@@ -6,6 +6,60 @@ nunca se edita: los cambios generan una iteración nueva.
 
 ---
 
+## plan_iteration_6 — 2026-11-19
+
+Estado: **propuesta.** `plan_iteration_5` sigue vigente hasta que el dueño
+apruebe esta.
+
+Es `plan_iteration_5` con los cortes que pidió el dueño después de probar
+la fase 6. 6.17 a 6.19 ya están construidos; 6.20 se propone aquí y espera
+aprobación; 6.21 viene después.
+
+- **6.17** (hecho): el aviso de vuelta es un tooltip sobre la decisión, que
+  nombra las ramas que faltan; un solo tooltip para la app.
+- **6.18** (hecho): una rama que vuelve a su propia decisión es un
+  reintento; una rama retenida no se marca y dice qué recorrer primero.
+- **6.19** (hecho): el tooltip sale en toda decisión no paralela con
+  alguna rama recorrida y otras pendientes, venga de donde venga.
+- **6.20** (propuesto): la rama se elige en el diagrama (SPEC §7).
+  - Cuando el paso actual es una decisión, también una dejada atrás con
+    «Anterior», cada paso al que lleva una rama se vuelve objetivo:
+    - un botón dentro del SVG, con `role="button"` y `tabindex="0"`;
+    - su nombre accesible es «Rama «Sí»: Confirmar el pago en el grupo de
+      WhatsApp», con «, ya recorrida» si lo está.
+    - En reposo, el objetivo lleva el contorno de «se puede tocar» del
+      repaso libre, para que se note que es para elegir.
+  - Al pasar el mouse o llegar con Tab se encienden la flecha de esa rama
+    y su etiqueta, con los mismos tokens del trazo recorrido.
+  - Clic, Enter o Espacio toman la rama. La acción, el registro y el
+    servidor no cambian.
+  - Una rama retenida (6.18) no envía nada, y su nota sale como tooltip
+    sobre ese objetivo, donde se eligió.
+  - El panel lateral conserva el contenido del paso. Debajo lista las
+    ramas sin botones: etiqueta, a dónde lleva y su estado («Ya
+    recorrida» o «Falta»), bajo «Elige la rama en el diagrama».
+    - «Ir a lo que falta por visitar» sigue siendo un botón del panel,
+      porque no es una rama.
+  - Al llegar a una decisión, el foco va al primer objetivo pendiente.
+  - En celular se toca el objetivo; no hay hover.
+  - Pruebas:
+    - del renderer: objetivos, nombres y atributos, en las decisiones
+      reales;
+    - verificación en Chrome con mouse, teclado y celular.
+- **6.21:** el zoom del recorrido viene activo en todas las pantallas y
+  encuadra el paso actual con un par de pasos atrás y un par adelante
+  (las ramas, si es una decisión).
+
+Preguntas abiertas para 6.20:
+
+1. **Ramas gemelas** (Apertura P34: «Sí» y «No» llevan a P35): hay un
+   solo paso de destino, así que habría un solo objetivo. Propuesta: toma
+   la primera rama pendiente y su nombre dice «Rama «Sí» o «No»». Como la
+   decisión es paralela, el resultado es el mismo con cualquiera.
+2. **Orden:** 6.21 no depende de 6.20, y con el zoom activo los objetivos
+   quedan siempre a la vista. Propuesta: construir 6.21 primero, mientras
+   6.20 espera aprobación.
+
 ## plan_iteration_5 — 2026-11-19
 
 Estado: **aprobada. Esta es la iteración vigente.**
