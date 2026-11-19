@@ -266,6 +266,15 @@ if (data && cols) {
     const svg = box.querySelector('svg');
     if (!svg) return;
     box.querySelectorAll('.offframe').forEach((el) => el.remove());
+    // A resize frames again without drawing again: undo the last frame's cuts.
+    box.querySelectorAll('.node.out-of-frame').forEach((el) => {
+      el.classList.remove('out-of-frame');
+      if (el.classList.contains('target')) el.setAttribute('tabindex', '0');
+    });
+    box.querySelectorAll('[data-arrow-out]').forEach((el) => {
+      el.setAttribute('marker-end', el.getAttribute('data-arrow-out') || '');
+      el.removeAttribute('data-arrow-out');
+    });
     const parts = frameParts(tour);
     const { current } = parts;
     const byId = new Map(layout.nodes.map((n) => [n.id, n]));
@@ -375,6 +384,13 @@ if (data && cols) {
         svg.querySelector(`.node.target[data-id="${CSS.escape(n.id)}"]`)?.setAttribute('tabindex', '-1');
       } else el.setAttribute('aria-hidden', 'true');
       box.append(el);
+      // A step is in the frame or out of it, never half seen (6.22): out,
+      // it is not drawn, and the edge to it ends at the arrow, without a head.
+      svg.querySelector(`.node[data-id="${CSS.escape(n.id)}"]`)?.classList.add('out-of-frame');
+      for (const edge of svg.querySelectorAll(`path.edge[data-branch-to="${CSS.escape(n.id)}"]`)) {
+        edge.setAttribute('data-arrow-out', edge.getAttribute('marker-end') || '');
+        edge.removeAttribute('marker-end');
+      }
     }
   };
 
@@ -756,7 +772,8 @@ if (data && cols) {
     for (const el of box ? box.querySelectorAll(`[data-branch-to="${CSS.escape(id)}"]`) : []) {
       el.classList.toggle('lit', on);
       const arrow = el.getAttribute(on ? 'data-arrow-lit' : 'data-arrow-rest');
-      if (arrow) el.setAttribute('marker-end', arrow);
+      // An edge cut at the frame keeps no head (6.22).
+      if (arrow && !el.hasAttribute('data-arrow-out')) el.setAttribute('marker-end', arrow);
     }
   };
   cols.addEventListener('pointerover', (ev) => light(branchTarget(ev.target), true));

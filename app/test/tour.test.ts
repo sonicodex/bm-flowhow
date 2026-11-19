@@ -399,6 +399,9 @@ describe("held branches and retries (phase 6.18)", () => {
     expect(src).toContain("getPropertyValue('--text-sm')");
     // A branch left out is marked by an arrow that takes it.
     expect(src).toMatch(/el\.setAttribute\('data-branch', String\(target\.exit\)\)/);
+    // And the step it stands for is not drawn half seen.
+    expect(src).toContain("classList.add('out-of-frame')");
+    expect(css).toMatch(/\.diagram \.node\.out-of-frame \{\s*visibility: hidden;/);
   });
 });
 

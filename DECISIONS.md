@@ -51,9 +51,18 @@ Entry format:
     - Elsewhere the arrow only shows where the flow goes.
     - The view follows by itself: taking the branch makes its step the
       current one, which the next frame is built around.
-  - **Seen, not changed:** on a phone at Apertura P6, «Instalaciones»
+  - ~~**Seen, not changed:** on a phone at Apertura P6, «Instalaciones»
     sits partly under the decision. It falls half inside the frame while
-    its arrow marks it as out. It can still be clicked.
+    its arrow marks it as out. It can still be clicked.~~ Superseded by
+    the owner the same day: a target is in the frame or out of it.
+    - A step left out is not drawn (`.node.out-of-frame`, hidden), so it
+      cannot show half.
+    - The edge to it loses its head, also when its arrow is hovered, and
+      ends where it leaves the frame by the arrow.
+    - A resize frames again without redrawing, so each frame first undoes
+      the previous cuts.
+    - Checked on a phone at Apertura P6: P13 hidden, one edge cut, no
+      head, and «Interna» marked by its arrow.
   - **Checked in Chrome** (start and steps answered in the browser):
     - Instalaciones P9: scale 1.15 on a laptop and 1.00 on a phone (it
       was well below before), with the «Sí» arrow on its line. Clicking

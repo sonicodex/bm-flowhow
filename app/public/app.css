@@ -960,6 +960,10 @@ textarea:focus-visible,
   transform: translate(-50%, -50%);
 }
 
+.diagram .node.out-of-frame {
+  visibility: hidden;
+}
+
 span.offframe {
   pointer-events: none;
 }
