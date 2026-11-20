@@ -239,6 +239,69 @@ textarea:focus-visible,
   padding: var(--space-6);
 }
 
+/* The login screen (SPEC §9, Login screen; phase 8.2): the company's image
+   fills the screen behind one centred card. Until the image arrives the
+   page is --color-bg and the card is already readable (src/login.tsx says
+   why the image is lazy). */
+.login-page {
+  background: var(--color-bg);
+}
+
+.login-hero {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+}
+
+.login-hero img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.login-page .site-main {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  padding: var(--space-6) var(--space-4);
+}
+
+.login-page .login-card {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: var(--space-8) var(--space-6) var(--space-6);
+  text-align: center;
+}
+
+.login-page .stacked-form {
+  text-align: left;
+}
+
+.login-page .stacked-form .button-primary {
+  margin-top: var(--space-2);
+}
+
+.login-logo {
+  display: block;
+  height: var(--space-8);
+  margin: 0 auto var(--space-6);
+}
+
+.login-help {
+  margin: 0 0 var(--space-6);
+  font-size: var(--text-sm);
+}
+
+/* The maker's mark: small and quiet, at the card's foot. */
+.login-maker {
+  display: block;
+  height: var(--space-4);
+  margin: 0 auto;
+}
+
 .stacked-form {
   display: flex;
   flex-direction: column;

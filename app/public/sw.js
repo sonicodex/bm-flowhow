@@ -3,7 +3,7 @@
 // 6.10).
 //
 // The shell is the static files every page is drawn with: styles, fonts,
-// logo and isotype, icons, the browser modules and the "sin conexión" page.
+// logo and isotype, the login's brand files, icons, the browser modules and the "sin conexión" page.
 // Nothing a server-rendered page says is ever cached: pages carry the user's flows,
 // progress and session, and always come from the network.
 //
@@ -12,7 +12,7 @@
 // against a newer server would break the tour. The cache makes the shell
 // available when the network is not; it does not make anything faster.
 // Bump VERSION when the list changes.
-const VERSION = 'flowhow-shell-4';
+const VERSION = 'flowhow-shell-5';
 
 // The "sin conexión" page is public/offline.html, which the assets serve at
 // /offline (they redirect the .html address, and a redirected response
@@ -23,6 +23,9 @@ const SHELL = [
   '/app.css',
   '/flowhow_logotype.svg',
   '/loading_isotype.svg',
+  '/brand/bmec_logotype.svg',
+  '/brand/login_hero.jpg',
+  '/brand/login_hero.webp',
   '/fonts/ibrand.woff',
   '/icons/alert.svg',
   '/icons/back.svg',

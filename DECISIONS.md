@@ -14,6 +14,37 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Phase 8.2: the login screen
+
+- **Built as SPEC §9, Login screen.** The company's image fills the
+  screen, with one white card centred on it:
+  - the logotype, «Iniciar sesión», «Usuario» and «Contraseña», «Acceder»;
+  - «Si olvidaste tu contraseña, el administrador la restablece.»;
+  - the maker's logotype at its foot, small.
+  - The login has no header (`page: "login"` in the layout).
+  - The line «Si no tienes usuario… pídeselo a la Junta directiva» is gone:
+    the card says what SPEC says, and nothing else.
+- **The image never holds the card.**
+  - It is a lazy `<picture>` (webp, the jpg for a browser without it),
+    fixed behind the card. It is not a CSS background.
+  - Measured in Chrome with the image held 6 s: as a background it held
+    the page's `load`, and the logotype splash, which waits for `load`,
+    covered the card until 6.3 s. Lazy, it stays out of `load`: the splash
+    left at 2.4 s with the image still on its way, over a readable card.
+- **The maker's logotype** has the alt text «Blue Monkey», what it reads.
+  It appears on no other page (a test checks Inicio).
+- **The brand files stay in `public/brand/`.**
+  - CLAUDE.md now lists the folder among the owner's assets that are not
+    edited.
+  - The three files are in the service worker's shell (`flowhow-shell-5`),
+    about 640 KB fetched once when the worker installs.
+- **Checked in headless Chrome** at 1280, 390 and 320 px: the card centred,
+  no horizontal scroll, the webp downloaded; with a wrong password the card
+  only grows by the error line.
+- Spec sections affected: none (built as §9 now says).
+
+---
+
 ## 2026-11-20 — Phase 8.1: header, navigation and landing
 
 - **Header** (SPEC §9, Navigation): a white bar (`--color-header-surface`,

@@ -4,7 +4,9 @@ import type { AppEnv, SessionUser } from "./session.ts";
 
 declare module "hono" {
   interface ContextRenderer {
-    (content: string | Promise<string>, props: { title: string }): Response | Promise<Response>;
+    // `page: "login"`: the login screen, with no header and the company's
+    // image behind its card (SPEC §9, Login screen).
+    (content: string | Promise<string>, props: { title: string; page?: "login" }): Response | Promise<Response>;
   }
 }
 
@@ -153,7 +155,7 @@ function BrandIcons() {
 }
 
 // Base page. theme.css brings Google Sans (Google Fonts) and iBrand (fonts/).
-export const renderer = jsxRenderer(({ children, title }) => (
+export const renderer = jsxRenderer(({ children, title, page }) => (
   <html lang="es-CO">
     <head>
       <meta charset="utf-8" />
@@ -170,17 +172,19 @@ export const renderer = jsxRenderer(({ children, title }) => (
       <meta name="theme-color" content="#28519D" />
       <script type="module" src="/js/sw-register.js"></script>
     </head>
-    <body>
+    <body class={page === "login" ? "login-page" : undefined}>
       <Splash />
-      <header class="site-header">
-        <div class="site-bar">
-          <a href="/" class="site-logo">
-            <img src="/flowhow_logotype.svg" alt="FlowHow" />
-          </a>
-          <Account />
-        </div>
-        <Nav />
-      </header>
+      {page !== "login" && (
+        <header class="site-header">
+          <div class="site-bar">
+            <a href="/" class="site-logo">
+              <img src="/flowhow_logotype.svg" alt="FlowHow" />
+            </a>
+            <Account />
+          </div>
+          <Nav />
+        </header>
+      )}
       <main class="site-main">{children}</main>
     </body>
   </html>

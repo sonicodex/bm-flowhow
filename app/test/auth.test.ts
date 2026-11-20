@@ -36,7 +36,16 @@ describe("login screen (phase 4.1)", () => {
     expect(html).toContain('<html lang="es-CO">');
     expect(html).toContain('href="/theme.css"');
     expect(html).toContain('src="/flowhow_logotype.svg"');
-    expect(html).toContain('<h1 class="page-title">Entrar</h1>');
+    expect(html).toContain('<h1 class="page-title">Iniciar sesión</h1>');
+    // SPEC §9, Login screen (phase 8.2): no header, the company's image
+    // behind (app.css), and the maker's mark on this screen only.
+    expect(html).toContain('<body class="login-page">');
+    // Lazy, so it stays out of `load`, which the logotype splash waits for.
+    expect(html).toContain('<picture class="login-hero"><source srcset="/brand/login_hero.webp" type="image/webp"/><img src="/brand/login_hero.jpg" alt="" loading="lazy" decoding="async"/></picture>');
+    expect(html).not.toContain('class="site-header"');
+    expect(html).toContain('<button type="submit" class="button-primary">Acceder</button>');
+    expect(html).toContain("Si olvidaste tu contraseña, el administrador la restablece.");
+    expect(html).toContain('<img class="login-maker" src="/brand/bmec_logotype.svg" alt="Blue Monkey"/>');
     expect(html).toContain('<form method="post" action="/login"');
     expect(html).toContain('autocomplete="current-password"');
     // No sign-up, and no account in the header.
@@ -87,6 +96,8 @@ describe("login screen (phase 4.1)", () => {
     expect(home.status).toBe(200);
     const html = await home.text();
     expect(html).toContain("Hola, Ana Gómez");
+    // The maker's mark is the login's only.
+    expect(html).not.toContain("bmec_logotype");
     expect(html).toContain('<form method="post" action="/logout" class="site-account"><span title="Ana Gómez">Ana Gómez</span>');
   });
 

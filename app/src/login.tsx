@@ -17,42 +17,58 @@ export const LOGIN_FAILED = "Usuario o contraseña incorrectos.";
 // limiting rule on POST /login does the rest once deployed (DEPLOY.md).
 export const FAILED_DELAY_MS = 1000;
 
+// SPEC §9, Login screen (phase 8.2): one white card over the company's
+// image (the layout drops the header for `page: "login"`).
+// - The image is webp, with the jpg for a browser without it.
+// - It never blocks the card: the card has its own background, and the
+//   image is lazy, which keeps it out of the page's `load`. A background
+//   image would hold `load`, and the logotype splash waits for `load`, so a
+//   slow image would keep the card covered.
 function LoginPage({ username, error }: { username?: string; error?: boolean }) {
   return (
-    <section class="card login-card">
-      <h1 class="page-title">Entrar</h1>
-      <form method="post" action="/login" class="stacked-form">
-        <label for="username">Usuario</label>
-        <input
-          id="username"
-          name="username"
-          value={username ?? ""}
-          required
-          maxlength={100}
-          autocomplete="username"
-          autocapitalize="none"
-          spellcheck={false}
-          autofocus={!username}
-        />
-        <label for="password">Contraseña</label>
-        <input id="password" name="password" type="password" required autocomplete="current-password" autofocus={!!username} />
-        {error && (
-          <p class="form-error" role="alert">
-            {LOGIN_FAILED}
-          </p>
-        )}
-        <button type="submit" class="button-primary">
-          Entrar
-        </button>
-      </form>
-      <p class="muted">Si no tienes usuario o olvidaste la contraseña, pídeselo a la Junta directiva.</p>
-    </section>
+    <>
+      <picture class="login-hero">
+        <source srcset="/brand/login_hero.webp" type="image/webp" />
+        <img src="/brand/login_hero.jpg" alt="" loading="lazy" decoding="async" />
+      </picture>
+      <section class="card login-card">
+        <img class="login-logo" src="/flowhow_logotype.svg" alt="FlowHow" />
+        <h1 class="page-title">Iniciar sesión</h1>
+        <form method="post" action="/login" class="stacked-form">
+          <label for="username">Usuario</label>
+          <input
+            id="username"
+            name="username"
+            value={username ?? ""}
+            required
+            maxlength={100}
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck={false}
+            autofocus={!username}
+          />
+          <label for="password">Contraseña</label>
+          <input id="password" name="password" type="password" required autocomplete="current-password" autofocus={!!username} />
+          {error && (
+            <p class="form-error" role="alert">
+              {LOGIN_FAILED}
+            </p>
+          )}
+          <button type="submit" class="button-primary">
+            Acceder
+          </button>
+        </form>
+        <p class="muted login-help">Si olvidaste tu contraseña, el administrador la restablece.</p>
+        {/* The maker's mark, on the login only (SPEC §9). */}
+        <img class="login-maker" src="/brand/bmec_logotype.svg" alt="Blue Monkey" />
+      </section>
+    </>
   );
 }
 
 login.get("/", "public", (c) => {
   const user = c.get("user");
-  return user ? c.redirect(landing(user.role), 302) : c.render(<LoginPage />, { title: "Entrar" });
+  return user ? c.redirect(landing(user.role), 302) : c.render(<LoginPage />, { title: "Iniciar sesión", page: "login" });
 });
 
 login.post("/login", "public", async (c) => {
@@ -69,7 +85,7 @@ login.post("/login", "public", async (c) => {
   if (!user || !ok) {
     await new Promise((resolve) => setTimeout(resolve, FAILED_DELAY_MS));
     c.status(401);
-    return c.render(<LoginPage username={typed.trim()} error />, { title: "Entrar" });
+    return c.render(<LoginPage username={typed.trim()} error />, { title: "Iniciar sesión", page: "login" });
   }
   await createSession(c, user.id);
   return c.redirect(landing(user.role), 303);

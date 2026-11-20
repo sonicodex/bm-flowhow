@@ -26,8 +26,9 @@ Working notes for Claude Code agents on this repo. Keep it short.
 - `app/public/js/xlsx-write.js` — the .xlsx writer behind the template and
   the export. It writes only what `xlsx.js` reads back; the round trip is
   `app/test/xlsx-write.test.js`.
-- `app/public/theme.css`, `flowhow_logotype.svg`, `fonts/`, `icons/` — the
-  owner's design tokens and assets, served as they are. Do not edit.
+- `app/public/theme.css`, `flowhow_logotype.svg`, `fonts/`, `icons/`,
+  `brand/` — the owner's design tokens and assets, served as they are. Do
+  not edit.
 
 ## Conventions
 

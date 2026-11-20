@@ -10,6 +10,7 @@ const files = (glob: Record<string, unknown>) => Object.keys(glob).map((p) => p.
 const shellFiles = [
   ...files(import.meta.glob("../public/js/*.js")),
   ...files(import.meta.glob("../public/icons/*.svg")),
+  ...files(import.meta.glob("../public/brand/*")),
   "/offline",
   "/theme.css",
   "/app.css",
