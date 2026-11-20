@@ -6,6 +6,31 @@ nunca se edita: los cambios generan una iteración nueva.
 
 ---
 
+## plan_iteration_15 — 2026-11-20
+
+Estado: **aprobada. Esta es la iteración vigente.**
+
+Es `plan_iteration_14` tal cual (fase 10, cortes 10.1 a 10.8), con las
+respuestas del dueño. SPEC §7 y §11 las recogen (commit de este mismo día):
+
+1. **Examen:** mínimo 10 preguntas, máximo un cuarto de los pasos, el
+   mayor de los dos. La nota sigue en 90 %: con 10 preguntas permite un
+   error.
+2. **Permisos:** generar un banco, cualquier editor; publicarlo y cambiar
+   la nota, solo quien puede gestionar usuarios (`can_manage_users`).
+3. **Opciones:** 4 por pregunta (1 correcta, 3 distractores); se descarta
+   la pregunta si quedan menos de 3 tras quitar las absurdas.
+4. **Banco mínimo:** la evaluación no abre hasta que el banco publicado
+   doble el largo del examen; la pantalla lo dice y manda a generar más.
+5. **Tras una versión nueva:** el examen sigue sacando de las publicadas
+   que queden mientras alcancen (el doble del largo); si no, se cierra
+   hasta que se publique.
+6. **Modelo:** `claude-haiku-5-5`.
+7. **Sin SDK:** `fetch` a la API de mensajes, sin dependencia nueva.
+8. **Fase 10,** etiqueta `phase-10`.
+
+---
+
 ## plan_iteration_14 — 2026-11-20
 
 Estado: **propuesta.** `plan_iteration_13` sigue vigente hasta que el dueño
