@@ -2170,6 +2170,72 @@ button.offframe:focus-visible {
   text-decoration: underline;
 }
 
+/* The summary above the rows (phase 8.4): one line per flow, its name, a
+   bar of the share reviewed, and the share as a percentage and a count. */
+.report-summary {
+  max-width: calc(var(--space-10) * 20);
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+}
+
+.report-summary h2 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-medium);
+}
+
+.report-summary p {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.report-summary-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) calc(var(--space-10) * 4) auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.report-summary-list li {
+  display: contents;
+}
+
+.report-summary-bar {
+  display: block;
+  height: var(--space-2);
+  overflow: hidden;
+  background: var(--color-subtle);
+  border-radius: var(--radius);
+}
+
+.report-summary-bar span {
+  display: block;
+  width: var(--share);
+  height: 100%;
+  background: var(--color-primary);
+}
+
+.report-summary-count {
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+/* On a phone: the name on its line, the bar and the count under it. */
+@media (max-width: 760px) {
+  .report-summary-list {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: var(--space-1);
+  }
+
+  .report-summary-flow {
+    grid-column: 1 / -1;
+    margin-top: var(--space-2);
+  }
+}
+
 /* The splash (SPEC §9, Visual style; src/layout.tsx, public/js/splash.js).
    Both marks are waits. The head script holds the logotype, on a page
    loaded from the server, --splash-start-hold; the isotype, between

@@ -4,7 +4,7 @@ import type { Grid } from "../public/js/core.js";
 import instalaciones from "../../reference/Flujo_Instalaciones.grid.json";
 import apertura from "../../reference/Flujo_Apertura_OT.grid.json";
 import { loadDevFlows } from "../src/devload.ts";
-import { duration, LEADER_WITHOUT_AREAS, NO_MATCH, NOBODY_YET } from "../src/report.tsx";
+import { duration, LEADER_WITHOUT_AREAS, NO_MATCH, NOBODY_YET, SUMMARY_SKIPS_REVIEWED } from "../src/report.tsx";
 import { nameKey } from "../src/names.ts";
 import { signIn, type Signed } from "./session.ts";
 import { tableHead, tableRows } from "./table.ts";
@@ -50,6 +50,38 @@ async function setup() {
   await env.DB.prepare("UPDATE users SET is_active = 0 WHERE id = ?").bind(caro.id).run();
   return { ventas, campo, ot, inst, board, ana, beto, lia, leo };
 }
+
+// The summary's lines: "flow | percentage | count".
+const summary = (html: string) =>
+  [...(html.match(/<section class="card report-summary"[\s\S]*?<\/section>/)?.[0] ?? "").matchAll(
+    /<li><span class="report-summary-flow">([^<]*)<\/span>.*?<strong>([^<]*)<\/strong> · ([^<]*)<\/span><\/li>/g,
+  )].map((m) => `${m[1]} | ${m[2]} | ${m[3]}`);
+
+describe("progress report summary (phase 8.4)", () => {
+  it("counts, for each flow, who of those it is assigned to has reviewed it, in the viewer's scope", async () => {
+    const { board, lia, ana, ot } = await setup();
+    await review(ana.id, ot, "2026-11-10T15:00:00Z", 300);
+    const html = await page(board);
+    // Above the rows, on the same screen.
+    expect(html.indexOf('id="report-summary"')).toBeLessThan(html.indexOf('id="report-results"'));
+    // Apertura de OT: Ana, Lía and Leo (every Leader); Instalaciones: Beto, Lía and Leo.
+    expect(summary(html)).toEqual(["Apertura de OT | 33\u00a0% | 1 de 3 personas", "Instalaciones | 0\u00a0% | 0 de 3 personas"]);
+    // Lía sees the people who share Ventas with her: Ana and herself.
+    expect(summary(await page(lia))).toEqual(["Apertura de OT | 50\u00a0% | 1 de 2 personas", "Instalaciones | 0\u00a0% | 0 de 1 persona"]);
+  });
+
+  it("obeys the area and flow filters, not «Revisado», and says so", async () => {
+    const { board, ana, ot, inst, campo } = await setup();
+    await review(ana.id, ot, "2026-11-10T15:00:00Z", 300);
+    expect(summary(await page(board, `?flujo=${inst}`))).toEqual(["Instalaciones | 0\u00a0% | 0 de 3 personas"]);
+    // Campo: Beto. The Leaders have no area, so no area filter keeps them.
+    expect(summary(await page(board, `?area=${campo}`))).toEqual(["Instalaciones | 0\u00a0% | 0 de 1 persona"]);
+    const html = await page(board, "?revisado=si");
+    expect(summary(html)).toEqual(["Apertura de OT | 33\u00a0% | 1 de 3 personas", "Instalaciones | 0\u00a0% | 0 de 3 personas"]);
+    expect(html).toContain(SUMMARY_SKIPS_REVIEWED);
+    expect(await page(board)).not.toContain(SUMMARY_SKIPS_REVIEWED);
+  });
+});
 
 describe("progress report (phase 6.9)", () => {
   it("gives the Board a row per Empleado or Leader and flow of theirs, never the Board or a deactivated account", async () => {

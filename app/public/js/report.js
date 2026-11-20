@@ -1,13 +1,13 @@
 // The progress report's filters, live (SPEC §9; phase 6.16). Changing a
 // filter asks the server for the same page with the new address and swaps
-// in its results: the count, the table and «Quitar filtros». Nothing is
+// in its results: the summary, the count, the table and «Quitar filtros». Nothing is
 // filtered here; the server still decides every row a user may see. The
 // page does not reload, so the focus stays on the filter just changed.
 // Without JavaScript the form keeps its «Filtrar» button.
 import { watchTables } from './table-scroll.js';
 
 const form = document.querySelector('form.report-filters');
-const parts = ['report-count', 'report-results', 'report-clear'];
+const parts = ['report-summary', 'report-count', 'report-results', 'report-clear'];
 
 if (form instanceof HTMLFormElement) {
   let latest = 0;

@@ -14,6 +14,37 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Phase 8.4: the report's summary
+
+- **«Resumen por flujo»** (SPEC §7, Progress report), on the report screen,
+  between the filters and the rows. One line per flow:
+  - the flow's name;
+  - a bar of the share reviewed;
+  - the share as a percentage and a count («33 % · 1 de 3 personas»).
+- **Counted from the report's own rows** (`summarize`), so it has the
+  same scope (the Board every flow, a Leader the people who share an area
+  with them) and cannot disagree with the table.
+  - «Reviewed» is the rows' rule: a review of the latest major version.
+  - Leaders count among the people a flow is assigned to, as they are
+    rows of the report.
+- **Filters** (owner's answer): the summary obeys the area and the flow,
+  not «Revisado», which would always give 100 % or 0 %.
+  - While «Revisado» is set, the summary says so in a line of its own
+    (`SUMMARY_SKIPS_REVIEWED`), so nobody takes it for a bug.
+  - It changes live with the filters: `report.js` swaps it in with the
+    count and the table.
+- **The percentage is written by hand**, with a no-break space before the
+  sign. On the Workers runtime `Intl`'s es-CO percent writes «33%», and
+  elsewhere «33 %».
+- **Checked in headless Chrome** as `junta`:
+  - at 1280, 390 and 320 px, with no horizontal scroll (on a phone the
+    name goes on its own line);
+  - with the flow filter, then «Revisado: No», the summary followed the
+    flow, kept its counts, and showed the line.
+- Spec sections affected: none.
+
+---
+
 ## 2026-11-20 — Phase 8.3: importing a flow from the flows screen
 
 - **«Importar flujo»** beside «Nuevo flujo» (SPEC §9, Navigation), as

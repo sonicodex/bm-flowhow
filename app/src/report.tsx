@@ -16,6 +16,10 @@ export const LEADER_WITHOUT_AREAS =
   "No tienes áreas asignadas, así que el reporte no muestra a nadie. Pide a la Junta directiva que te asigne las áreas que lideras.";
 export const NOBODY_YET = "Todavía no hay a quién seguir: nadie de tu alcance tiene flujos publicados.";
 export const NO_MATCH = "Ninguna fila cumple esos filtros.";
+// The summary obeys the area and the flow, not «Revisado» (owner's answer,
+// phase 8.4), and says so while that filter is on.
+export const SUMMARY_SKIPS_REVIEWED =
+  "El resumen sigue el área y el flujo elegidos, pero no el filtro «Revisado»: con él daría siempre 100 % o 0 %.";
 
 export type ReportRow = {
   userId: number;
@@ -177,6 +181,29 @@ export function applyQuery(rows: ReportRow[], q: ReportQuery): ReportRow[] {
 
 const areaText = (r: ReportRow) => r.areas.map((a) => a.name).join(", ");
 
+// ---- Summary (SPEC §7, Progress report; phase 8.4): for each flow, how many
+// of the people it is assigned to have reviewed it. Counted from the same
+// rows as the table, so it obeys the same scope and can never disagree with
+// it; the page passes the rows filtered by area and flow only. ----
+
+export type FlowSummary = { flowId: number; flow: string; assigned: number; reviewed: number };
+
+export function summarize(rows: ReportRow[]): FlowSummary[] {
+  const byFlow = new Map<number, FlowSummary>();
+  for (const r of rows) {
+    const s = byFlow.get(r.flowId) ?? { flowId: r.flowId, flow: r.flow, assigned: 0, reviewed: 0 };
+    s.assigned++;
+    if (r.reviewed) s.reviewed++;
+    byFlow.set(r.flowId, s);
+  }
+  return [...byFlow.values()].sort((a, b) => collator.compare(a.flow, b.flow));
+}
+
+// Written by hand, as Spanish writes it: a space before the sign, one that
+// does not break. Intl's es-CO percent leaves the space out on the Workers
+// runtime and puts it in elsewhere.
+const percent = (share: number) => `${Math.round(share * 100)}\u00a0%`;
+
 const longDate = new Intl.DateTimeFormat("es-CO", { timeZone: "America/Bogota", day: "numeric", month: "long", year: "numeric" });
 
 export function duration(seconds: number): string {
@@ -288,6 +315,35 @@ function ReviewedCell({ row }: { row: ReportRow }) {
   );
 }
 
+function Summary({ q, flows }: { q: ReportQuery; flows: FlowSummary[] }) {
+  return (
+    <section class="card report-summary" id="report-summary" aria-labelledby="summary-title">
+      <h2 id="summary-title">Resumen por flujo</h2>
+      {q.reviewed !== null && <p class="muted">{SUMMARY_SKIPS_REVIEWED}</p>}
+      {flows.length ? (
+        <ul class="report-summary-list">
+          {flows.map((f) => {
+            const share = f.reviewed / f.assigned;
+            return (
+              <li>
+                <span class="report-summary-flow">{f.flow}</span>
+                <span class="report-summary-bar" aria-hidden="true">
+                  <span style={`--share: ${share * 100}%`}></span>
+                </span>
+                <span class="report-summary-count">
+                  <strong>{percent(share)}</strong> · {f.reviewed} de {f.assigned} {f.assigned === 1 ? "persona" : "personas"}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p class="muted">{NO_MATCH}</p>
+      )}
+    </section>
+  );
+}
+
 function ReportPage({ q, all, shown, message }: { q: ReportQuery; all: ReportRow[]; shown: ReportRow[]; message: string | null }) {
   return (
     <>
@@ -300,6 +356,7 @@ function ReportPage({ q, all, shown, message }: { q: ReportQuery; all: ReportRow
       ) : (
         <>
           <Filters q={q} rows={all} />
+          <Summary q={q} flows={summarize(applyQuery(all, { ...q, reviewed: null }))} />
           <p class="muted report-count" id="report-count" role="status">
             {shown.length === 1 ? "1 fila" : `${shown.length} filas`}
             {shown.length !== all.length && ` de ${all.length}`}
