@@ -42,7 +42,7 @@
   --splash-enter: 180ms;
   --splash-leave: 260ms;
   --splash-start-hold: 2000ms;
-  --splash-section-max: 1000ms;
+  --splash-section-hold: 725ms;
   --splash-scale-from: 0.96;
   --splash-scale-to: 1.04;
   --splash-ease: cubic-bezier(0.22, 0.61, 0.36, 1);

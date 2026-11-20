@@ -706,10 +706,9 @@ Never trust the browser for any of these:
   mark that flashes past is not placed. This one is a wait, not a cap: it
   stays its two seconds even when the page behind it was ready at once, and
   longer if the page is not ready yet.
-- **The isotype between sections is a cap, not a wait**: at most 1 s, and it
-  lifts as soon as the next page is ready. A delay the reader meets on every
-  click, a hundred times a day, is a different thing from the one they meet
-  when they open the app.
+- **The isotype between sections is held for at least 725 ms**, and longer
+  when the next page is not ready yet. Below that it reads as a flicker, not
+  as a transition.
 - Every duration, size and colour of the splash is a token in `theme.css`
   (`--splash-*`), like everything else.
 - **Reduced motion:** with `prefers-reduced-motion`, no scaling and no fade;
