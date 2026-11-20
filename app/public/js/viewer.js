@@ -155,8 +155,11 @@ if (data && cols) {
   // When the tour waits for a click on the map and the panel has no button
   // to press (SPEC §7): a soft notice saying so, whose word for the diagram
   // makes the targets blink (showTargets).
+  // It sits with the panel's buttons, where the reader looks for the way on
+  // (owner, 2026-11-20), in the warning colours (app.css).
+  const ALERT_ICON = '<img class="icon" src="/icons/alert.svg" alt="" width="18" height="18">';
   const waitNotice = (before, after) =>
-    `<p class="wait-notice">${before} <button type="button" class="button-link" data-show-targets>diagrama</button>${after}</p>`;
+    `<p class="wait-notice">${ALERT_ICON}<span>${before} <button type="button" class="button-link" data-show-targets>diagrama</button>${after}</span></p>`;
 
   const exitsPanel = (tour) => {
     const options = tour.options();
@@ -632,10 +635,14 @@ if (data && cols) {
       `<aside class="card viewer-side">${tour.atEnd() ? noteFor(tour.current().note) : ''}${details(step, toured.categories)}${linkPanel(step)}${exitsPanel(tour)}` +
       `<div class="step-actions"><p class="tour-message" role="status">${esc(state.message)}</p>` +
       `${stepButton('prev', 'Anterior', tour.pos === 0)}${primary}</div></aside>`;
-    // Waiting for a click on the map, with no notice from the branch list.
+    // Waiting for a click on the map: the notice goes with the buttons, the
+    // branch list's own or, without one, a general one.
     const side = cols.querySelector('.viewer-side');
-    if (choice && !finish && side && !side.querySelector('.wait-notice')) {
-      side.querySelector('.step-actions')?.insertAdjacentHTML('beforebegin', waitNotice('Elige en el', ' cómo seguir.'));
+    const buttons = side && side.querySelector('.step-actions > button');
+    if (buttons) {
+      const notice = side.querySelector('.wait-notice');
+      if (notice) buttons.before(notice);
+      else if (choice && !finish) buttons.insertAdjacentHTML('beforebegin', waitNotice('Elige en el', ' cómo seguir.'));
     }
     if (state.busy) cols.querySelectorAll('button').forEach((b) => { b.disabled = true; });
     const box = document.getElementById('diagram');

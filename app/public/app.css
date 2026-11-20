@@ -1156,12 +1156,24 @@ textarea:focus-visible,
    --target-blink-count times, each --target-blink-period long (on for the
    first half, off for the second; on and off, never faded). With reduced
    motion the ring stays on for the same time. */
+/* With the panel's buttons, a line of its own above them, in the warning
+   colours: the alert icon and bar (as .form-warning) on the alert's tint. */
 .wait-notice {
+  display: flex;
+  flex-basis: 100%;
+  align-items: flex-start;
+  gap: var(--space-2);
   margin: 0;
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-sm);
-  background: color-mix(in srgb, var(--flow) var(--flow-tint-mix), var(--color-surface));
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-status-alert) var(--flow-tint-mix), var(--color-surface));
+  border-left: calc(var(--border-width) * 3) solid var(--color-status-alert);
   border-radius: var(--radius);
+}
+
+.wait-notice .icon {
+  flex: none;
 }
 
 .wait-notice .button-link {

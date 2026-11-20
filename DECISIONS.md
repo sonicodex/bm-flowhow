@@ -14,6 +14,28 @@ Entry format:
 
 ---
 
+## 2026-11-20 — The waiting notice beside the buttons, in the warning colours
+
+- **The owner's review:** «Elige la rama en el diagrama» was not near the
+  buttons, which is where the reader looks for the way on. It goes with
+  them, in warning colours.
+- **Where:** inside the panel's `.step-actions`, on a line of its own just
+  above «Anterior» and «Siguiente», under the «muy rápido» message when
+  there is one. `renderTour` moves the branch list's notice there; the
+  general «Elige en el diagrama cómo seguir.» goes to the same place. The
+  branch list keeps its rows without a heading.
+- **The look:** `icons/alert.svg` and a bar in `--color-status-alert`
+  (as `.form-warning`) on the alert colour's tint, mixed into the surface
+  at `--flow-tint-mix` (12 %). The text stays `--color-text`, so the
+  colour is never the only signal. `theme.css` has no warning tint of its
+  own; if the owner wants one, it replaces that mix.
+- **Checked in headless Chrome** at 1366×768 and 390×844, on «¿La producción
+  es externa o interna?»: the notice sits right above the round buttons,
+  and «diagrama» still makes the ring blink three times in a second.
+- Spec sections affected: none.
+
+---
+
 ## 2026-11-20 — A ring around the targets, blinking three times in a second
 
 - **The owner's review:** clicking «diagrama» showed nothing a user would
