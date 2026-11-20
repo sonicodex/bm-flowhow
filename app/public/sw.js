@@ -3,8 +3,8 @@
 // 6.10).
 //
 // The shell is the static files every page is drawn with: styles, fonts,
-// logo, icons, the browser modules and the "sin conexión" page. Nothing a
-// server-rendered page says is ever cached: pages carry the user's flows,
+// logo and isotype, icons, the browser modules and the "sin conexión" page.
+// Nothing a server-rendered page says is ever cached: pages carry the user's flows,
 // progress and session, and always come from the network.
 //
 // Shell files are fetched from the network first and the cache is only the
@@ -12,7 +12,7 @@
 // against a newer server would break the tour. The cache makes the shell
 // available when the network is not; it does not make anything faster.
 // Bump VERSION when the list changes.
-const VERSION = 'flowhow-shell-2';
+const VERSION = 'flowhow-shell-3';
 
 // The "sin conexión" page is public/offline.html, which the assets serve at
 // /offline (they redirect the .html address, and a redirected response
@@ -22,6 +22,7 @@ const SHELL = [
   '/theme.css',
   '/app.css',
   '/flowhow_logotype.svg',
+  '/loading_isotype.svg',
   '/fonts/ibrand.woff',
   '/icons/alert.svg',
   '/icons/back.svg',
@@ -42,6 +43,7 @@ const SHELL = [
   '/js/table-scroll.js',
   '/js/tour-log.js',
   '/js/report.js',
+  '/js/splash.js',
   '/js/sw-register.js',
   '/js/viewer.js',
   '/js/xlsx-write.js',

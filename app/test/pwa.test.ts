@@ -1,3 +1,4 @@
+import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import sw from "../public/sw.js?raw";
 import manifest from "../public/manifest.webmanifest?raw";
@@ -12,8 +13,33 @@ const shellFiles = [
   "/theme.css",
   "/app.css",
   "/flowhow_logotype.svg",
+  "/loading_isotype.svg",
   "/fonts/ibrand.woff",
 ].sort();
+
+describe("splash (SPEC §9, Visual style)", () => {
+  it("puts the veil on every page, with both marks, and decides it before the first paint", async () => {
+    const board = await signIn();
+    for (const res of [await withSession("")("/"), await board.fetch("/home")]) {
+      const html = await res.text();
+      expect(html).toContain('<div class="splash" aria-hidden="true"><img class="splash-logo" src="/flowhow_logotype.svg" alt=""/><img class="splash-isotype" src="/loading_isotype.svg" alt=""/></div>');
+      expect(html).toContain('<script type="module" src="/js/splash.js"></script>');
+      // The inline script sits in the head, after the styles.
+      const head = html.slice(0, html.indexOf("</head>"));
+      expect(head.indexOf('href="/app.css"')).toBeLessThan(head.indexOf('d.dataset.splash = "start"'));
+    }
+  });
+
+  it("takes every duration, size and colour from the --splash-* tokens, and the cap from CSS", () => {
+    const css = env.CSS_FILES["app.css"];
+    const rules = css.slice(css.indexOf("/* The splash"));
+    expect(rules).not.toMatch(/\b[1-9]\d*m?s\b|#[0-9a-f]{3,8}\b|rgba?\(|\d+px/i);
+    for (const token of ["surface", "enter", "leave", "start-max", "section-max", "scale-from", "scale-to", "ease", "logo-width", "isotype-width"]) {
+      expect(rules).toContain(`var(--splash-${token})`);
+    }
+    expect(rules).toContain("@media (prefers-reduced-motion: reduce)");
+  });
+});
 
 describe("PWA (phase 6.10)", () => {
   it("links the manifest and registers the service worker on every page", async () => {

@@ -2036,3 +2036,94 @@ button.offframe:focus-visible {
 .report-table .sort-link:hover {
   text-decoration: underline;
 }
+
+/* The splash (SPEC §9, Visual style; public/js/splash.js). The cap lives
+   here, not in the script: from the first paint, the veil fades out by
+   --splash-start-max (opening the app) or --splash-section-max (a move
+   between sections), whatever the script does. --splash-elapsed is how
+   long the move had already run on the page before (src/layout.tsx). The
+   script only lifts the veil sooner, once the page has loaded. */
+.splash {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+  background: var(--splash-surface);
+}
+
+html[data-splash] .splash {
+  --splash-max: var(--splash-start-max);
+  display: flex;
+  animation:
+    splash-in var(--splash-enter) var(--splash-ease) both,
+    splash-out var(--splash-leave) var(--splash-ease)
+      calc(var(--splash-max) - var(--splash-leave) - var(--splash-elapsed, 0ms)) forwards;
+}
+
+html[data-splash="section"] .splash {
+  --splash-max: var(--splash-section-max);
+}
+
+/* Continued from the page before: already up, so it does not fade in again. */
+html[data-splash-carry] .splash {
+  animation-name: none, splash-out;
+}
+
+.splash img {
+  animation: splash-scale var(--splash-max) var(--splash-ease) calc(0ms - var(--splash-elapsed, 0ms)) both;
+}
+
+.splash-logo {
+  width: var(--splash-logo-width);
+}
+
+.splash-isotype {
+  width: var(--splash-isotype-width);
+}
+
+html[data-splash="start"] .splash-isotype,
+html[data-splash="section"] .splash-logo {
+  display: none;
+}
+
+@keyframes splash-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes splash-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@keyframes splash-scale {
+  from {
+    transform: scale(var(--splash-scale-from));
+  }
+  to {
+    transform: scale(var(--splash-scale-to));
+  }
+}
+
+/* Reduced motion: no fade and no scale; the veil appears and goes. */
+@media (prefers-reduced-motion: reduce) {
+  html[data-splash] .splash,
+  html[data-splash-carry] .splash {
+    animation: splash-gone 0s calc(var(--splash-max) - var(--splash-elapsed, 0ms)) forwards;
+  }
+
+  .splash img {
+    animation: none;
+  }
+}
+
+@keyframes splash-gone {
+  to {
+    visibility: hidden;
+  }
+}

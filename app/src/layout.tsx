@@ -1,3 +1,4 @@
+import { raw } from "hono/html";
 import { jsxRenderer, useRequestContext } from "hono/jsx-renderer";
 import type { AppEnv } from "./session.ts";
 
@@ -45,6 +46,28 @@ function Account() {
   );
 }
 
+// The splash (SPEC §9; public/js/splash.js). Runs before the first paint:
+// the first page of this tab opens the app (the logotype); a page reached
+// from a link or a form of the app continues that move (the isotype, already
+// up, so it does not fade in twice), counting its cap from the click. A move
+// older than ten seconds is one that never happened (a cancelled leave).
+// Without sessionStorage there is no splash.
+const SPLASH_HEAD = `try {
+  var d = document.documentElement, s = sessionStorage, at = Number(s.getItem("flowhow-splash")), ago = Date.now() - at;
+  s.removeItem("flowhow-splash");
+  if (!s.getItem("flowhow-open")) { s.setItem("flowhow-open", "1"); d.dataset.splash = "start"; }
+  else if (at > 0 && ago >= 0 && ago < 10000) { d.dataset.splash = "section"; d.dataset.splashCarry = ""; d.style.setProperty("--splash-elapsed", ago + "ms"); }
+} catch (e) {}`;
+
+function Splash() {
+  return (
+    <div class="splash" aria-hidden="true">
+      <img class="splash-logo" src="/flowhow_logotype.svg" alt="" />
+      <img class="splash-isotype" src="/loading_isotype.svg" alt="" />
+    </div>
+  );
+}
+
 // Base page. theme.css brings Google Sans (Google Fonts) and iBrand (fonts/).
 export const renderer = jsxRenderer(({ children, title }) => (
   <html lang="es-CO">
@@ -54,6 +77,8 @@ export const renderer = jsxRenderer(({ children, title }) => (
       <title>{`${title} · FlowHow`}</title>
       <link rel="stylesheet" href="/theme.css" />
       <link rel="stylesheet" href="/app.css" />
+      <script>{raw(SPLASH_HEAD)}</script>
+      <script type="module" src="/js/splash.js"></script>
       {/* PWA (SPEC §9, Architecture; phase 6.10): the manifest, and the service worker
           that keeps the app shell, never data. */}
       <link rel="manifest" href="/manifest.webmanifest" />
@@ -63,6 +88,7 @@ export const renderer = jsxRenderer(({ children, title }) => (
       <script type="module" src="/js/sw-register.js"></script>
     </head>
     <body>
+      <Splash />
       <header class="site-header">
         <a href="/" class="site-logo">
           <img src="/flowhow_logotype.svg" alt="FlowHow" />

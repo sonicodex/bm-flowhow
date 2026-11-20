@@ -14,6 +14,46 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Splash (SPEC §9, Visual style)
+
+- **When:**
+  - **Opening the app** is the first page of the tab (a `sessionStorage`
+    mark), and shows the logotype.
+  - **A move between sections** is a click on a link of the app, or a form
+    submitted, that nothing else prevented. It shows the isotype.
+  - **No move:** links with `download`, a `target`, a modifier key, another
+    site, a jump inside the same page; the tour and the editor, which never
+    leave the page; and a page the browser restores on «Atrás» (bfcache).
+- **The cap lives in CSS.** From the first paint, an animation fades the
+  veil out by `--splash-start-max` or `--splash-section-max`, so the cap
+  holds even when `splash.js` is slow or fails. The script only lifts the
+  veil sooner, at the page's `load`.
+- **A move spans two pages.**
+  - The isotype fades in over the page that was clicked.
+  - The next page shows it already up, before its first paint, through an
+    inline script in the `<head>`. That page does not fade it in again.
+  - The next page counts the cap from the click, not from its own start:
+    `--splash-elapsed`, the time since the click, which the head script
+    reads from `sessionStorage`.
+  - If the new page takes longer than the cap, it arrives with no veil.
+- **Reduced motion:** no fade and no scale; the veil is shown and hidden
+  outright, with the same caps.
+- **Without `sessionStorage`** (blocked storage) there is no splash at all.
+  Pages work the same.
+- **Checked in headless Chrome** (dev server, `junta`, every write but the
+  login refused, the service worker bypassed so responses could be held):
+  - **Opening with the load held 3 s:** the veil is hidden at 1.5 s, and
+    cleared at `load`.
+  - **A move whose page answers in 2.5 s:** on the clicked page the isotype
+    fades in, starts leaving at 0.74 s, and is gone at 1.0 s. The new page
+    arrives without a veil.
+  - **A page answering in 400 ms:** the veil carries over at full opacity
+    and fades as soon as the page loads.
+  - **«Atrás»:** no veil. A jump inside the page and a cancelled click
+    start none.
+  - **Reduced motion:** the veil appears and goes with no fade.
+- Spec sections affected: none (built as §9 says).
+
 ## 2026-11-20 — Password is the only way in (SPEC §4)
 
 - **Decision:** following the owner's SPEC §4 change, Microsoft sign-in and
