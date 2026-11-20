@@ -27,9 +27,15 @@ Entry format:
     «Reportes» for the Board and Leaders, as before. The «Flujos» that took
     a non-editor to Inicio is gone (8.1, struck through).
   - A Standard user gets no band. Inicio is reached from the logotype.
-  - A Leader keeps the band with «Reportes» on every screen but the report
+  - ~~A Leader keeps the band with «Reportes» on every screen but the report
     itself. There it would hold only the screen they are on, which the SPEC
-    says the band must never be.
+    says the band must never be.~~ Superseded the same day by the owner's
+    correction: a Leader always sees the band, with «Flujos» (Inicio, the
+    flows they review) and «Reportes» only, the report included.
+    - SPEC §9, Navigation still says a Leader keeps the band "for
+      Reportes". Proposed to the owner: name «Flujos» and «Reportes» there,
+      and drop the line about a menu holding only the current screen, which
+      no role can reach now.
 - **Service worker** `shell-6`, with `exit.svg`, `step_prev.svg` and
   `step_next.svg`.
 - **Checked in headless Chrome** at 1366 and 320 px as `junta`, `lider` and

@@ -30,7 +30,10 @@ export function navLinks(user: SessionUser): NavLink[] {
           { href: "/flows", label: "Flujos", section: ["/flows", "/categories", "/home"] },
           { href: "/areas", label: "Áreas", section: ["/areas"] },
         ]
-      : []),
+      : // A Leader (owner, 2026-11-20): «Flujos» is the flows they review.
+        report
+        ? [{ href: "/home", label: "Flujos", section: ["/home", "/flows"] }]
+        : []),
     ...(user.canManageUsers ? [{ href: "/users", label: "Usuarios", section: ["/users"] }] : []),
     ...(report ? [{ href: "/report", label: "Reportes", section: ["/report"] }] : []),
   ];
@@ -44,12 +47,12 @@ function Nav() {
   // A user who must change their password reaches nothing else yet.
   if (!user || user.mustChangePassword) return null;
   const path = c.req.path;
-  // SPEC §9, Navigation (phase 9.1): the band is the administration menu.
-  // Nobody gets an empty one (a Standard user), nor one holding only the
-  // screen they are on (a Leader on the report).
+  // SPEC §9, Navigation (phase 9.1): the band is the administration menu,
+  // and a Standard user, who has no sections, gets none. A Leader always
+  // has it, with «Flujos» and «Reportes» (owner, 2026-11-20).
   const links = navLinks(user);
   const current = (l: NavLink) => l.section.some((p) => inSection(path, p));
-  if (!links.length || (links.length === 1 && current(links[0]!))) return null;
+  if (!links.length) return null;
   return (
     <div class="site-band">
       <nav class="site-nav" aria-label="Secciones">
