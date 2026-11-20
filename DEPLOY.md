@@ -28,7 +28,13 @@ Commands run from `app/`.
 
 ## 2. Secrets
 
-- The Worker reads no secret today.
+- `ANTHROPIC_API_KEY` (stage 2): the only secret the Worker reads. It is
+  used to phrase the questions of a flow's bank, and nothing else. Locally
+  it goes in `app/.dev.vars`; remotely, `npx wrangler secret put
+  ANTHROPIC_API_KEY`. Without it, generating a bank fails with a message
+  that says so, and the rest of the app works.
+- The GitHub Action does not need it: it deploys, it does not generate
+  banks.
 - `DEV_PASSWORD` (`app/.dev.vars`) is only for the local development
   accounts. Never upload it with `wrangler secret put`: the deployed app
   must not have accounts with a shared, known password.

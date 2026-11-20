@@ -604,7 +604,7 @@ Designed for desktop, usable on mobile.
   and a reader who needs larger type all hit the same wall, and a reader who
   needs it on a desktop has no phone to fall back on.
 
-### Subflows — stage 2, do not build
+### Subflows — stage 2
 
 Subflows moved out of stage 1: no real flow uses one, so the whole mechanism
 would be built and tested against invented data. The `link` step is the
@@ -648,6 +648,66 @@ several parent flows.
   contains it.
 - Subflows do not appear as rows of their own in the home screen or in the
   progress report; they count inside their parent.
+
+### Question bank (stage 2)
+
+- Every flow has a bank of questions, built from the flow itself and kept
+  with it. A reader who has reviewed a flow answers a few of them, drawn at
+  random, and that is the assessment.
+- **The graph writes the questions, not a model.** Each question and its
+  correct answer come from the published flow: what follows a step, what
+  precedes it, who answers for it, what tool it uses, which branch of a
+  decision leads somewhere, which step carries a given tag. The answer is
+  therefore right by construction, and the wrong options are real steps,
+  tags or branches of the same flow, which is what makes them plausible.
+- **The model only writes the words.** It rephrases each question so two of
+  the same kind do not read as the same sentence twice, and it drops options
+  that are absurd rather than merely wrong. It never decides what the answer
+  is. A certification that marks a right answer wrong because a model
+  invented the question is worse than no certification.
+- A question may carry a piece of the diagram: the step in question
+  highlighted, and the box the answer belongs in left empty.
+- **The bank is as large as the flow allows**, and it is meant to be large:
+  two people sitting side by side should not get the same questions. The
+  exam draws at random from it, every time.
+- **Exam length: at least five questions, at most a quarter of the flow's
+  steps.** A flow of 36 steps asks nine; a flow of seven asks five.
+- **The board reviews before anyone is examined.** Generating a bank is a
+  button on the flow, generation leaves the questions unpublished, and the
+  board reads them, edits or deletes what it wants, and publishes the bank.
+  A flow with no published bank has no assessment yet, and says so.
+- **A new version regenerates only what it touched.** Questions that rest on
+  a step that changed are regenerated and go back to unpublished; the rest
+  stay as they are, reviewed and published. Nobody re-reads a hundred
+  questions because one step's description changed.
+- Generation runs in batches with its progress shown, because a bank does
+  not fit in one request.
+- The model is reached through Anthropic's API with a small model, and its
+  key is a Worker secret. The key is the only thing that is not in the
+  repository; DEPLOY says how it gets there.
+- A subflow's steps are part of its parent's bank. A subflow has no bank,
+  no assessment and no certificate of its own.
+
+### Assessment and certificate (stage 2)
+
+- The assessment opens when the flow is **Revisado** and its bank is
+  published, and not before.
+- **The pass mark is 90 %**, and it is a setting an admin can change, one
+  value for the whole app.
+- Attempts are not limited. Each one draws its own questions, every attempt
+  is recorded, and the latest score is the one that counts — the one the
+  progress report shows.
+- Passing certifies that person on that flow, on the version they were
+  examined on.
+- **The certificate is one page in the app**, carrying who earned it, the
+  flow, the version, the date and the score, and it prints: "Descargar PDF"
+  opens the browser's print dialogue, and a print stylesheet makes the page
+  the certificate. No PDF library, one design on screen and on paper. The
+  design is provisional until it gets its own pass.
+- A certificate does not expire with time. A **major** release of its flow
+  invalidates it, and the home screen says "recertificación requerida".
+- The recertification tour is in Versioning; its assessment draws only from
+  questions that rest on the steps that changed.
 
 ### Progress report (Board and Leaders)
 
@@ -919,7 +979,8 @@ columns), versioning, theme tokens.
 
 **Later, do not build yet:**
 
-- Stage 2: assessments, certificates, recertification tour, subflows.
+- Stage 2 (building now): assessments, certificates, recertification tour,
+  subflows.
 - Stage 3: admin layer (notes, failure marks, metrics, budgets).
 - Microsoft SSO.
 
@@ -946,6 +1007,9 @@ nothing waits on login. `PLAN.md` holds the current phase plan in detail.
    progress report, PWA.
 7. **Setting up a company.** Importers for areas and users, and the
    first-use wizard.
+8. **The mockup.** Header, login, the viewer's frame and panel.
+9. **Stage 2.** Subflows, the question bank, the assessment, certificates
+   and the recertification tour.
 
 Each phase ends runnable and tested. Propose the slices inside a phase before
 building it and wait for approval.
