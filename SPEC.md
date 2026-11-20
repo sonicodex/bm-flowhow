@@ -670,8 +670,15 @@ several parent flows.
 - **The bank is as large as the flow allows**, and it is meant to be large:
   two people sitting side by side should not get the same questions. The
   exam draws at random from it, every time.
-- **Exam length: at least five questions, at most a quarter of the flow's
-  steps.** A flow of 36 steps asks nine; a flow of seven asks five.
+- **Exam length: at least ten questions, at most a quarter of the flow's
+  steps**, whichever is larger. A flow of 36 steps asks ten; a flow of 80
+  asks twenty. Ten is the floor because the pass mark is a percentage: on a
+  five-question exam 90 % means a perfect score, which is not what "90 %"
+  was meant to say.
+- **The assessment does not open until the published bank is at least twice
+  the exam's length.** Below that, two people sitting side by side get
+  nearly the same exam, and the screen says so and sends an editor to
+  generate more.
 - **The board reviews before anyone is examined.** Generating a bank is a
   button on the flow, generation leaves the questions unpublished, and the
   board reads them, edits or deletes what it wants, and publishes the bank.
@@ -679,7 +686,9 @@ several parent flows.
 - **A new version regenerates only what it touched.** Questions that rest on
   a step that changed are regenerated and go back to unpublished; the rest
   stay as they are, reviewed and published. Nobody re-reads a hundred
-  questions because one step's description changed.
+  questions because one step's description changed. The exam goes on drawing
+  from the published ones that are left, as long as they are enough; when
+  they are not, the assessment closes until the board publishes.
 - Generation runs in batches with its progress shown, because a bank does
   not fit in one request.
 - The model is reached through Anthropic's API with a small model, and its
@@ -692,8 +701,12 @@ several parent flows.
 
 - The assessment opens when the flow is **Revisado** and its bank is
   published, and not before.
-- **The pass mark is 90 %**, and it is a setting an admin can change, one
-  value for the whole app.
+- **The pass mark is 90 %**, one value for the whole app. Only someone who
+  can manage users changes it, and only they publish a bank; generating one
+  is any editor's.
+- Each question offers four options, one right and three wrong. A question
+  left with fewer than three options after the absurd ones are dropped is
+  discarded.
 - Attempts are not limited. Each one draws its own questions, every attempt
   is recorded, and the latest score is the one that counts — the one the
   progress report shows.
@@ -1008,8 +1021,9 @@ nothing waits on login. `PLAN.md` holds the current phase plan in detail.
 7. **Setting up a company.** Importers for areas and users, and the
    first-use wizard.
 8. **The mockup.** Header, login, the viewer's frame and panel.
-9. **Stage 2.** Subflows, the question bank, the assessment, certificates
-   and the recertification tour.
+10. **Stage 2.** Subflows, the question bank, the assessment, certificates
+    and the recertification tour. It is phase 10, not 9: `phase-9` is
+    already the mockup's tag and it is pushed.
 
 Each phase ends runnable and tested. Propose the slices inside a phase before
 building it and wait for approval.
