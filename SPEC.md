@@ -516,6 +516,11 @@ Not included: in-tour quiz questions, phases or step groupings.
 Designed for desktop, usable on mobile.
 
 - Desktop: diagram card on the left, step panel on the right.
+- **The viewer fits the window.** The diagram card and the step panel are as
+  tall as what is left of the screen, and each scrolls inside itself; the
+  page does not scroll. Scrolling the page to reach "Siguiente" is scrolling
+  to reach the only control that matters, and it drags the header off screen
+  on the way. The same rule the editor's grid already follows.
 - **Action buttons live at the bottom of the step panel**, not floating over
   the diagram: "Anterior" and the primary action ("Siguiente", "Entrar al
   subflujo", "Volver a «…»" or "Terminar recorrido"). They sit under the
