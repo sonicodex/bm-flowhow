@@ -14,6 +14,36 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Phase 9.3: the step panel's content as the mock
+
+- **Tour panel**, in the SPEC's order:
+  - the step's type in small grey caps;
+  - the title, now in the display face (`--font-display`);
+  - the description;
+  - one line per category: the name in muted grey, the values as chips in
+    that category's convention (`.chip.c1`–`.c4`). These are the
+    `--color-cat-N` tokens the diagram's badges and the legend's swatches
+    use, with slot 3 dashed. The free review's panel gets them too.
+  - **«Próximo paso:»** in bold, and the step in a chip as wide as the
+    panel, in the flow's visited tint with the visited border. Where a
+    plain step has several ways on, the label is «Próximos pasos:», with
+    one chip each. A decision keeps its branch list. A phone still leaves
+    the hint out (SPEC §9).
+- **Overview panel:** «PANORAMA», «El flujo completo», «Míralo de arriba
+  abajo para ubicarte.» and «Después lo recorrerás un paso a la vez.» on two
+  lines of one paragraph, the objective in muted text when there is one,
+  then the step count.
+- **The buttons sit at the panel's bottom right in their own width**, with
+  no rule above them, as the mock draws them. The 8.5 rule and full-width
+  buttons are gone from the viewer. «Empezar de nuevo» and «Repaso libre»
+  sit in the same corner as «Iniciar recorrido».
+- **Checked in headless Chrome** against artboards 3 and 4 at 1366×768 and
+  390×844, Apertura de OT at «Diseñar y asignar» (the mock's step). The page
+  does not scroll.
+- Spec sections affected: none (built as §7 now says).
+
+---
+
 ## 2026-11-20 — Phase 9.2: the viewer's frame as the mock's artboards 3 and 4
 
 - **One title line:** the dot, the name and the state («Revisado», with the

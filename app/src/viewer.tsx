@@ -88,13 +88,18 @@ function ViewerPage({ flow, compiled, status, links, selector }: PageProps) {
             </noscript>
           </div>
         </div>
-        {/* The overview's panel is a card of its own (SPEC §7, Layout;
-            phase 8.5): the flow, what the reader is looking at, how many
-            steps it has, and its button at the foot. */}
+        {/* The overview's panel (SPEC §7, Layout; phases 8.5, 9.3): what
+            the reader is looking at, the flow's objective, how many steps
+            it has, and its buttons at its bottom right. */}
         <aside class="card viewer-side">
           <p class="eyebrow">PANORAMA</p>
-          <h2 class="step-title">{flow.name}</h2>
-          <p>Estás viendo el flujo completo. Míralo de arriba abajo para ubicarte; después lo recorrerás un paso a la vez.</p>
+          {/* Not the flow's name: the title line above already says it. */}
+          <h2 class="step-title">El flujo completo</h2>
+          <p>
+            Míralo de arriba abajo para ubicarte.
+            <br />
+            Después lo recorrerás un paso a la vez.
+          </p>
           {flow.objective && <p class="viewer-objective">{flow.objective}</p>}
           <p class="muted">{steps === 1 ? "1 paso" : `${steps} pasos`}</p>
           <div class="step-actions">

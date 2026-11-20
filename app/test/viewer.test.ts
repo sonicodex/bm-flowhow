@@ -39,8 +39,9 @@ describe("GET /flows/:id (overview)", () => {
     // flow, what the reader sees, its steps, and the button at its foot,
     // nothing floating over the diagram.
     const panel = html.match(/<aside class="card viewer-side">(.*?)<\/aside>/s)![1]!;
-    expect(panel).toContain('<p class="eyebrow">PANORAMA</p><h2 class="step-title">Apertura de OT</h2>');
-    expect(panel).toContain("Estás viendo el flujo completo.");
+    // Phase 9.3: «El flujo completo», not the name the title line says.
+    expect(panel).toContain('<p class="eyebrow">PANORAMA</p><h2 class="step-title">El flujo completo</h2>');
+    expect(panel).toContain("<p>Míralo de arriba abajo para ubicarte.<br/>Después lo recorrerás un paso a la vez.</p>");
     expect(panel).toMatch(/36 pasos<\/p><div class="step-actions">.*data-start="true">Iniciar recorrido<\/button><\/div>$/s);
     expect(html.match(/<div class="diagram-card">(.*?)<\/div><aside/s)![1]).not.toContain("<button");
     // One card holds the viewer, with the panel inside it (phase 9.2).

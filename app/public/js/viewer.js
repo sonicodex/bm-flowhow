@@ -123,7 +123,10 @@ if (data && cols) {
     if (step.description) out += `<p class="step-desc">${esc(step.description)}</p>`;
     const rows = categories.filter((c) => step.tags[c] && step.tags[c].length);
     if (rows.length) {
-      out += `<dl class="step-tags">${rows.map((c) => `<div><dt>${esc(c)}</dt><dd>${step.tags[c].map((v) => `<span class="chip">${esc(v)}</span>`).join('')}</dd></div>`).join('')}</dl>`;
+      // Each value in its category's convention, the one the diagram draws
+      // beside the node (SPEC §7, Layout; phase 9.3).
+      const slot = (c) => (categories.indexOf(c) % CATEGORY_SLOTS) + 1;
+      out += `<dl class="step-tags">${rows.map((c) => `<div><dt>${esc(c)}</dt><dd>${step.tags[c].map((v) => `<span class="chip c${slot(c)}">${esc(v)}</span>`).join('')}</dd></div>`).join('')}</dl>`;
     }
     return out;
   };
@@ -174,9 +177,11 @@ if (data && cols) {
       const head = sib.exits.length === 1 ? 'Abre en el diagrama la otra manera para seguir' : 'Abre en el diagrama las otras maneras para seguir';
       return `<div class="exits"><p class="label">${head}</p><ul class="branch-states">${rows}</ul></div>`;
     }
-    const rows = options.map((o) => `<p class="exit-row">${text(o)}${o.visited && tour.atEnd() ? ' (ya visitado)' : ''}</p>`).join('');
+    // «Próximo paso:» and the step in a wide chip in the visited tint
+    // (SPEC §7, Layout; phase 9.3), one chip per way on.
+    const rows = options.map((o) => `<p class="next-step">${text(o)}${o.visited && tour.atEnd() ? ' (ya visitado)' : ''}</p>`).join('');
     // The "next step" hint: secondary, so a phone leaves it out (SPEC §9).
-    return `<div class="exits exits-hint"><p class="label">${options.length === 1 ? 'Sigue con' : 'Salidas'}</p>${rows}</div>`;
+    return `<div class="exits exits-hint"><p class="label">${options.length === 1 ? 'Próximo paso:' : 'Próximos pasos:'}</p>${rows}</div>`;
   };
 
   const marks = (tour, categories) => {
