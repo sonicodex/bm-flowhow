@@ -32,6 +32,20 @@ describe("passwords (phase 4.1)", () => {
 
   // DECISIONS 2026-11-20 (phase 7.2): a random temporary password needs no
   // stretching, and the importer hashes fifty of them in one request.
+  // Owner's decision (phase 7.2): with almost no stretching, its length is
+  // what protects a temporary password, so it carries 80 bits or more.
+  it("makes temporary passwords of 80 bits or more, in three groups of six without look-alikes", () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < 200; i++) {
+      const p = temporaryPassword();
+      expect(p).toMatch(/^[a-km-np-z2-9]{6}-[a-km-np-z2-9]{6}-[a-km-np-z2-9]{6}$/);
+      expect(p).not.toMatch(/[01ilo]/);
+      seen.add(p);
+    }
+    expect(seen.size).toBe(200);
+    expect(18 * Math.log2(31)).toBeGreaterThanOrEqual(80);
+  });
+
   it("hashes a temporary password at 100 iterations, and verifies it like any other", async () => {
     const password = temporaryPassword();
     const stored = await hashTemporary(password);

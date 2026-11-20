@@ -14,6 +14,34 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Temporary passwords: 80 bits or more
+
+- **Owner's decision:**
+  - The 100 iterations for temporary passwords stay (phase 7.2).
+  - Their entropy goes up to 80 bits or more. With almost no stretching,
+    its length is the only thing protecting a temporary password if the
+    database leaks. Typing a few more characters, once, costs nobody
+    anything.
+- **Now:** eighteen characters in three groups of six (`abcdef-ghjkmn-pqrstu`)
+  from the same 31-symbol alphabet without look-alikes. That is
+  18 × log2(31) ≈ 89 bits, about 2^96 SHA-256 operations to guess one from
+  a stolen hash.
+- **Why eighteen:**
+  - each symbol is worth about 4.95 bits;
+  - sixteen characters, the shortest even grouping, would give 79.3 bits,
+    short of 80;
+  - eighteen is the shortest length above 80 that splits evenly into
+    groups.
+- **Applies to every temporary password:** the importer, «Nuevo usuario»
+  and «Restablecer contraseña».
+- **Passwords already handed out keep working:** only the generator
+  changed, not how passwords are checked.
+- **Tests:** a test now holds the format, the alphabet and the 80-bit
+  floor.
+- **Checked in headless Chrome:** the hand-over card fits on one line at
+  390 px. At 320 px it breaks at a hyphen, with no horizontal scroll.
+- Spec sections affected: none.
+
 ## 2026-11-20 — Phase 7.3: the first-use wizard
 
 - **«Configuración inicial»** (`/setup`) shows three numbered steps: Áreas,
@@ -96,10 +124,12 @@ Entry format:
   contraseña». A password a person chooses keeps 10,000.
   - **Why:** fifty accounts at 10,000 iterations cost about 60 ms of CPU in
     Node, well over the Workers Free 10 ms. At 100, about 4 ms.
-  - **Why it is safe:** a temporary password is random, twelve characters
+  - **Why it is safe:** ~~a temporary password is random, twelve characters
     from 31, about 59 bits. Stretching makes up for passwords people
     choose; a random one is out of reach without it. With 100 iterations,
-    guessing it from a stolen hash takes around 2^66 SHA-256 operations.
+    guessing it from a stolen hash takes around 2^66 SHA-256 operations.~~
+    Superseded 2026-11-20 («Temporary passwords: 80 bits or more»): it is
+    now eighteen characters, about 89 bits, around 2^96 operations.
     It also stops working at its first use.
   - **Timing:** `verifyPassword` tops a cheaper hash up to 10,000
     iterations. A login therefore costs the same whether or not the
@@ -2285,8 +2315,9 @@ Entry format:
     area"): saving one with areas is refused with the reason. Before, the
     server only refused a Standard user without one.
   - **Temporary passwords** (phase 4 plan, answer 2): creating an account
-    or resetting one generates a twelve-character password in groups of
-    four, from an alphabet without look-alikes, shown once on the answer
+    or resetting one generates a ~~twelve-character password in groups of
+    four~~ (superseded 2026-11-20: eighteen characters in groups of six,
+    «Temporary passwords: 80 bits or more»), from an alphabet without look-alikes, shown once on the answer
     page and never stored in clear. Migration `0007` adds
     `must_change_password`. A reset also closes every session of that
     account. The CLI's `--restablecer` clears the flag: whoever runs it

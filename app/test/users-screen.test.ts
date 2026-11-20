@@ -43,7 +43,7 @@ const row = (username: string) =>
       is_active: number;
       password_hash: string;
     }>();
-const tempPassword = (html: string) => html.match(/<code>([a-z2-9]{4}-[a-z2-9]{4}-[a-z2-9]{4})<\/code>/)?.[1];
+const tempPassword = (html: string) => html.match(/<code>([a-z2-9]{6}-[a-z2-9]{6}-[a-z2-9]{6})<\/code>/)?.[1];
 
 const login = (username: string, password: string) =>
   exports.default.fetch(`${ORIGIN}/login`, { method: "POST", headers: { origin: ORIGIN }, body: new URLSearchParams({ username, password }), redirect: "manual" });

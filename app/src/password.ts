@@ -28,11 +28,12 @@ async function hashWith(password: string, iterations: number): Promise<string> {
 // A password someone chose.
 export const hashPassword = (password: string) => hashWith(password, ITERATIONS);
 
-// A temporary password (temporaryPassword below) is twelve characters
-// drawn at random from 31, about 59 bits, and lives until its first use.
-// Stretching makes up for passwords people choose; a random one needs
-// none, and 100 iterations still put it out of reach: guessing it from a
-// stolen hash takes around 2^66 SHA-256 operations. Being cheap is what
+// A temporary password (temporaryPassword below) is eighteen characters
+// drawn at random from 31, about 89 bits, and lives until its first use.
+// Stretching makes up for passwords people choose; with almost none, its
+// length is what protects it if the database leaks, so it is kept at 80
+// bits or more (owner's decision): guessing it from a stolen hash takes
+// around 2^96 SHA-256 operations. Being cheap is what
 // lets the user importer hash fifty of them in one request under the
 // Workers Free CPU limit (DECISIONS 2026-11-20, phase 7.2).
 export const TEMPORARY_ITERATIONS = 100;
@@ -65,21 +66,24 @@ export async function verifyPassword(password: string, stored: string): Promise<
   return same;
 }
 
-// A one-time password the Board hands over in person (phase 4.4): twelve
-// characters in groups of four, from an alphabet without look-alikes (no
-// 0/o, 1/l/i), so it can be read aloud or copied by hand.
+// A one-time password the Board hands over in person (phase 4.4):
+// eighteen characters in three groups of six, from an alphabet without
+// look-alikes (no 0/o, 1/l/i), so it can be read aloud or copied by hand.
+// 31 symbols give about 4.95 bits each: sixteen would be 79.3 bits, short
+// of the 80 the owner asked for (phase 7.2); eighteen are about 89.
 const TEMP_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
+export const TEMP_LENGTH = 18;
 export function temporaryPassword(): string {
   const chars: string[] = [];
   // Rejection sampling: only bytes below the largest multiple of the
   // alphabet's length, so every character is equally likely.
   const limit = 256 - (256 % TEMP_ALPHABET.length);
-  while (chars.length < 12) {
-    for (const byte of crypto.getRandomValues(new Uint8Array(16))) {
-      if (byte < limit && chars.length < 12) chars.push(TEMP_ALPHABET[byte % TEMP_ALPHABET.length]!);
+  while (chars.length < TEMP_LENGTH) {
+    for (const byte of crypto.getRandomValues(new Uint8Array(32))) {
+      if (byte < limit && chars.length < TEMP_LENGTH) chars.push(TEMP_ALPHABET[byte % TEMP_ALPHABET.length]!);
     }
   }
-  return [0, 4, 8].map((i) => chars.slice(i, i + 4).join("")).join("-");
+  return [0, 6, 12].map((i) => chars.slice(i, i + 6).join("")).join("-");
 }
 
 // SPEC sets no rule. Eight characters is the shortest that still asks for

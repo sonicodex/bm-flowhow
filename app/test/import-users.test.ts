@@ -112,7 +112,7 @@ describe("user importer (phase 7.2)", () => {
       ["ana", "Ana Gómez"],
       ["marta", "Marta Ruiz"],
     ]);
-    for (const [, , password] of list.rows) expect(password).toMatch(/^[a-z2-9]{4}-[a-z2-9]{4}-[a-z2-9]{4}$/);
+    for (const [, , password] of list.rows) expect(password).toMatch(/^[a-z2-9]{6}-[a-z2-9]{6}-[a-z2-9]{6}$/);
     // The file says what it is, and that it is to be deleted.
     expect(done.download).toEqual({ name: "Contrasenas_temporales_FlowHow.xlsx", sheet: "Contraseñas", notes: PASSWORD_FILE_NOTES, columns: list.columns, rows: list.rows });
     expect(PASSWORD_FILE_NOTES.join(" ")).toMatch(/temporales.*cambiar.*primera vez.*Borra este archivo/);
