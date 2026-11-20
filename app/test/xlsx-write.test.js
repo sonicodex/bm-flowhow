@@ -97,6 +97,19 @@ describe('writeWorkbook', () => {
     expect(await readSheet(bytes, 'Otra & más')).toEqual([['x']]);
     expect(await readSheet(bytes, 'Flujo')).toEqual([['ID', 'Título']]);
   });
+
+  // The users' passwords (phase 7.2): notes above the header, bold and on
+  // one line; the panes freeze below the header.
+  it('writes notes above a header that is not the first row', async () => {
+    const rows = [['Nota uno'], ['Nota dos'], [], ['Usuario', 'Contraseña'], ['ana', 'abcd-efgh-jkmn']];
+    const bytes = writeWorkbook([{ name: 'Contraseñas', rows, head: 3 }]);
+    const xml = unzipText(bytes, 'xl/worksheets/sheet1.xml');
+    expect(xml).toContain('<pane ySplit="4" topLeftCell="A5" activePane="bottomLeft" state="frozen"/>');
+    expect(xml).toContain('<c r="A1" s="3" t="inlineStr"><is><t>Nota uno</t></is></c>');
+    expect(xml).toContain('<c r="A4" s="1" t="inlineStr"><is><t>Usuario</t></is></c>');
+    expect(xml).toContain('<c r="B5" s="2" t="inlineStr"><is><t>abcd-efgh-jkmn</t></is></c>');
+    expect(await readSheet(bytes, 'Contraseñas')).toEqual([['Nota uno'], ['Nota dos'], [], ['Usuario', 'Contraseña'], ['ana', 'abcd-efgh-jkmn']]);
+  });
 });
 
 describe('exportName', () => {

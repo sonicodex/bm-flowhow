@@ -21,7 +21,7 @@ describe("/areas (phase 4.4)", () => {
     const html = await res.text();
     expect(html).not.toContain("<table");
     expect(html).toContain("Las áreas agrupan a los Empleados y deciden qué flujos ve cada uno.");
-    expect(html).toContain("Crea la primera con «Nueva área».");
+    expect(html).toContain("Crea la primera con «Nueva área», o tráelas todas de Excel con «Importar áreas».");
     expect(html).toContain('<a class="button-primary" href="/areas/new">Nueva área</a>');
   });
 

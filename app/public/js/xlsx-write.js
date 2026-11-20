@@ -8,7 +8,9 @@
    uncompressed with a fixed date, so the same grid gives the same bytes. */
 
 /**
- * @typedef {{ name: string, rows: string[][], widths?: number[],
+ * `head` is the header row's index (0 unless said): the rows above it are
+ * notes, bold and unwrapped, and the panes freeze below the header.
+ * @typedef {{ name: string, rows: string[][], widths?: number[], head?: number,
  *   lists?: { col: number, values: string[], title: string, message: string }[] }} SheetSpec
  */
 
@@ -122,8 +124,9 @@ function sheetXml(sheet) {
   var height = Math.max(sheet.rows.length, 1);
   var out = HEAD + '<worksheet xmlns="' + NS + '" xmlns:r="' + REL_NS + '">';
   out += '<dimension ref="A1:' + colName(width - 1) + height + '"/>';
-  out += '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>' +
-    '<selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>';
+  var head = sheet.head || 0, first = 'A' + (head + 2);
+  out += '<sheetViews><sheetView workbookViewId="0"><pane ySplit="' + (head + 1) + '" topLeftCell="' + first + '" activePane="bottomLeft" state="frozen"/>' +
+    '<selection pane="bottomLeft" activeCell="' + first + '" sqref="' + first + '"/></sheetView></sheetViews>';
   out += '<sheetFormatPr defaultRowHeight="15"/>';
   if (sheet.widths && sheet.widths.length) {
     out += '<cols>' + sheet.widths.map(function (w, i) {
@@ -137,7 +140,7 @@ function sheetXml(sheet) {
       var text = String(value == null ? '' : value);
       if (text === '') return;
       var space = /^\s|\s$/.test(text) ? ' xml:space="preserve"' : '';
-      out += '<c r="' + colName(c) + (r + 1) + '" s="' + (r === 0 ? 1 : 2) + '" t="inlineStr"><is><t' + space + '>' + esc(text) + '</t></is></c>';
+      out += '<c r="' + colName(c) + (r + 1) + '" s="' + (r < head ? 3 : r === head ? 1 : 2) + '" t="inlineStr"><is><t' + space + '>' + esc(text) + '</t></is></c>';
     });
     out += '</row>';
   });
@@ -153,14 +156,16 @@ function sheetXml(sheet) {
 }
 
 // Style 1: the header (bold, wrapped). Style 2: a cell (wrapped, top aligned).
+// Style 3: a note above the header (bold, one line that runs across).
 var STYLES = HEAD + '<styleSheet xmlns="' + NS + '">' +
   '<fonts count="2"><font><sz val="11"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="11"/><name val="Calibri"/><family val="2"/></font></fonts>' +
   '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>' +
   '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
   '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-  '<cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+  '<cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
   '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>' +
-  '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs>' +
+  '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>' +
+  '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>' +
   '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
   '</styleSheet>';
 

@@ -12,6 +12,8 @@ export type Column = { label: string; numeric?: boolean };
 export function AdminList(props: {
   title: string;
   action?: { href: string; label: string };
+  // A second way to add rows (the importers, phase 7), beside the action.
+  more?: { href: string; label: string };
   columns: Column[];
   // Each a <tr> whose cells follow `columns`, then one cell of actions.
   rows: Child[];
@@ -35,10 +37,19 @@ export function AdminList(props: {
       )}
       <div class="admin-head">
         <h1 class="page-title">{props.title}</h1>
-        {props.action && (
-          <a class="button-primary" href={props.action.href}>
-            {props.action.label}
-          </a>
+        {(props.action || props.more) && (
+          <div class="admin-head-actions">
+            {props.more && (
+              <a class="button-secondary" href={props.more.href}>
+                {props.more.label}
+              </a>
+            )}
+            {props.action && (
+              <a class="button-primary" href={props.action.href}>
+                {props.action.label}
+              </a>
+            )}
+          </div>
         )}
       </div>
       {props.note && <p class="muted admin-subtitle">{props.note}</p>}

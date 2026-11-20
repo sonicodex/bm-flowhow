@@ -139,6 +139,14 @@ a.button-primary:visited {
   background: var(--color-subtle);
 }
 
+/* A link that looks like the secondary button (the importers, phase 7). */
+a.button-secondary,
+a.button-secondary:visited {
+  display: inline-block;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
 /* A button that reads as a link: "Ver el flujo completo" (phase 3.5). */
 .button-link {
   padding: 0;
@@ -1100,6 +1108,12 @@ button.offframe:focus-visible {
 
 .admin-head .page-title {
   margin: 0;
+}
+
+.admin-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
 }
 
 .table-frame {

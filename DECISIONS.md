@@ -14,6 +14,57 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Phase 7.1: the area importer, and what the importers share
+
+- **Shared by the area and user importers** (`src/import-list.tsx`,
+  `public/js/import-list.js`):
+  - **The browser only reads.** It turns the paste or the .xlsx into a
+    table of text cells, using the same `xlsx.js` and paste parser as the
+    flows. It decides nothing.
+  - **The server checks everything.** It reads the columns, checks every
+    row and answers the review. On «Importar» it checks everything again,
+    since the review may be stale, and writes in one D1 batch.
+  - **Columns:** the first row names them, in any order, compared without
+    case or accents.
+    - A column that is missing, repeated or unknown refuses the whole file,
+      and the message lists the expected columns.
+    - An unnamed column is accepted only if it is empty all the way down.
+    - Empty rows are skipped.
+    - Errors name the row as Excel numbers it, the header being row 1.
+  - **The review** has the flow importer's look: the errors first, under
+    «No se puede importar: corrige estas filas en Excel y vuelve a
+    traerlas». While any row is wrong nothing else is shown and there is
+    no «Importar». Then what would come in, as tables.
+  - **Limits:** 2000 rows, 40 columns, 1000 characters per cell.
+  - **The template** is built in the browser, one sheet with the headers.
+  - **`?desde=configuracion`** makes the page's «Volver» and the result's
+    link lead back to the first-use wizard (7.3).
+- **Areas:**
+  - From «Áreas», with `can_edit` (as the screen): «Importar áreas» beside
+    «Nueva área». `AdminList` gained a second action for it.
+  - One column, «Área».
+  - An existing name, compared without case or accents, is matched and not
+    touched. The review shows it beside the existing one.
+  - Row errors:
+    - a repeated name in the file, which names the first row it appears on;
+    - a name over 100 characters, the form's limit.
+  - An area created by someone else between the review and «Importar»
+    refuses the whole import. Nothing is written.
+- **Writer:** `writeWorkbook` takes an optional `head`, the index of the
+  header row. Rows above it are bold, unwrapped notes, and the panes
+  freeze below it. 7.2 uses it for the passwords file. Without `head` the
+  output is unchanged, except for one more style in `styles.xml`.
+- **Checked in headless Chrome** as `junta`. The review requests were let
+  through, since they write nothing. «Importar» was answered by a fake, so
+  the local areas are untouched. Checked:
+  - nothing chosen;
+  - a duplicate shown as a row error, then «Volver»;
+  - an .xlsx with an existing name in capitals matched, a pasted text
+    ignored, and the note saying so;
+  - the result screen;
+  - the list at phone width.
+- Spec sections affected: none (built as §4 says).
+
 ## 2026-11-20 — Brand files: the owner's favicons
 
 - **Where they went:**

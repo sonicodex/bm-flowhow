@@ -1,6 +1,7 @@
 import type { Context } from "hono";
 import { AdminForm, AdminList, RowActions } from "./admin.tsx";
 import { Router } from "./access.tsx";
+import { FROM_SETUP, ImportPage, plural, readColumns, readTable, rowError, SETUP_DONE, type Invalid, type Review, type RowError, type Saved } from "./import-list.tsx";
 import { NAME_RULE, nameKey } from "./names.ts";
 import type { AppEnv } from "./session.ts";
 
@@ -32,11 +33,12 @@ function AreasPage({ items, error }: { items: Area[]; error?: string }) {
     <AdminList
       title="Áreas"
       action={{ href: "/areas/new", label: "Nueva área" }}
+      more={{ href: "/areas/import", label: "Importar áreas" }}
       columns={[{ label: "Nombre" }, { label: "Flujos", numeric: true }, { label: "Usuarios", numeric: true }]}
       error={error}
       empty={{
         purpose: "Las áreas agrupan a los Empleados y deciden qué flujos ve cada uno.",
-        howToAdd: "Todavía no hay ninguna. Crea la primera con «Nueva área».",
+        howToAdd: "Todavía no hay ninguna. Crea la primera con «Nueva área», o tráelas todas de Excel con «Importar áreas».",
       }}
       rows={items.map((a) => (
         <tr>
@@ -152,4 +154,118 @@ areas.post("/:id{[0-9]+}/delete", "editor", async (c) => {
     throw e;
   }
   return c.redirect("/areas", 303);
+});
+
+// ---- Import (SPEC §4 «Importing areas, users and flows»; phase 7.1) ----
+// One area per row. A name that already exists, without counting case or
+// accents, is matched and left alone, not duplicated.
+
+const AREA_MAX = 100;
+
+type AreaPlan = { errors: RowError[]; fresh: string[]; matched: { typed: string; existing: string }[] };
+
+async function planAreas(db: D1Database, body: unknown): Promise<AreaPlan | Invalid> {
+  const read = readTable(body);
+  if (read.ok === false) return read.answer;
+  const cols = readColumns(read.table, [{ key: "name", label: "Área" }]);
+  if (cols.ok === false) return cols.answer;
+  const existing = new Map((await db.prepare("SELECT name, name_key FROM areas").all<{ name: string; name_key: string }>()).results.map((a) => [a.name_key, a.name]));
+  const plan: AreaPlan = { errors: [], fresh: [], matched: [] };
+  const seen = new Map<string, number>();
+  for (const { row, cells } of cols.lines) {
+    const name = cells.name;
+    const key = nameKey(name);
+    if (!key) {
+      plan.errors.push(rowError(row, "le falta el nombre del área."));
+      continue;
+    }
+    if (name.length > AREA_MAX) {
+      plan.errors.push(rowError(row, `el nombre tiene más de ${AREA_MAX} caracteres.`));
+      continue;
+    }
+    const first = seen.get(key);
+    if (first !== undefined) {
+      plan.errors.push(rowError(row, `«${name}» ya está en la fila ${first}. ${NAME_RULE}`));
+      continue;
+    }
+    seen.set(key, row);
+    const known = existing.get(key);
+    if (known !== undefined) plan.matched.push({ typed: name, existing: known });
+    else plan.fresh.push(name);
+  }
+  return plan;
+}
+
+const freshGroup = (names: string[]) => ({ title: `Áreas nuevas (${names.length})`, columns: ["Área"], rows: names.map((n) => [n]) });
+const matchedGroup = (matched: AreaPlan["matched"]) => ({
+  title: `Ya existen (${matched.length})`,
+  note: "Se emparejan con el área que ya hay y no se tocan.",
+  columns: ["En el archivo", "Área que ya existe"],
+  rows: matched.map((m) => [m.typed, m.existing]),
+});
+
+async function reviewAreas(db: D1Database, body: unknown): Promise<Review | Invalid> {
+  const plan = await planAreas(db, body);
+  if ("status" in plan) return plan;
+  return {
+    status: "review",
+    summary: `${plural(plan.fresh.length + plan.matched.length + plan.errors.length, "fila", "filas")}: ${plural(plan.fresh.length, "área nueva", "áreas nuevas")}, ${plural(plan.matched.length, "ya existe", "ya existen")}.`,
+    errors: plan.errors,
+    warnings: [],
+    groups: [...(plan.fresh.length ? [freshGroup(plan.fresh)] : []), ...(plan.matched.length ? [matchedGroup(plan.matched)] : [])],
+  };
+}
+
+// Checked again from the start: the review may be stale. All the new
+// areas are written in one batch, which D1 runs as a transaction.
+async function applyAreas(db: D1Database, body: unknown): Promise<Saved | Invalid> {
+  const plan = await planAreas(db, body);
+  if ("status" in plan) return plan;
+  if (plan.errors.length) return { status: "invalid", error: "El archivo tiene filas por corregir. Vuelve a revisarlo." };
+  if (plan.fresh.length) {
+    try {
+      await db.batch(plan.fresh.map((name) => db.prepare("INSERT INTO areas (name, name_key) VALUES (?, ?)").bind(name, nameKey(name))));
+    } catch (e) {
+      // Someone created one of them between the review and now.
+      if (/UNIQUE/.test(String(e))) return { status: "invalid", error: "Mientras tanto alguien creó una de estas áreas. Vuelve a revisar el archivo." };
+      throw e;
+    }
+  }
+  return {
+    status: "saved",
+    title: "Áreas importadas",
+    message: `Se ${plan.fresh.length === 1 ? "creó" : "crearon"} ${plural(plan.fresh.length, "área", "áreas")}; ${plural(plan.matched.length, "ya existía", "ya existían")}.`,
+    warnings: [],
+    groups: plan.fresh.length ? [freshGroup(plan.fresh)] : [],
+  };
+}
+
+areas.get("/import", "editor", (c) => {
+  const fromSetup = c.req.query("desde") === FROM_SETUP;
+  return c.render(
+    <ImportPage
+      back={fromSetup ? SETUP_DONE : { href: "/areas", label: "Volver a áreas" }}
+      title="Importar áreas"
+      intro="Crea de una vez las áreas que falten. Antes de crear nada verás una revisión con los problemas y lo que entraría."
+      columnsNote="Una columna, «Área», con un nombre por fila. Un área que ya existe (sin contar mayúsculas ni tildes) se empareja y no se duplica."
+      config={{
+        sheet: "Áreas",
+        reviewUrl: "/areas/import/review",
+        applyUrl: "/areas/import",
+        template: { name: "Plantilla_Areas_FlowHow.xlsx", columns: ["Área"], widths: [40] },
+        done: fromSetup ? SETUP_DONE : { href: "/areas", label: "Ir a áreas" },
+      }}
+    />,
+    { title: "Importar áreas" },
+  );
+});
+
+areas.post("/import/review", "editor", async (c) => {
+  const answer = await reviewAreas(c.env.DB, await c.req.json().catch(() => null));
+  return c.json(answer, answer.status === "invalid" ? 400 : 200);
+});
+
+areas.post("/import", "editor", async (c) => {
+  const answer = await applyAreas(c.env.DB, await c.req.json().catch(() => null));
+  return c.json(answer, answer.status === "invalid" ? 422 : 200);
 });

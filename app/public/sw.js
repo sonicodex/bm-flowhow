@@ -12,7 +12,7 @@
 // against a newer server would break the tour. The cache makes the shell
 // available when the network is not; it does not make anything faster.
 // Bump VERSION when the list changes.
-const VERSION = 'flowhow-shell-3';
+const VERSION = 'flowhow-shell-4';
 
 // The "sin conexión" page is public/offline.html, which the assets serve at
 // /offline (they redirect the .html address, and a redirected response
@@ -39,6 +39,7 @@ const SHELL = [
   '/js/diagram.js',
   '/js/editor.js',
   '/js/grid-edit.js',
+  '/js/import-list.js',
   '/js/import-form.js',
   '/js/table-scroll.js',
   '/js/tour-log.js',
