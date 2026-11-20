@@ -417,6 +417,20 @@ describe("held branches and retries (phase 6.18)", () => {
     expect(tour.trail.filter((x: any) => x.id === "P30")).toHaveLength(1);
   });
 
+  // SPEC §7: waiting for a click on the map, the panel says so, and its
+  // «diagrama» makes the targets blink; with reduced motion, they stay lit.
+  it("points at the targets when the tour waits for a click on the diagram", async () => {
+    const src = ((await import("../public/js/viewer.js?raw")) as any).default as string;
+    expect(src).toContain('<button type="button" class="button-link" data-show-targets>diagrama</button>');
+    expect(src).toContain("waitNotice('Elige la rama en el', '.')");
+    expect(src).toContain("getPropertyValue('--target-blink-period')");
+    expect(src).toContain("getPropertyValue('--target-blink-count')");
+    const css = env.CSS_FILES["app.css"];
+    expect(css).toContain("animation: target-blink var(--target-blink-period) step-end var(--target-blink-count);");
+    const reduced = css.match(/@media \(prefers-reduced-motion: reduce\) \{\s*\.diagram \.node\.target\.show-target \.node-shape \{\s*animation: none;\s*fill: var\(--flow\);/);
+    expect(reduced).not.toBeNull();
+  });
+
   it("phase 6.22: a phone's decision lists no branches, and the frame stops at a legible zoom", async () => {
     const css = env.CSS_FILES["app.css"];
     const phone = css.match(/@media \(max-width: 760px\) \{\s*\.viewer-side \.branch-states,\s*\.viewer-side \.branch-again \{\s*display: none;/);

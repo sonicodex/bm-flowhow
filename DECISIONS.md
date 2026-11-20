@@ -14,6 +14,45 @@ Entry format:
 
 ---
 
+## 2026-11-20 — The panel points at the diagram when the tour waits for a click there
+
+- **The owner changed SPEC §7.** When the panel has no button to press
+  because the tour waits for a click on the map, a soft notice says so.
+  Its word for the diagram is a link, and following it makes the targets
+  blink a few times; with `prefers-reduced-motion` they stay lit for the
+  same time.
+- **The notice** (`.wait-notice`, in the flow's tint):
+  - on a decision still to choose: «Elige la rama en el **diagrama**.»;
+  - on a sibling step with others to open: «Abre en el **diagrama** la
+    otra manera (las otras maneras) para seguir.»;
+  - anywhere else «Siguiente» waits with no notice already there: «Elige
+    en el **diagrama** cómo seguir.», above the buttons.
+  - They replace the plain labels the branch list had. «Puedes elegir otra
+    rama…», shown when «Siguiente» is not waiting, stays a plain label.
+- **«diagrama»** is a `button-link`, an action, not an address. It makes
+  every target the reader can still take blink: the steps marked as
+  targets and the arrows at the frame's edge that take a branch. If all
+  were taken, it uses all of them. It brings the first into view if the
+  diagram is scrolled away from it. Pressed again, the blinking starts over.
+- **The blink is on and off, not a fade** (`step-end`): off for the first
+  half of each period, lit in the flow's colour for the second. A fade made
+  Chrome interpolate the targets' `color-mix()` tint wrongly, and they
+  flashed green at 1366 px.
+- **How long: two tokens for `theme.css`, which are the owner's to add.**
+  - `--target-blink-period` (one on-off) and `--target-blink-count`.
+  - Proposed: `600ms` and `3`, the values checked here, injected for the
+    test.
+  - Until they exist, «diagrama» changes nothing visible.
+- **Checked in headless Chrome** at 1366×768 and 390×844, on «¿La producción
+  es externa o interna?»:
+  - the notice shows;
+  - the two targets alternate between their tint and the flow's colour,
+    and are back at rest after 1.8 s;
+  - with reduced motion they hold the flow's colour for the same 1.8 s.
+- Spec sections affected: none beyond the owner's change.
+
+---
+
 ## 2026-11-20 — Automatic deployment from main
 
 - **The owner's request:** a GitHub Action that, on every push to `main`,

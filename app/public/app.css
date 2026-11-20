@@ -1149,6 +1149,81 @@ textarea:focus-visible,
   font-weight: var(--weight-bold);
 }
 
+/* «Elige la rama en el diagrama.» (SPEC §7): a soft notice in the panel
+   while the tour waits for a click on the map. Its «diagrama» makes the
+   targets blink (viewer.js showTargets): --target-blink-count times, each
+   --target-blink-period long, off for its first half and lit for the
+   second, filled with the flow's colour. On and off, never faded: Chrome
+   interpolates the targets' color-mix() tint wrongly (it flashed green).
+   With reduced motion they stay lit for the same time. */
+.wait-notice {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  background: color-mix(in srgb, var(--flow) var(--flow-tint-mix), var(--color-surface));
+  border-radius: var(--radius);
+}
+
+.wait-notice .button-link {
+  font: inherit;
+}
+
+@keyframes target-blink {
+  50%,
+  100% {
+    fill: var(--flow);
+    stroke: var(--flow-strong);
+    stroke-width: calc(var(--border-width) * 2.5);
+  }
+}
+
+@keyframes target-blink-text {
+  50%,
+  100% {
+    fill: var(--flow-on);
+  }
+}
+
+@keyframes offframe-blink {
+  50%,
+  100% {
+    color: var(--flow-on);
+    background: var(--flow);
+  }
+}
+
+.diagram .node.target.show-target .node-shape {
+  animation: target-blink var(--target-blink-period) step-end var(--target-blink-count);
+}
+
+.diagram .node.target.show-target .node-text {
+  animation: target-blink-text var(--target-blink-period) step-end var(--target-blink-count);
+}
+
+.offframe.show-target {
+  animation: offframe-blink var(--target-blink-period) step-end var(--target-blink-count);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .diagram .node.target.show-target .node-shape {
+    animation: none;
+    fill: var(--flow);
+    stroke: var(--flow-strong);
+    stroke-width: calc(var(--border-width) * 2.5);
+  }
+
+  .diagram .node.target.show-target .node-text {
+    animation: none;
+    fill: var(--flow-on);
+  }
+
+  .offframe.show-target {
+    animation: none;
+    color: var(--flow-on);
+    background: var(--flow);
+  }
+}
+
 /* A step of the way on, left out of the zoomed frame (phase 6.22): an
    arrow at the frame's edge pointing at it; on a decision, a button that
    takes that branch, with its label. viewer.js places and turns it. */
