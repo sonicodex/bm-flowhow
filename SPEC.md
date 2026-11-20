@@ -107,27 +107,49 @@ Scale: one company, about 50 users, about 8 flows.
   remove it from the last one, or to deactivate them: a lost password is
   recoverable from the command line, a lost permission is not.
 - Accounts are created by an admin. No open sign-up.
-- **Not built yet.** Password login is what exists. The two methods below are
-  the target, and nothing in the design may block them, but they come after
-  stage 1: the email one needs a provider and a verified domain, and the
-  Microsoft one needs the app registered in the company's Azure.
-- **Two ways in, set per account.** The account says which one it uses; the
-  login screen asks for the username and then follows that account's method.
-  Both end at the same `createSession`, so everything past the door is
-  identical.
-  - **Microsoft.** For accounts that have a company Microsoft identity.
-  - **Code by email.** The user types their username, receives a six-digit
-    code, and types it in. No password to remember, forget or share — which
-    matters for people who sign in from a phone, once a week, in a warehouse.
-- A code is single use, expires in ten minutes, is stored hashed, and a new
-  one invalidates the previous. Asking for a code for an account that does
-  not exist answers the same as for one that does.
-- An account that signs in with a code needs an email address, and it must be
-  unique. An admin can change it; changing it invalidates any live code.
-- **Password login stays as the way back in.** It is already built, it costs
-  nothing to keep, and without it a failure at the mail provider or at
-  Microsoft locks every single person out, the board included. Admins can
-  give a password to accounts that need one; it is not offered to everyone.
+- **Password login, and nothing else.** Microsoft sign-in and codes by email
+  were considered and dropped: each one adds a dependency outside the company
+  — an identity in Azure, a mail provider with a verified domain — and a way
+  for everyone to be locked out when that dependency fails. Fifty accounts
+  created by an admin do not need it.
+- A password is set by an admin and changed by its owner. There is no open
+  sign-up and no password recovery by email: an admin resets it.
+
+### Importing areas, users and flows
+
+The board starts with an empty app and a company that already exists on
+paper. Typing it all in by hand is the reason a tool gets abandoned in week
+one.
+
+- **One file per thing**, each with its own importer: areas, users, flows.
+  One file mixing them would fail as a whole when one row is wrong.
+- Every importer goes through the same review screen the flow importer
+  already has: row-level errors first, nothing written until the admin
+  accepts.
+- **Areas:** a name per row. A name that already exists is matched, not
+  duplicated.
+- **Users:** username, full name, role, areas. The importer generates a
+  temporary password for each account and returns the list, once, for the
+  board to hand out. The list is never stored, and shown again only by
+  resetting that password.
+- **A temporary password must be changed at first login.** It travelled
+  through a spreadsheet and whatever was used to pass it on, so it is a way
+  in, not a password.
+- **Tag categories and their values** are not imported on their own. They
+  come from the flow importer, which already shows unknown tags for the admin
+  to accept or reject, or they are created by hand.
+
+### First-use wizard
+
+- The first board user to sign in to an empty app is offered a wizard:
+  areas, then users, then flows, each step the matching importer, each one
+  skippable.
+- **Skippable at every step and resumable**, because the data arrives at
+  different times: the areas are known on day one, the flows are not.
+- It stops being offered once the app has flows, and stays reachable from the
+  admin layer.
+- It is a path through what already exists, not a second way of creating
+  things. Everything it does can be done from the admin screens.
 
 ## 5. Domain model
 
@@ -674,6 +696,20 @@ Never trust the browser for any of these:
 
 ### Visual style and theming
 
+- **Splash.** Opening the app shows the full logotype over a translucent
+  white veil, at most 1.5 s; moving between sections shows the isotype, at
+  most 1 s. Both fade in and out and the mark scales up very slightly while
+  it waits, so the app announces itself instead of flashing blank panels at
+  a reader on a slow connection.
+- **The cap is a cap, not a wait.** The veil lifts as soon as the page
+  behind it is ready; the timings above are the longest it may stay, never a
+  delay added to a page that was already there. Making people watch an
+  animation they have seen two hundred times is how a brand moment becomes a
+  tax.
+- Every duration, size and colour of the splash is a token in `theme.css`
+  (`--splash-*`), like everything else.
+- **Reduced motion:** with `prefers-reduced-motion`, no scaling and no fade;
+  the veil appears and goes.
 - Brand: primary blue `#28519D`, on a light neutral background. There is no
   dark mode. Text and surfaces stay neutral.
 - Use the tokens in `theme.css`, delivered with this spec, as the starting
@@ -809,6 +845,8 @@ nothing waits on login. `PLAN.md` holds the current phase plan in detail.
 5. **Editor.** The step grid, exits and depends-on, save points, publishing.
 6. **Closing.** Free review, mobile layout, `link` steps, flow selector,
    progress report, PWA.
+7. **Setting up a company.** Importers for areas and users, and the
+   first-use wizard.
 
 Each phase ends runnable and tested. Propose the slices inside a phase before
 building it and wait for approval.

@@ -37,6 +37,17 @@
   --color-on-primary: #FFFFFF;
   --color-edge: #BDBDBD;
   --color-edge-strong: #1E3F78;
+  /* Splash: the logo on first load, the isotype between sections. */
+  --splash-surface: rgba(255, 255, 255, 0.92);
+  --splash-enter: 180ms;
+  --splash-leave: 260ms;
+  --splash-start-max: 1500ms;
+  --splash-section-max: 1000ms;
+  --splash-scale-from: 0.96;
+  --splash-scale-to: 1.04;
+  --splash-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --splash-logo-width: 240px;
+  --splash-isotype-width: 96px;
   /* Tooltip: one look for every tooltip in the app. */
   --color-tooltip-surface: #111111;
   --color-tooltip-text: #FFFFFF;
