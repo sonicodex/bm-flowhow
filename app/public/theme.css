@@ -46,6 +46,9 @@
      colours, as the designer drew them; only size and shadow are ours. */
   --step-button-size: 44px;
   --shadow-step-button: 0 2px 6px rgba(17, 17, 17, 0.25);
+  --step-button-disabled-opacity: 0.45;
+  /* The step panel's own card, inside the viewer card. */
+  --shadow-panel: 0 1px 6px rgba(17, 17, 17, 0.08);
   /* The viewer card. */
   --viewer-gutter: 32px;
   --viewer-progress-height: 48px;

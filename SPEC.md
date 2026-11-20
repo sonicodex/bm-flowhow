@@ -545,6 +545,11 @@ Designed for desktop, usable on mobile.
   — then **"Próximo paso:"** in bold with the next step's name in a wide
   chip filled with the flow's visited tint. On a decision, the branches in
   place of that chip.
+- The flow's objective goes in the overview panel, between those two lines
+  and the step count, and only there: the reader is told what the flow is
+  for at the moment they are looking at the whole of it, and never again.
+  This is the one place the mockup leaves open — it shows no objective
+  anywhere, and the objective is not something to drop.
 - In the overview the panel says **"PANORAMA"**, then **"El flujo
   completo"** as its title — not the flow's name, which is already on the
   title line above — then two lines: "Míralo de arriba abajo para ubicarte."
@@ -860,9 +865,11 @@ Never trust the browser for any of these:
   a dark band carrying the navigation, right-aligned: **Flujos, Áreas,
   Usuarios, Reportes**, each one shown only to whoever may use it.
 - **The dark band is the administration menu, and only those who have one
-  see it.** A reader with no sections — a Standard user, a Leader without
-  the admin screens — gets the white bar alone. A band holding one link is
-  a menu pretending there is somewhere else to go.
+  see it.** A Standard user has no sections and gets the white bar alone. A
+  Leader has one, "Reportes", and keeps the band for it: a band with a
+  single link is still a way to a second screen, which is what a menu is
+  for. What the band must never be is a menu holding the screen the reader
+  is already on and nothing else.
 - **Categories are not in the navigation.** They are a link on the flows
   screen, where they are used: a tag category exists to be a column of a
   flow's grid, and nobody goes looking for one on its own.
