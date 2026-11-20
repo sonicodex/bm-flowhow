@@ -6,6 +6,23 @@ nunca se edita: los cambios generan una iteración nueva.
 
 ---
 
+## plan_iteration_13 — 2026-11-20
+
+Estado: **aprobada. Esta es la iteración vigente.**
+
+Es `plan_iteration_12` tal cual, con los cortes 9.1 a 9.4 aprobados para
+construirse seguidos. Respuestas del dueño (SPEC actualizado en el mismo
+cambio):
+
+1. **El mock** es `reference/ui-mockup_v1.pdf`: artboard 1 el login, 2 la
+   cabecera de la Junta, 3 el panorama, 4 el recorrido.
+2. **El Líder conserva la banda** con «Reportes». La banda nunca es un menú
+   que solo contiene la pantalla donde ya estás.
+3. **El objetivo del flujo** va en el panel del panorama, entre las dos
+   líneas y el número de pasos, y en ninguna otra parte.
+4. **`--shadow-panel` y `--step-button-disabled-opacity`** están en
+   `theme.css`.
+
 ## plan_iteration_12 — 2026-11-20
 
 Estado: **propuesta.** `plan_iteration_11` sigue vigente hasta que el dueño
