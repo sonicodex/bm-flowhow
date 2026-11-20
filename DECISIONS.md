@@ -14,6 +14,103 @@ Entry format:
 
 ---
 
+## 2026-11-20 — The waiting notice beside the buttons, in the warning colours
+
+- **The owner's review:** «Elige la rama en el diagrama» was not near the
+  buttons, which is where the reader looks for the way on. It goes with
+  them, in warning colours.
+- **Where:** inside the panel's `.step-actions`, on a line of its own just
+  above «Anterior» and «Siguiente», under the «muy rápido» message when
+  there is one. `renderTour` moves the branch list's notice there; the
+  general «Elige en el diagrama cómo seguir.» goes to the same place. The
+  branch list keeps its rows without a heading.
+- **The look:** `icons/alert.svg` and a bar in `--color-status-alert`
+  (as `.form-warning`) on the alert colour's tint, mixed into the surface
+  at `--flow-tint-mix` (12 %). The text stays `--color-text`, so the
+  colour is never the only signal. `theme.css` has no warning tint of its
+  own; if the owner wants one, it replaces that mix.
+- **Checked in headless Chrome** at 1366×768 and 390×844, on «¿La producción
+  es externa o interna?»: the notice sits right above the round buttons,
+  and «diagrama» still makes the ring blink three times in a second.
+- Spec sections affected: none.
+
+---
+
+## 2026-11-20 — A ring around the targets, blinking three times in a second
+
+- **The owner's review:** clicking «diagrama» showed nothing a user would
+  notice. They recommended a ring around the options, blinking three times
+  in one second on every click.
+  - The blink tokens were not in `theme.css` yet, so the old blink did not
+    run at all on the owner's screen. The ring answers the review either
+    way.
+- **The ring:** `diagram.js` draws a `rect.target-ring` around each branch
+  target, `RING_GAP` (6) outside its box, in `--flow-strong`, three
+  `--border-width` thick, with `--radius` corners. It stays hidden until
+  shown. The arrows at the frame's edge that take a branch get the same
+  ring as an outline.
+- **The blink:** on for the first half of each `--target-blink-period`, off
+  for the second, `--target-blink-count` times (`step-end`, never faded).
+  Each click starts it over. The targets' fill no longer changes, so the old
+  fill blink and its colour problem are gone.
+- **Reduced motion:** the ring stays on for the same total time.
+- **Tokens for `theme.css`, the owner's to add:** `--target-blink-period:
+  333ms` and `--target-blink-count: 3`, which give three blinks in one
+  second. Until they exist, the click shows nothing.
+  - Added by the agent with the owner's permission, for this case only
+    (`theme.css` stays the owner's). Checked in Chrome with nothing
+    injected: three blinks within the second.
+- **Checked in headless Chrome**, sampling every 40 ms with the tokens
+  injected, at 1366×768 and 390×844 on «¿La producción es externa o
+  interna?»:
+  - the rings are on at 0–160, 330–490 and 660–820 ms, then off;
+  - with reduced motion they are on from 0 to about 1000 ms;
+  - at 390 px the branches are out of the frame, and their arrows carry
+    the ring.
+- Spec sections affected: none.
+
+---
+
+## 2026-11-20 — The panel points at the diagram when the tour waits for a click there
+
+- **The owner changed SPEC §7.** When the panel has no button to press
+  because the tour waits for a click on the map, a soft notice says so.
+  Its word for the diagram is a link, and following it makes the targets
+  blink a few times; with `prefers-reduced-motion` they stay lit for the
+  same time.
+- **The notice** (`.wait-notice`, in the flow's tint):
+  - on a decision still to choose: «Elige la rama en el **diagrama**.»;
+  - on a sibling step with others to open: «Abre en el **diagrama** la
+    otra manera (las otras maneras) para seguir.»;
+  - anywhere else «Siguiente» waits with no notice already there: «Elige
+    en el **diagrama** cómo seguir.», above the buttons.
+  - They replace the plain labels the branch list had. «Puedes elegir otra
+    rama…», shown when «Siguiente» is not waiting, stays a plain label.
+- **«diagrama»** is a `button-link`, an action, not an address. It makes
+  every target the reader can still take blink: the steps marked as
+  targets and the arrows at the frame's edge that take a branch. If all
+  were taken, it uses all of them. It brings the first into view if the
+  diagram is scrolled away from it. Pressed again, the blinking starts over.
+- ~~**The blink is on and off, not a fade** (`step-end`): off for the first
+  half of each period, lit in the flow's colour for the second. A fade made
+  Chrome interpolate the targets' `color-mix()` tint wrongly, and they
+  flashed green at 1366 px.~~ Superseded the same day by the entry above
+  (a ring around each target blinks, not its fill).
+- **How long: two tokens for `theme.css`, which are the owner's to add.**
+  - `--target-blink-period` (one on-off) and `--target-blink-count`.
+  - Proposed: `600ms` and `3`, the values checked here, injected for the
+    test.
+  - Until they exist, «diagrama» changes nothing visible.
+- **Checked in headless Chrome** at 1366×768 and 390×844, on «¿La producción
+  es externa o interna?»:
+  - the notice shows;
+  - the two targets alternate between their tint and the flow's colour,
+    and are back at rest after 1.8 s;
+  - with reduced motion they hold the flow's colour for the same 1.8 s.
+- Spec sections affected: none beyond the owner's change.
+
+---
+
 ## 2026-11-20 — Automatic deployment from main
 
 - **The owner's request:** a GitHub Action that, on every push to `main`,

@@ -152,6 +152,15 @@ if (data && cols) {
     return `${name(o)} lleva directo a ${quoted(o.title)}, donde se une con ${others}. Recorre primero ${others}.`;
   };
 
+  // When the tour waits for a click on the map and the panel has no button
+  // to press (SPEC §7): a soft notice saying so, whose word for the diagram
+  // makes the targets blink (showTargets).
+  // It sits with the panel's buttons, where the reader looks for the way on
+  // (owner, 2026-11-20), in the warning colours (app.css).
+  const ALERT_ICON = '<img class="icon" src="/icons/alert.svg" alt="" width="18" height="18">';
+  const waitNotice = (before, after) =>
+    `<p class="wait-notice">${ALERT_ICON}<span>${before} <button type="button" class="button-link" data-show-targets>diagrama</button>${after}</span></p>`;
+
   const exitsPanel = (tour) => {
     const options = tour.options();
     if (!options.length) return '';
@@ -164,8 +173,10 @@ if (data && cols) {
       ).join('');
       const skip = tour.canSkip() ? '<button type="button" class="branch" data-skip>Ir a lo que falta por visitar</button>' : '';
       const again = options.some((o) => o.taken) ? '<p class="muted small branch-again">Puedes repetir una rama ya recorrida.</p>' : '';
-      const head = tour.atEnd() ? 'Elige la rama en el diagrama' : 'Puedes elegir otra rama en el diagrama: el recorrido seguirá desde aquí';
-      return `<div class="exits"><p class="label">${head}</p><ul class="branch-states">${rows}</ul>${skip}${again}</div>`;
+      const head = tour.needsChoice()
+        ? waitNotice('Elige la rama en el', '.')
+        : '<p class="label">Puedes elegir otra rama en el diagrama: el recorrido seguirá desde aquí</p>';
+      return `<div class="exits">${head}<ul class="branch-states">${rows}</ul>${skip}${again}</div>`;
     }
     // A sibling step of a parallel decision, with others to open (SPEC §7; phase 6.23).
     const sib = tour.siblings();
@@ -174,8 +185,8 @@ if (data && cols) {
       const rows = steps.map((o) =>
         `<li class="branch-state${o.taken ? ' taken' : ''}"><span class="branch-name">${text(o)}</span>${o.taken ? `<span class="taken-tag">${DONE_ICON}Ya vista</span>` : '<span class="muted small">Falta</span>'}</li>`,
       ).join('');
-      const head = sib.exits.length === 1 ? 'Abre en el diagrama la otra manera para seguir' : 'Abre en el diagrama las otras maneras para seguir';
-      return `<div class="exits"><p class="label">${head}</p><ul class="branch-states">${rows}</ul></div>`;
+      const head = waitNotice('Abre en el', sib.exits.length === 1 ? ' la otra manera para seguir.' : ' las otras maneras para seguir.');
+      return `<div class="exits">${head}<ul class="branch-states">${rows}</ul></div>`;
     }
     // «Próximo paso:» and the step in a wide chip in the visited tint
     // (SPEC §7, Layout; phase 9.3), one chip per way on.
@@ -624,6 +635,15 @@ if (data && cols) {
       `<aside class="card viewer-side">${tour.atEnd() ? noteFor(tour.current().note) : ''}${details(step, toured.categories)}${linkPanel(step)}${exitsPanel(tour)}` +
       `<div class="step-actions"><p class="tour-message" role="status">${esc(state.message)}</p>` +
       `${stepButton('prev', 'Anterior', tour.pos === 0)}${primary}</div></aside>`;
+    // Waiting for a click on the map: the notice goes with the buttons, the
+    // branch list's own or, without one, a general one.
+    const side = cols.querySelector('.viewer-side');
+    const buttons = side && side.querySelector('.step-actions > button');
+    if (buttons) {
+      const notice = side.querySelector('.wait-notice');
+      if (notice) buttons.before(notice);
+      else if (choice && !finish) buttons.insertAdjacentHTML('beforebegin', waitNotice('Elige en el', ' cómo seguir.'));
+    }
     if (state.busy) cols.querySelectorAll('button').forEach((b) => { b.disabled = true; });
     const box = document.getElementById('diagram');
     if (zoomed) zoomTo(box, layout, tour);
@@ -885,6 +905,30 @@ if (data && cols) {
     chooseBranch(Number(node.getAttribute('data-branch')));
   });
 
+  // The targets blink a few times (--target-blink-period ×
+  // --target-blink-count, theme.css); with prefers-reduced-motion, app.css
+  // keeps them lit for the same time instead. The first is brought into
+  // view if the diagram is scrolled away from it.
+  let blinking = 0;
+  const showTargets = () => {
+    const box = document.getElementById('diagram');
+    if (!box) return;
+    const targets = [...box.querySelectorAll('.node.target:not(.taken):not(.out-of-frame), .offframe[data-branch]')];
+    const all = targets.length ? targets : [...box.querySelectorAll('.node.target:not(.out-of-frame), .offframe[data-branch]')];
+    if (!all.length) return;
+    const root = getComputedStyle(document.documentElement);
+    const period = parseFloat(root.getPropertyValue('--target-blink-period')) || 0;
+    const count = parseFloat(root.getPropertyValue('--target-blink-count')) || 0;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    all[0].scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
+    clearTimeout(blinking);
+    box.querySelectorAll('.show-target').forEach((el) => el.classList.remove('show-target'));
+    // Restarted from the first blink when pressed again.
+    void box.offsetWidth;
+    all.forEach((el) => el.classList.add('show-target'));
+    blinking = setTimeout(() => all.forEach((el) => el.classList.remove('show-target')), period * count);
+  };
+
   cols.addEventListener('click', (ev) => {
     const node = branchTarget(ev.target);
     if (node) return chooseBranch(Number(node.getAttribute('data-branch')));
@@ -910,6 +954,7 @@ if (data && cols) {
       else if (b.hasAttribute('data-confirm-restart')) start(b, '/restart');
       return;
     }
+    if (b.hasAttribute('data-show-targets')) return showTargets();
     if (b.hasAttribute('data-overview')) {
       if (!state.busy) showOverview([]);
       return;

@@ -1149,6 +1149,89 @@ textarea:focus-visible,
   font-weight: var(--weight-bold);
 }
 
+/* «Elige la rama en el diagrama.» (SPEC §7): a soft notice in the panel
+   while the tour waits for a click on the map. Its «diagrama» shows the
+   targets (viewer.js showTargets): a ring around each one, and around the
+   arrows at the frame's edge that take a branch, blinks
+   --target-blink-count times, each --target-blink-period long (on for the
+   first half, off for the second; on and off, never faded). With reduced
+   motion the ring stays on for the same time. */
+/* With the panel's buttons, a line of its own above them, in the warning
+   colours: the alert icon and bar (as .form-warning) on the alert's tint. */
+.wait-notice {
+  display: flex;
+  flex-basis: 100%;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-status-alert) var(--flow-tint-mix), var(--color-surface));
+  border-left: calc(var(--border-width) * 3) solid var(--color-status-alert);
+  border-radius: var(--radius);
+}
+
+.wait-notice .icon {
+  flex: none;
+}
+
+.wait-notice .button-link {
+  font: inherit;
+}
+
+.diagram .target-ring {
+  fill: none;
+  stroke: var(--flow-strong);
+  stroke-width: calc(var(--border-width) * 3);
+  rx: var(--radius);
+  visibility: hidden;
+}
+
+@keyframes target-ring-blink {
+  0% {
+    visibility: visible;
+  }
+
+  50%,
+  100% {
+    visibility: hidden;
+  }
+}
+
+@keyframes offframe-ring-blink {
+  0% {
+    outline-color: var(--flow-strong);
+  }
+
+  50%,
+  100% {
+    outline-color: transparent;
+  }
+}
+
+.diagram .node.target.show-target .target-ring {
+  animation: target-ring-blink var(--target-blink-period) step-end var(--target-blink-count);
+}
+
+.offframe.show-target {
+  outline: calc(var(--border-width) * 3) solid transparent;
+  outline-offset: var(--space-1);
+  animation: offframe-ring-blink var(--target-blink-period) step-end var(--target-blink-count);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .diagram .node.target.show-target .target-ring {
+    animation: none;
+    visibility: visible;
+  }
+
+  .offframe.show-target {
+    animation: none;
+    outline-color: var(--flow-strong);
+  }
+}
+
 /* A step of the way on, left out of the zoomed frame (phase 6.22): an
    arrow at the frame's edge pointing at it; on a decision, a button that
    takes that branch, with its label. viewer.js places and turns it. */
