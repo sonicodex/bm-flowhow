@@ -6,6 +6,66 @@ nunca se edita: los cambios generan una iteración nueva.
 
 ---
 
+## plan_iteration_12 — 2026-11-20
+
+Estado: **propuesta.** `plan_iteration_11` sigue vigente hasta que el dueño
+apruebe esta.
+
+Fase 9: el visor y la cabecera como el mock (SPEC §7 y §9 reescritos,
+commit `4ec5e11`; artboards 2, 3 y 4 del PDF). Cuatro cortes; cada uno
+termina andando, probado y revisado en Chrome a 1366, 1280, 390 y 320 px
+contra el artboard que le toca.
+
+- **9.1 Cabecera.**
+  - Barra blanca de `--header-height` (56): logotipo a la izquierda; a la
+    derecha el nombre y `icons/exit.svg` en `currentColor` como botón de
+    salir, con «Salir» como nombre accesible y como `title`. La palabra
+    no se ve.
+  - Banda oscura de `--nav-height` (30) solo para quien tiene secciones.
+    Un Empleado ve la barra blanca sola. Se va el «Flujos» que llevaba a
+    Inicio para quien no edita (revierte lo aprobado en 8.1, con la
+    entrada de DECISIONS tachada y anotada).
+  - Service worker `shell-6` con `exit.svg`, `step_prev.svg` y
+    `step_next.svg`.
+- **9.2 El marco del visor.**
+  - Una línea de título: punto, nombre y estado a la izquierda; «Flujo» y
+    su selector en el extremo derecho. En celular el selector baja a su
+    propia línea.
+  - Una tarjeta exterior a `--viewer-gutter` (32) de la ventana, con la
+    fila de avance (`--viewer-progress-height`, 48) y la de convenciones
+    (`--viewer-legend-height`, 44), cada una cerrada por un filete de
+    ancho completo, y el diagrama debajo.
+  - El panel del paso es una tarjeta dentro de ella, a la derecha, de un
+    tercio del ancho, con borde y sombra suave. En el panorama se ajusta a
+    su contenido.
+  - La tarjeta mide lo que queda de pantalla; el diagrama y el panel
+    scrollean por dentro, y la página no. Reemplaza la disposición de
+    `38ca7ef`, que separaba las dos tarjetas.
+  - El repaso libre usa el mismo marco.
+  - En celular el panel va arriba del diagrama, dentro de la misma
+    tarjeta.
+- **9.3 El contenido del panel.**
+  - Recorrido: el tipo en versalitas grises, el título en la tipografía
+    display y la descripción. Después, una línea por categoría: el nombre
+    en gris a la izquierda y los valores a la derecha, como chips con la
+    convención de la categoría (la del nodo en el diagrama). Al final,
+    «Próximo paso:» en negrita y el paso siguiente en un chip ancho con el
+    tinte de paso visitado. Si hay varias salidas, un chip por salida. En
+    una decisión van las ramas, como hoy.
+  - Panorama: «PANORAMA», el título «El flujo completo», «Míralo de arriba
+    abajo para ubicarte.», «Después lo recorrerás un paso a la vez.», el
+    número de pasos, y abajo a la derecha «Iniciar recorrido» (o
+    «Continuar», «Repetir»), con «Empezar de nuevo» y «Repaso libre» en la
+    misma esquina.
+- **9.4 Los botones redondos.**
+  - «Anterior» y «Siguiente» como `step_prev.svg` y `step_next.svg` tal
+    cual, de `--step-button-size` (44), con `--shadow-step-button`, uno al
+    lado del otro abajo a la derecha. Nombre accesible «Anterior» y
+    «Siguiente». «Anterior» se atenúa cuando no hay adónde volver.
+  - «Entrar al subflujo», «Volver a «…»» y «Terminar recorrido» conservan
+    sus palabras en esa misma esquina, y el aviso de «muy rápido» queda
+    junto a ellos.
+
 ## plan_iteration_11 — 2026-11-20
 
 Estado: **aprobada. Esta es la iteración vigente.**
