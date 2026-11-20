@@ -6,6 +6,22 @@ nunca se edita: los cambios generan una iteración nueva.
 
 ---
 
+## plan_iteration_11 — 2026-11-20
+
+Estado: **aprobada. Esta es la iteración vigente.**
+
+Es `plan_iteration_10` tal cual, con los cortes 8.1 a 8.5 aprobados para
+construirse seguidos, sin pausa entre cortes. Respuestas del dueño:
+
+1. **«Flujos» para quien no edita:** lleva a Inicio.
+2. **El resumen del reporte** respeta área y flujo, no el filtro
+   «Revisado», y la pantalla lo dice, para que nadie piense que lo ignora
+   por error.
+3. **El flujo importado** queda como borrador.
+
+La medición de `POST /users/import` en el Worker desplegado queda para
+después (DEPLOY §5).
+
 ## plan_iteration_10 — 2026-11-20
 
 Estado: **propuesta.** `plan_iteration_9` sigue vigente hasta que el dueño
