@@ -40,10 +40,21 @@
   --color-nav-surface: #1B345C;
   --color-on-nav: #FFFFFF;
   --color-nav-current: #3D7FF2;
-  --header-height: 64px;
-  --nav-height: 36px;
+  --header-height: 56px;
+  --nav-height: 30px;
+  /* Round step buttons in the viewer panel. The two SVGs carry their own
+     colours, as the designer drew them; only size and shadow are ours. */
+  --step-button-size: 44px;
+  --shadow-step-button: 0 2px 6px rgba(17, 17, 17, 0.25);
+  /* The viewer card. */
+  --viewer-gutter: 32px;
+  --viewer-progress-height: 48px;
+  --viewer-legend-height: 44px;
   --color-edge: #BDBDBD;
   --color-edge-strong: #1E3F78;
+  /* Login: a scrim over the background image, so the card reads on any part
+     of it. */
+  --login-hero-scrim: rgba(0, 0, 0, 0.45);
   /* Splash: the logo on first load, the isotype between sections. */
   --splash-surface: rgba(255, 255, 255, 0.92);
   --splash-enter: 180ms;

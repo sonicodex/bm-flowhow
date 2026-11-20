@@ -515,21 +515,50 @@ Not included: in-tour quiz questions, phases or step groupings.
 
 Designed for desktop, usable on mobile.
 
-- Desktop: diagram card on the left, step panel on the right.
-- **The viewer fits the window.** The diagram card and the step panel are as
-  tall as what is left of the screen, and each scrolls inside itself; the
-  page does not scroll. Scrolling the page to reach "Siguiente" is scrolling
-  to reach the only control that matters, and it drags the header off screen
-  on the way. The same rule the editor's grid already follows.
-- **Action buttons live at the bottom of the step panel**, not floating over
-  the diagram: "Anterior" and the primary action ("Siguiente", "Entrar al
-  subflujo", "Volver a «…»" or "Terminar recorrido"). They sit under the
-  content they act on, and they cover no part of the map. In the overview the
-  panel is a card of its own — the flow's name, what the reader is looking
-  at, how many steps it has — and "Iniciar recorrido" is its button. The
-  "too fast" alert appears next to them.
-- The step panel holds the content: step type, title, description, tags, and
-  the branch choices when the step is a decision.
+- **One title line.** The flow's colour dot, its name, and its state
+  ("Revisado", with the date) sit together on a single line, left; the
+  "Flujo" label and its selector sit at the right end of that same line. Not
+  a selector above and a title below, not a state on a line of its own:
+  three facts about the same flow belong on one line.
+- **One card holds the viewer**, and the step panel is a card nested inside
+  it, on the right: the outer card carries the progress row, the conventions
+  row and the diagram; the inner one carries the step. Not two cards side by
+  side — the diagram and the step are one screen, and the panel is a thing
+  on top of it.
+- Measured on the mockup, at 1366 px wide: 32 px between the outer card and
+  the window on each side; the title line between the header and the card;
+  the progress row 48 px tall and the conventions row 44 px, each closed by
+  a hairline across the full width of the card. The inner panel is about
+  a third of the card's width, with its own border and a soft shadow, and in
+  the overview it hugs its content instead of running the card's full
+  height.
+- **The viewer fits the window.** That card is as tall as what is left of
+  the screen, and the diagram and the panel each scroll inside it; the page
+  does not scroll. Scrolling the page to reach "Siguiente" is scrolling to
+  reach the only control that matters, and it drags the header off screen on
+  the way. The same rule the editor's grid already follows.
+- The step panel holds, in this order: the step's type in small grey caps
+  ("ACTIVIDAD", "DECISIÓN", "INICIO"), the title in the display face, the
+  description, then one line per tag category — the category's name in muted
+  grey on the left, its values as chips on the right, each chip in that
+  category's own convention, the same one the diagram draws beside the node
+  — then **"Próximo paso:"** in bold with the next step's name in a wide
+  chip filled with the flow's visited tint. On a decision, the branches in
+  place of that chip.
+- In the overview the panel says **"PANORAMA"**, then **"El flujo
+  completo"** as its title — not the flow's name, which is already on the
+  title line above — then two lines: "Míralo de arriba abajo para ubicarte."
+  and "Después lo recorrerás un paso a la vez.", then the number of steps,
+  then "Iniciar recorrido" as a rectangular blue button at its bottom right.
+- **"Anterior" and "Siguiente" are round icon buttons**, side by side at the
+  bottom right of the panel, drawn from `icons/step_prev.svg` and
+  `icons/step_next.svg`. Those two files are the designer's, circle and
+  colours included, so they are used as they are and nothing recolours them;
+  only the size and the shadow are the theme's. Each carries a label for
+  screen readers, and "Anterior" dims when there is nowhere to go back to. The other primary
+  actions ("Entrar al subflujo", "Volver a «…»", "Terminar recorrido",
+  "Iniciar recorrido") keep their words, in the same corner. The "too fast"
+  alert appears next to them.
 - Mobile: the step panel goes **above** the diagram, in a minimal form built
   for phones: step type, title, description, tag values as small chips and
   branch choices. Secondary information (the "next step" hint, subflow
@@ -826,10 +855,14 @@ Never trust the browser for any of these:
 
 ### Navigation
 
-- A white bar with the logotype on the left and the signed-in user with a
-  sign-out control on the right; under it a dark band carrying the
-  navigation, right-aligned: **Flujos, Áreas, Usuarios, Reportes**, each one
-  shown only to whoever may use it.
+- A white bar with the logotype on the left and, on the right, the signed-in
+  user's name and **sign-out as an icon, not as the word "Salir"**; under it
+  a dark band carrying the navigation, right-aligned: **Flujos, Áreas,
+  Usuarios, Reportes**, each one shown only to whoever may use it.
+- **The dark band is the administration menu, and only those who have one
+  see it.** A reader with no sections — a Standard user, a Leader without
+  the admin screens — gets the white bar alone. A band holding one link is
+  a menu pretending there is somewhere else to go.
 - **Categories are not in the navigation.** They are a link on the flows
   screen, where they are used: a tag category exists to be a column of a
   flow's grid, and nobody goes looking for one on its own.
