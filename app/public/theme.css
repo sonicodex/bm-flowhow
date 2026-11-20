@@ -35,6 +35,13 @@
   --color-primary-bright: #3D7FF2; /* highlights and tints */
   --color-primary-tint: #ECF2FE;   /* primary-bright at 10 % on white */
   --color-on-primary: #FFFFFF;
+  /* Header: a white bar with the logotype, a dark band with the navigation. */
+  --color-header-surface: #FFFFFF;
+  --color-nav-surface: #1B345C;
+  --color-on-nav: #FFFFFF;
+  --color-nav-current: #3D7FF2;
+  --header-height: 64px;
+  --nav-height: 36px;
   --color-edge: #BDBDBD;
   --color-edge-strong: #1E3F78;
   /* Splash: the logo on first load, the isotype between sections. */

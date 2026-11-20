@@ -320,6 +320,9 @@ Publishing is blocked if:
 
 - There is no landing page. The root URL is the login screen.
 - A logged-in user, or a user who just logged in, lands on the home screen.
+- **The board lands on the progress report instead.** A board member is not
+  there to be trained; they are there to see who has been. Their flows are
+  one click away in the navigation.
 - The home screen lists the flows available to that user. For each flow it
   shows its status and the next action:
   - Stage 1: `pending review` or `reviewed`.
@@ -464,6 +467,10 @@ Tour rules:
   pending. How the user got back there makes no difference: sent back by the
   tour, or carried back by a loop the flow itself draws, what they need to
   know is the same.
+- **The conventions name the step states too**, not only the tag categories:
+  "Paso actual" and "Paso visitado" go in the same row, with their colours.
+  A reader who has to work out what the dark box means is reading the
+  interface instead of the flow.
 - The active step (current step in the tour, selected step in free review)
   shows its tags as badges on the diagram itself, next to the node, in
   addition to the side panel. A badge never falls outside the diagram's
@@ -509,12 +516,13 @@ Not included: in-tour quiz questions, phases or step groupings.
 Designed for desktop, usable on mobile.
 
 - Desktop: diagram card on the left, step panel on the right.
-- **Action buttons live inside the diagram card, in its bottom right corner**,
-  floating over the diagram: "Anterior" and the primary action ("Siguiente",
-  "Entrar al subflujo", "Volver a «…»" or "Terminar recorrido"). The same
-  corner holds "Iniciar recorrido" in the overview and "Abrir subflujo" in the
-  free review. The "too fast" alert appears next to them. Leave enough bottom
-  padding in the diagram so the buttons never hide a step for good.
+- **Action buttons live at the bottom of the step panel**, not floating over
+  the diagram: "Anterior" and the primary action ("Siguiente", "Entrar al
+  subflujo", "Volver a «…»" or "Terminar recorrido"). They sit under the
+  content they act on, and they cover no part of the map. In the overview the
+  panel is a card of its own — the flow's name, what the reader is looking
+  at, how many steps it has — and "Iniciar recorrido" is its button. The
+  "too fast" alert appears next to them.
 - The step panel holds the content: step type, title, description, tags, and
   the branch choices when the step is a decision.
 - Mobile: the step panel goes **above** the diagram, in a minimal form built
@@ -593,6 +601,15 @@ several parent flows.
   progress report; they count inside their parent.
 
 ### Progress report (Board and Leaders)
+
+- **A summary on top of the same screen**, before the rows: for each flow,
+  how many of the people it is assigned to have reviewed it, as a percentage
+  and as a count. It is the first thing a board member sees when signing in,
+  so it answers the question they came with before they read a single row.
+- The summary obeys the same scope as the rows: the board sees every flow, a
+  leader only their areas.
+- It is not a separate screen. One screen, summary then detail, filtered by
+  the same filters.
 
 - A table visible only to Board members and Leaders. Standard users never
   see it.
@@ -694,6 +711,18 @@ Never trust the browser for any of these:
 - The progress report is served only to Board members and Leaders, and a
   Leader receives only the rows of employees who share an area with them.
 
+### Login screen
+
+- The company's image fills the screen, with a single white card centred on
+  it: the logotype, "Iniciar sesión", the two fields, the button, and one
+  line saying that a forgotten password is the administrator's to reset.
+  There is no sign-up link and no recovery link, because neither exists.
+- The card carries the maker's logotype at its foot, small and quiet. It
+  appears on the login screen only; the app itself belongs to whoever uses
+  it.
+- The background image is served in `webp` with a `jpg` beside it, and never
+  blocks the card: the card is readable before the image arrives.
+
 ### Visual style and theming
 
 - **Splash.** Loading a page from the server shows the full logotype over a
@@ -789,6 +818,21 @@ Never trust the browser for any of these:
   (`font-synthesis-weight: none`). It already reads heavy at title sizes.
 - Style principles: one primary action per screen, generous white space, short
   text, status always visible.
+
+### Navigation
+
+- A white bar with the logotype on the left and the signed-in user with a
+  sign-out control on the right; under it a dark band carrying the
+  navigation, right-aligned: **Flujos, Áreas, Usuarios, Reportes**, each one
+  shown only to whoever may use it.
+- **Categories are not in the navigation.** They are a link on the flows
+  screen, where they are used: a tag category exists to be a column of a
+  flow's grid, and nobody goes looking for one on its own.
+- **The first-use wizard is not in the navigation either.** It stays
+  reachable by its URL, for now, and nothing links to it.
+- **Flows are imported from the flows screen**, with the same button areas
+  and users have, so the three lists work the same way. Importing there
+  creates the flow; the editor keeps its own import for replacing a draft.
 
 ### Administration screens
 
