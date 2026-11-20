@@ -69,6 +69,10 @@
   --splash-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   --splash-logo-width: 240px;
   --splash-isotype-width: 96px;
+  /* Tour: the ring that shows the diagram's targets blinks this many times,
+     each this long (three times in one second). */
+  --target-blink-period: 333ms;
+  --target-blink-count: 3;
   /* Tooltip: one look for every tooltip in the app. */
   --color-tooltip-surface: #111111;
   --color-tooltip-text: #FFFFFF;

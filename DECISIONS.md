@@ -35,6 +35,9 @@ Entry format:
 - **Tokens for `theme.css`, the owner's to add:** `--target-blink-period:
   333ms` and `--target-blink-count: 3`, which give three blinks in one
   second. Until they exist, the click shows nothing.
+  - Added by the agent with the owner's permission, for this case only
+    (`theme.css` stays the owner's). Checked in Chrome with nothing
+    injected: three blinks within the second.
 - **Checked in headless Chrome**, sampling every 40 ms with the tokens
   injected, at 1366×768 and 390×844 on «¿La producción es externa o
   interna?»:
