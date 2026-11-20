@@ -12,7 +12,7 @@
 // against a newer server would break the tour. The cache makes the shell
 // available when the network is not; it does not make anything faster.
 // Bump VERSION when the list changes.
-const VERSION = 'flowhow-shell-5';
+const VERSION = 'flowhow-shell-6';
 
 // The "sin conexión" page is public/offline.html, which the assets serve at
 // /offline (they redirect the .html address, and a redirected response
@@ -31,10 +31,13 @@ const SHELL = [
   '/icons/back.svg',
   '/icons/close.svg',
   '/icons/done.svg',
+  '/icons/exit.svg',
   '/icons/hold_on.svg',
   '/icons/in_progress.svg',
   '/icons/link.svg',
   '/icons/pending.svg',
+  '/icons/step_next.svg',
+  '/icons/step_prev.svg',
   '/icons/subprocess.svg',
   '/icons/zoom.svg',
   '/js/core.js',

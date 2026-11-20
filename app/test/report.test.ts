@@ -193,7 +193,10 @@ describe("progress report (phase 6.9)", () => {
   it("is in the menu of the Board and Leaders only", async () => {
     const { board, lia, ana } = await setup();
     expect(await page(board)).toContain('<a href="/report" aria-current="page">Reportes</a>');
-    expect(await page(lia)).toContain('<a href="/report" aria-current="page">Reportes</a>');
+    // A Leader's band holds «Reportes» alone: shown elsewhere, not on the
+    // report itself (phase 9.1).
+    expect(await (await lia.fetch("/home")).text()).toContain('<a href="/report">Reportes</a>');
+    expect(await page(lia)).not.toContain("site-band");
     const home = await (await ana.fetch("/home")).text();
     expect(home).not.toContain("/report");
     expect((await ana.fetch("/report")).status).toBe(403);

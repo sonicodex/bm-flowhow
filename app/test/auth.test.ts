@@ -91,14 +91,14 @@ describe("login screen (phase 4.1)", () => {
     const days = (Date.parse(row!.expires_at) - Date.now()) / 86_400_000;
     expect(days).toBeGreaterThan(6.99);
     expect(days).toBeLessThanOrEqual(7);
-    // The cookie opens the home screen, with the name and "Salir".
+    // The cookie opens the home screen, with the name and the sign-out icon.
     const home = await withSession(`${COOKIE}=${token}`)("/home");
     expect(home.status).toBe(200);
     const html = await home.text();
     expect(html).toContain("Hola, Ana Gómez");
     // The maker's mark is the login's only.
     expect(html).not.toContain("bmec_logotype");
-    expect(html).toContain('<form method="post" action="/logout" class="site-account"><span title="Ana Gómez">Ana Gómez</span>');
+    expect(html).toContain('<form method="post" action="/logout" class="site-account"><span title="Ana Gómez">Ana Gómez</span><button type="submit" class="sign-out" aria-label="Salir" title="Salir"><span class="icon-exit" aria-hidden="true"></span></button></form>');
   });
 
   it("answers a wrong password, an unknown user and an inactive one alike, after a delay", async () => {

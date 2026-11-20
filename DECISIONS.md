@@ -14,6 +14,30 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Phase 9.1: the header as the mock's artboard 2
+
+- **The bar** is 56 px (`--header-height`) and the band 30 px
+  (`--nav-height`), the owner's corrected tokens.
+  - On the right: the user's name in the text colour, then
+    `icons/exit.svg` as the sign-out button, drawn in `currentColor`
+    (`--color-primary`). The word «Salir» is gone from the screen; it is the
+    button's accessible name and its tooltip.
+- **The band is the administration menu** (SPEC §9, Navigation):
+  - «Flujos» and «Áreas» for editors, «Usuarios» for `can_manage_users`,
+    «Reportes» for the Board and Leaders, as before. The «Flujos» that took
+    a non-editor to Inicio is gone (8.1, struck through).
+  - A Standard user gets no band. Inicio is reached from the logotype.
+  - A Leader keeps the band with «Reportes» on every screen but the report
+    itself. There it would hold only the screen they are on, which the SPEC
+    says the band must never be.
+- **Service worker** `shell-6`, with `exit.svg`, `step_prev.svg` and
+  `step_next.svg`.
+- **Checked in headless Chrome** at 1366 and 320 px as `junta`, `lider` and
+  `empleado`: bar 56, band 30 or none, no horizontal scroll.
+- Spec sections affected: none (built as §9 now says).
+
+---
+
 ## 2026-11-20 — The viewer fits the window (SPEC §9, Layout)
 
 - Decision:
@@ -198,9 +222,10 @@ Entry format:
   - At 320 px a long user name is cut with an ellipsis, and the full name
     is its tooltip.
 - **Links, each to whoever may use it:**
-  - «Flujos»: `/flows` for an editor, Inicio (`/home`) for anyone else
+  - ~~«Flujos»: `/flows` for an editor, Inicio (`/home`) for anyone else
     (owner's answer). So a standard user now sees the band too, with that
-    one link.
+    one link.~~ Superseded by phase 9.1 (2026-11-20): «Flujos» is for
+    editors only, and a Standard user gets no band.
   - «Áreas»: editors. «Usuarios»: `can_manage_users`. «Reportes»: the Board
     and Leaders.
 - **Categories:** out of the navigation, linked from the flows screen

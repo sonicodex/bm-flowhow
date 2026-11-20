@@ -183,7 +183,7 @@ describe("route access (phase 4.2)", () => {
     expect((await board.fetch(`/flows/${created.id}`)).status).toBe(404);
   });
 
-  // SPEC §9, Navigation (phase 8.1).
+  // SPEC §9, Navigation (phases 8.1, 9.1).
   it("shows the navigation band with each link only to whoever may use it", async () => {
     const board = await signIn();
     const leader = await signIn({ username: "lia", role: "leader" });
@@ -194,9 +194,13 @@ describe("route access (phase 4.2)", () => {
     );
     // The section is current on its own screens and the ones below it.
     expect(await nav(board, "/categories")).toContain('<a href="/flows" aria-current="page">Flujos</a>');
-    // Whoever does not edit: «Flujos» is the flows they review.
-    expect(await nav(leader, "/home")).toBe('<a href="/home" aria-current="page">Flujos</a><a href="/report">Reportes</a>');
-    expect(await nav(ana, "/home")).toBe('<a href="/home" aria-current="page">Flujos</a>');
+    // Phase 9.1: the band is the administration menu. A Leader keeps it for
+    // «Reportes», except on the report itself, where it would hold only the
+    // screen they are on; a Standard user never gets one.
+    expect(await nav(leader, "/home")).toBe('<a href="/report">Reportes</a>');
+    expect(await nav(leader, "/report")).toBeUndefined();
+    expect(await nav(ana, "/home")).toBeUndefined();
+    expect(await (await ana.fetch("/home")).text()).not.toContain("site-band");
     // Categories live on the flows screen, the wizard nowhere.
     const flows = await (await board.fetch("/flows")).text();
     expect(flows).toContain('<a href="/categories">Categorías de etiquetas</a>');

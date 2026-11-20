@@ -44,7 +44,8 @@ a:visited {
   height: var(--space-6);
 }
 
-/* Signed-in user and "Salir" (phase 4.1), at the right of the bar. */
+/* Signed-in user and the sign-out icon (phase 9.1), at the right of the
+   bar, as the mock's artboard 2 draws them. */
 .site-account {
   display: flex;
   align-items: center;
@@ -52,7 +53,39 @@ a:visited {
   margin-left: auto;
   min-width: 0;
   font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  font-weight: var(--weight-medium);
+  color: var(--color-text);
+}
+
+.sign-out {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-8);
+  height: var(--space-8);
+  padding: 0;
+  color: var(--color-primary);
+  background: none;
+  border: 0;
+  border-radius: var(--radius);
+  outline: var(--border-width) solid transparent;
+  cursor: pointer;
+}
+
+.sign-out:hover {
+  color: var(--color-primary-strong);
+}
+
+.sign-out:focus-visible {
+  box-shadow: var(--shadow-focus);
+}
+
+.icon-exit {
+  width: var(--space-6);
+  height: var(--space-6);
+  background: currentColor;
+  mask: url("/icons/exit.svg") center / contain no-repeat;
 }
 
 .site-account span {

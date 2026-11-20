@@ -25,10 +25,12 @@ type NavLink = { href: string; label: string; section: string[] };
 export function navLinks(user: SessionUser): NavLink[] {
   const report = user.role === "board" || user.role === "leader";
   return [
-    user.canEdit
-      ? { href: "/flows", label: "Flujos", section: ["/flows", "/categories", "/home"] }
-      : { href: "/home", label: "Flujos", section: ["/home", "/flows"] },
-    ...(user.canEdit ? [{ href: "/areas", label: "Áreas", section: ["/areas"] }] : []),
+    ...(user.canEdit
+      ? [
+          { href: "/flows", label: "Flujos", section: ["/flows", "/categories", "/home"] },
+          { href: "/areas", label: "Áreas", section: ["/areas"] },
+        ]
+      : []),
     ...(user.canManageUsers ? [{ href: "/users", label: "Usuarios", section: ["/users"] }] : []),
     ...(report ? [{ href: "/report", label: "Reportes", section: ["/report"] }] : []),
   ];
@@ -42,11 +44,17 @@ function Nav() {
   // A user who must change their password reaches nothing else yet.
   if (!user || user.mustChangePassword) return null;
   const path = c.req.path;
+  // SPEC §9, Navigation (phase 9.1): the band is the administration menu.
+  // Nobody gets an empty one (a Standard user), nor one holding only the
+  // screen they are on (a Leader on the report).
+  const links = navLinks(user);
+  const current = (l: NavLink) => l.section.some((p) => inSection(path, p));
+  if (!links.length || (links.length === 1 && current(links[0]!))) return null;
   return (
     <div class="site-band">
       <nav class="site-nav" aria-label="Secciones">
-        {navLinks(user).map((l) => (
-          <a href={l.href} aria-current={l.section.some((p) => inSection(path, p)) ? "page" : undefined}>
+        {links.map((l) => (
+          <a href={l.href} aria-current={current(l) ? "page" : undefined}>
             {l.label}
           </a>
         ))}
@@ -55,16 +63,17 @@ function Nav() {
   );
 }
 
-// The signed-in user's name and "Salir". Leaving is a POST, so a link on
-// another site cannot sign anyone out.
+// The signed-in user's name and the sign-out icon (SPEC §9, Navigation:
+// an icon, not the word; "Salir" is its accessible name). Leaving is a
+// POST, so a link on another site cannot sign anyone out.
 function Account() {
   const user = useRequestContext<AppEnv>().get("user");
   if (!user) return null;
   return (
     <form method="post" action="/logout" class="site-account">
       <span title={user.fullName}>{user.fullName}</span>
-      <button type="submit" class="button-link">
-        Salir
+      <button type="submit" class="sign-out" aria-label="Salir" title="Salir">
+        <span class="icon-exit" aria-hidden="true"></span>
       </button>
     </form>
   );
