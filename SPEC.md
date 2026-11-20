@@ -367,6 +367,14 @@ Tour rules:
 - On a decision (any step with more than one exit), the user picks a branch.
   "Siguiente" is disabled until they choose. Every branch is selectable,
   including the ones already taken, which are marked "Ya recorrida".
+- **When the panel holds no button to press, it says where the press goes.**
+  On a decision, and wherever else the tour waits for a click on the map, a
+  soft notice stands in the panel: the reader is told to choose on the
+  diagram, and the word naming the diagram is a link. Following it makes the
+  targets blink a few times, so a reader who cannot find them is shown them
+  instead of told again. With `prefers-reduced-motion` they light up and
+  stay lit for the same length of time. A panel whose only honest state is
+  "do something else" has to point at that something.
 - **The branch is chosen on the diagram, not in a list beside it.** The steps
   a decision leads to become targets: hovering one lights its edge and its
   label, clicking one takes that branch. The choice is a move on the map, and
