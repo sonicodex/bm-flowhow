@@ -68,6 +68,38 @@ function Splash() {
   );
 }
 
+// The owner's favicons (public/app-icon/, and /favicon.ico where browsers
+// look for it unasked), with the tags that came with them. The manifest
+// keeps its own icons for installing the app. public/offline.html repeats
+// these tags.
+const APPLE_SIZES = [57, 114, 72, 144, 60, 120, 76, 152];
+const FAVICON_SIZES: [string, string][] = [
+  ["favicon-196x196.png", "196x196"],
+  ["favicon-96x96.png", "96x96"],
+  ["favicon-32x32.png", "32x32"],
+  ["favicon-16x16.png", "16x16"],
+  ["favicon-128.png", "128x128"],
+];
+function BrandIcons() {
+  return (
+    <>
+      {APPLE_SIZES.map((n) => (
+        <link rel="apple-touch-icon-precomposed" sizes={`${n}x${n}`} href={`/app-icon/apple-touch-icon-${n}x${n}.png`} />
+      ))}
+      {FAVICON_SIZES.map(([file, sizes]) => (
+        <link rel="icon" type="image/png" href={`/app-icon/${file}`} sizes={sizes} />
+      ))}
+      <meta name="application-name" content={" "} />
+      <meta name="msapplication-TileColor" content="#FFFFFF" />
+      <meta name="msapplication-TileImage" content="/app-icon/mstile-144x144.png" />
+      <meta name="msapplication-square70x70logo" content="/app-icon/mstile-70x70.png" />
+      <meta name="msapplication-square150x150logo" content="/app-icon/mstile-150x150.png" />
+      <meta name="msapplication-wide310x150logo" content="/app-icon/mstile-310x150.png" />
+      <meta name="msapplication-square310x310logo" content="/app-icon/mstile-310x310.png" />
+    </>
+  );
+}
+
 // Base page. theme.css brings Google Sans (Google Fonts) and iBrand (fonts/).
 export const renderer = jsxRenderer(({ children, title }) => (
   <html lang="es-CO">
@@ -82,8 +114,7 @@ export const renderer = jsxRenderer(({ children, title }) => (
       {/* PWA (SPEC §9, Architecture; phase 6.10): the manifest, and the service worker
           that keeps the app shell, never data. */}
       <link rel="manifest" href="/manifest.webmanifest" />
-      <link rel="icon" href="/app-icon/icon.svg" type="image/svg+xml" />
-      <link rel="apple-touch-icon" href="/app-icon/apple-touch-icon.png" />
+      <BrandIcons />
       <meta name="theme-color" content="#28519D" />
       <script type="module" src="/js/sw-register.js"></script>
     </head>

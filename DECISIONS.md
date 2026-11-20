@@ -14,6 +14,35 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Brand files: the owner's favicons
+
+- **Where they went:**
+  - The PNGs from `favicomatic (1)/` went into `public/app-icon/`, next to
+    the install icons, under their own names.
+  - `favicon.ico` went to `public/` root, because browsers ask for
+    `/favicon.ico` without being told.
+  - `loading_isotype.svg` stays at the root next to the logotype. It went
+    in with the splash, which uses it.
+- **The tags:** those in `code.txt`, with paths made absolute
+  (`/app-icon/…`).
+  - Every page gets them from `src/layout.tsx`, and «Sin conexión»
+    (`public/offline.html`) repeats them. A test checks that both list the
+    same files and that every file exists.
+  - `application-name` keeps the non-breaking space `code.txt` gives it.
+- **Removed:**
+  - the SVG favicon link and the provisional `apple-touch-icon.png`, so no
+    browser prefers them over the real ones;
+  - the empty folder, `code.txt`, and a stray `public/.DS_Store`. The
+    `.DS_Store` was never in the repo: `.gitignore` already covers it.
+- **Kept provisional:** the manifest's install icons (SVG, 192, 512,
+  maskable). The owner's set has no 192, 512 or maskable size.
+- **Service worker:**
+  - Its list gained `/loading_isotype.svg` and `/js/splash.js` with the
+    splash (shell version 3).
+  - The favicons stay out of it, as the install icons did (DECISIONS
+    2026-11-19): the browser keeps icons itself.
+- Spec sections affected: none.
+
 ## 2026-11-20 — Splash (SPEC §9, Visual style)
 
 - **When:**
@@ -746,8 +775,11 @@ Entry format:
     under the same names, and nothing else changes.
   - **Wiring:**
     - The manifest lists the SVG, both PNG sizes and the maskable one.
-    - Every page, and the «Sin conexión» page, links the SVG as its
-      favicon and the `apple-touch-icon`.
+    - ~~Every page, and the «Sin conexión» page, links the SVG as its
+      favicon and the `apple-touch-icon`.~~ Superseded 2026-11-20 (Brand
+      files): the pages link the owner's favicons; the provisional
+      `apple-touch-icon.png` was removed. The manifest's install icons are
+      still these.
     - These files are not in the service worker's shell: the browser
       keeps installed icons itself.
   - **Checked in Chrome:** `Page.getAppManifest` and

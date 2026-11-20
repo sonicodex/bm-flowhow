@@ -2,6 +2,7 @@ import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import sw from "../public/sw.js?raw";
 import manifest from "../public/manifest.webmanifest?raw";
+import offline from "../public/offline.html?raw";
 import { signIn, withSession } from "./session.ts";
 
 // The files in public/ that make up the shell, read by Vite at test time.
@@ -50,14 +51,32 @@ describe("PWA (phase 6.10)", () => {
       const html = await res.text();
       expect(html).toContain('<link rel="manifest" href="/manifest.webmanifest"/>');
       expect(html).toContain('<script type="module" src="/js/sw-register.js"></script>');
-      expect(html).toContain('<link rel="apple-touch-icon" href="/app-icon/apple-touch-icon.png"/>');
     }
+  });
+
+  it("links the owner's favicons on every page and on «Sin conexión», and every one exists", async () => {
+    const icons = files(import.meta.glob("../public/app-icon/*"));
+    const refs = (html: string) => [...html.matchAll(/(?:href|content)="(\/app-icon\/[^"]+)"/g)].map((m) => m[1]!).sort();
+    const page = await (await withSession("")("/")).text();
+    const linked = refs(page);
+    // 8 apple-touch-icon-precomposed, 5 PNG favicons, 5 Windows tiles.
+    expect(linked).toHaveLength(18);
+    for (const ref of linked) expect(icons).toContain(ref);
+    expect(page).toContain('<link rel="apple-touch-icon-precomposed" sizes="152x152" href="/app-icon/apple-touch-icon-152x152.png"/>');
+    expect(page).toContain('<link rel="icon" type="image/png" href="/app-icon/favicon-32x32.png" sizes="32x32"/>');
+    expect(page).toContain('<meta name="msapplication-TileColor" content="#FFFFFF"/>');
+    // The provisional favicon is gone from the pages.
+    expect(page).not.toContain("icon.svg");
+    expect(refs(offline)).toEqual(linked);
+    expect(files(import.meta.glob("../public/favicon.ico"))).toEqual(["/favicon.ico"]);
   });
 
   it("names the app FlowHow, opens on the home screen, and has the icons to be installed", () => {
     const m = JSON.parse(manifest);
     expect(m).toMatchObject({ name: "FlowHow", short_name: "FlowHow", lang: "es-CO", start_url: "/home", display: "standalone" });
-    // Provisional icons: 192 and 512 px, and a maskable one for Android.
+    // Install icons, still the provisional ones (DECISIONS 2026-11-19): the
+    // owner's set has no 192, 512 or maskable icon. 192 and 512 px, and a
+    // maskable one for Android.
     const icons = files(import.meta.glob("../public/app-icon/*"));
     for (const icon of m.icons as { src: string }[]) expect(icons).toContain(icon.src);
     expect(m.icons.map((i: { sizes: string; purpose: string }) => `${i.sizes} ${i.purpose}`)).toEqual(["any any", "192x192 any", "512x512 any", "512x512 maskable"]);
