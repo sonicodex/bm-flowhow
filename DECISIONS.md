@@ -14,6 +14,36 @@ Entry format:
 
 ---
 
+## 2026-11-20 — The viewer fits the window (SPEC §9, Layout)
+
+- Decision:
+  - **The owner changed SPEC §9:** the diagram card and the step panel are
+    as tall as what is left of the screen and scroll inside themselves;
+    the page does not scroll.
+  - **CSS only, unlike the editor's grid.** The viewer's page gets
+    `body.viewer-page` (`page: "viewer"` in the renderer, as the login has
+    `page: "login"`). The body is a column of the window's height and the
+    two cards take what the header and the flow's heading leave. Whatever
+    above them changes height (the selector, the objective, the status
+    line) needs no script to recompute.
+    - The diagram's `max-height: 76vh` stays for the editor's preview and
+      the import review; the viewer drops it.
+    - The tour's frame took its height from that `max-height`; it now
+      takes the card's own height when there is none (`viewer.js`).
+  - **The panel's buttons stay at its foot** (`position: sticky`) while its
+    content scrolls under them, so «Siguiente» is always in view.
+  - **On a phone** the panel stays above the diagram and takes at most half
+    of the room; the diagram takes the rest.
+  - **A floor:** the two cards never go below 320 px tall (eight
+    `--space-10`). In a shorter window, such as a phone held sideways, the
+    page scrolls again rather than squeezing the diagram to nothing.
+  - **Checked in headless Chrome**, Apertura de OT, overview and tour. The
+    page does not scroll at 1280×800, 1440×900, 900×700 and 390×844, and
+    the cards end 32 px above the window's bottom. At 320×568 the floor
+    applies and the page scrolls 76 px.
+- Reason: SPEC §9, rewritten by the owner on 2026-11-20.
+- Spec sections affected: none beyond the owner's change.
+
 ## 2026-11-20 — Phase 8.5: the tour's panel and the step states
 
 - **The buttons moved from the diagram's corner to the foot of the step

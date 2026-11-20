@@ -5,8 +5,9 @@ import type { AppEnv, SessionUser } from "./session.ts";
 declare module "hono" {
   interface ContextRenderer {
     // `page: "login"`: the login screen, with no header and the company's
-    // image behind its card (SPEC §9, Login screen).
-    (content: string | Promise<string>, props: { title: string; page?: "login" }): Response | Promise<Response>;
+    // image behind its card (SPEC §9, Login screen). `page: "viewer"`: the
+    // flow viewer, which fits the window (SPEC §9, Layout; app.css).
+    (content: string | Promise<string>, props: { title: string; page?: "login" | "viewer" }): Response | Promise<Response>;
   }
 }
 
@@ -172,7 +173,7 @@ export const renderer = jsxRenderer(({ children, title, page }) => (
       <meta name="theme-color" content="#28519D" />
       <script type="module" src="/js/sw-register.js"></script>
     </head>
-    <body class={page === "login" ? "login-page" : undefined}>
+    <body class={page ? `${page}-page` : undefined}>
       <Splash />
       {page !== "login" && (
         <header class="site-header">

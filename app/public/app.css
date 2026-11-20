@@ -1178,6 +1178,85 @@ button.offframe:focus-visible {
   }
 }
 
+/* The viewer fits the window (SPEC §9, Layout): the page does not scroll;
+   the diagram card and the step panel take what is left below the header
+   and the flow's heading, and each scrolls inside itself. The panel's
+   buttons stay at its foot while its content scrolls. Below a minimum
+   height (a phone held sideways) the page scrolls again rather than
+   squeezing the diagram to nothing. src/layout.tsx sets the class. */
+.viewer-page {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+
+.viewer-page .site-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.viewer-page .viewer {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.viewer-page .viewer-cols {
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  min-height: calc(var(--space-10) * 8);
+}
+
+.viewer-page .diagram-card {
+  overflow: hidden;
+}
+
+.viewer-page .diagram-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+
+.viewer-page .viewer-side {
+  overflow-y: auto;
+}
+
+.viewer-page .step-actions {
+  position: sticky;
+  bottom: calc(var(--space-8) * -1);
+  padding-bottom: var(--space-8);
+  margin-bottom: calc(var(--space-8) * -1);
+  background: var(--color-surface);
+}
+
+/* On a phone the panel sits above the diagram and takes at most half of
+   the room; the diagram has the rest. */
+@media (max-width: 760px) {
+  .viewer-page .viewer-cols {
+    flex-direction: column;
+  }
+
+  .viewer-page .viewer-side {
+    flex: 0 1 auto;
+    max-height: 50%;
+  }
+
+  .viewer-page .diagram-card {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  .viewer-page .step-actions {
+    bottom: calc(var(--space-6) * -1);
+    padding-bottom: var(--space-6);
+    margin-bottom: calc(var(--space-6) * -1);
+  }
+}
+
 /* Home screen (phase 4.3): one card per flow the user sees. */
 .home-flows {
   display: grid;

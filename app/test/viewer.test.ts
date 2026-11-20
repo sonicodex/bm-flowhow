@@ -29,6 +29,8 @@ describe("GET /flows/:id (overview)", () => {
     expect(res.status).toBe(200);
     const html = await res.text();
     expect(html).toContain('<section class="viewer flow-2">');
+    // SPEC §9, Layout: the viewer fits the window (app.css, .viewer-page).
+    expect(html).toContain('<body class="viewer-page">');
     expect(html).toContain("Apertura de OT</h1>");
     expect(html).toContain("36 pasos");
     expect(html).toContain('<button type="button" class="button-primary" data-start="true">Iniciar recorrido</button>');

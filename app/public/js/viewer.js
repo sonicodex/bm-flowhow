@@ -316,7 +316,8 @@ if (data && cols) {
     // The part of the card on screen, not its whole height: the frame is
     // what the reader sees without scrolling the page (6.21). Never less
     // than half the card, so a card that starts low still gets a frame.
-    const full = parseFloat(style.maxHeight) - padY;
+    // A card that fits the window (SPEC §9, Layout) has a height of its own.
+    const full = (parseFloat(style.maxHeight) || box.clientHeight) - padY;
     const onScreen = window.innerHeight - Math.max(0, box.getBoundingClientRect().top) - padY;
     const roomH = Math.max(full / 2, Math.min(full, onScreen));
     const fit = (ids) => {

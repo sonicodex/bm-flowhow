@@ -124,7 +124,7 @@ viewer.get("/:id{[0-9]+}", "flow", async (c) => {
   const visible = await visibleFlows(c.env.DB, user);
   const [status, links] = await Promise.all([reviewStatus(c.env.DB, user.id, flow.id, release), linkTargets(c.env.DB, user, release.flow, visible)]);
   const selector = showsSelector(user.role, visible.length) ? visible : null;
-  return c.render(<ViewerPage flow={flow} compiled={release.flow} status={status} links={links} selector={selector} />, { title: flow.name });
+  return c.render(<ViewerPage flow={flow} compiled={release.flow} status={status} links={links} selector={selector} />, { title: flow.name, page: "viewer" });
 });
 
 // The tour (phase 3.2). JSON in and out; the server's clock, never the
