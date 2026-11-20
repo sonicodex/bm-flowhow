@@ -60,7 +60,7 @@ function LoginPage({ username, error }: { username?: string; error?: boolean }) 
             Acceder
           </button>
         </form>
-        <p class="muted login-help">Si olvidaste tu contraseña, el administrador la restablece.</p>
+        <p class="muted login-help">¿Olvidaste tu contraseña? <strong>Contacta a tu administrador.</strong></p>
         {/* The maker's mark, on the login only (SPEC §9). */}
         <img class="login-maker" src="/brand/bmec_logotype.svg" alt="Blue Monkey" />
       </section>

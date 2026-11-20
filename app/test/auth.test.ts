@@ -44,7 +44,7 @@ describe("login screen (phase 4.1)", () => {
     expect(html).toContain('<picture class="login-hero"><source srcset="/brand/login_hero.webp" type="image/webp"/><img src="/brand/login_hero.jpg" alt="" loading="lazy" decoding="async" onload="this.parentNode.dataset.loaded=&#39;&#39;"/></picture>');
     expect(html).not.toContain('class="site-header"');
     expect(html).toContain('<button type="submit" class="button-primary">Acceder</button>');
-    expect(html).toContain("Si olvidaste tu contraseña, el administrador la restablece.");
+    expect(html).toContain("¿Olvidaste tu contraseña? <strong>Contacta a tu administrador.</strong>");
     expect(html).toContain('<img class="login-maker" src="/brand/bmec_logotype.svg" alt="Blue Monkey"/>');
     expect(html).toContain('<form method="post" action="/login"');
     expect(html).toContain('autocomplete="current-password"');
