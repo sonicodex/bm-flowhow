@@ -6,6 +6,66 @@ nunca se edita: los cambios generan una iteración nueva.
 
 ---
 
+## plan_iteration_14 — 2026-11-20
+
+Estado: **propuesta.** `plan_iteration_13` sigue vigente hasta que el dueño
+apruebe esta.
+
+Etapa 2 (SPEC §7 «Subflows», «Question bank», «Assessment and
+certificate»; §8 «Recertification»; commit `00c21c7`). La llamo **fase 10**
+porque la etiqueta `phase-9` ya marca el mock (decisión pendiente, abajo).
+Ocho cortes; cada uno termina andando, probado y revisado en Chrome.
+
+- **10.1 Subflujos en el visor.** Caja con doble borde y «+»; «Entrar al
+  subflujo» obligatorio; el diagrama del subflujo reemplaza al del padre,
+  con migas «Padre › Subflujo»; «Volver a «Padre»» sigue desde la caja;
+  «Abrir subflujo» en la revisión libre. Sus pasos (y los anidados) cuentan
+  para el 100 % del padre; el avance es del padre. Acceso heredado del
+  padre. No salen como filas propias en el inicio ni en el reporte.
+- **10.2 Subflujos en el editor.** Tipo «Subflujo» con selector de un flujo
+  publicado sin área; validaciones al publicar (existe, publicado, no se
+  contiene a sí mismo). El padre muestra siempre la última versión del
+  subflujo. Datos de prueba inventados solo en las pruebas: ningún flujo
+  real usa subflujos.
+- **10.3 El generador de preguntas** (sin modelo). Del flujo publicado,
+  subflujos expandidos: qué sigue, qué antecede, quién responde, con qué
+  herramienta, qué rama lleva a dónde, qué paso lleva tal etiqueta.
+  Respuesta correcta por construcción; distractores reales del mismo
+  flujo. Cada pregunta guarda los pasos en que se apoya y una huella de
+  ellos (para 10.7). Pruebas sobre los dos flujos de referencia.
+- **10.4 El banco y la redacción por lotes.** Tablas del banco; botón
+  «Generar banco» en el flujo; el navegador pide lote tras lote y muestra
+  el avance; cada lote va al modelo, que solo reescribe enunciados y marca
+  opciones absurdas (salida estructurada; si toca la respuesta correcta o
+  deja menos opciones del mínimo, se descarta su cambio y queda el texto
+  del grafo). Sin `ANTHROPIC_API_KEY`: mensaje claro, el resto sigue. En
+  las pruebas el modelo es falso: nunca se llama a la API.
+- **10.5 Revisión y publicación del banco.** Lista de preguntas sin
+  publicar, editar, borrar, publicar el banco. El trozo de diagrama: el
+  paso resaltado y la caja de la respuesta vacía. Un flujo sin banco
+  publicado dice que aún no tiene evaluación.
+- **10.6 La evaluación.** Abre con el flujo Revisado y el banco publicado.
+  Mínimo 5, máximo un cuarto de los pasos; sorteo nuevo en cada intento;
+  intentos sin límite, todos guardados, cuenta el último. Nota de
+  aprobación 90 %, ajustable, un valor para toda la app. Estados del
+  inicio: `pendiente de evaluación`, `certificado`. Reporte: nota del
+  último intento con su hora, y certificado sí/no.
+- **10.7 Certificado y versiones.** Página del certificado (persona, flujo,
+  versión, fecha, nota) con hoja de impresión; «Descargar PDF» abre el
+  diálogo de imprimir. Acceso a los certificados vigentes desde el inicio.
+  Una versión mayor (del flujo o de un subflujo que contiene) los invalida:
+  «recertificación requerida». Toda versión nueva regenera solo las
+  preguntas cuyos pasos cambiaron, y esas vuelven a sin publicar.
+- **10.8 Recorrido de recertificación.** Solo los pasos cambiados, cada
+  uno con el resumen del anterior; resumen inicial de los pasos quitados;
+  sin tiempo mínimo. Su evaluación sortea solo de las preguntas que se
+  apoyan en pasos cambiados.
+
+Decisiones que necesito del dueño: ver la respuesta en el chat del
+2026-11-20; se anotan en la iteración que las apruebe.
+
+---
+
 ## plan_iteration_13 — 2026-11-20
 
 Estado: **aprobada. Esta es la iteración vigente.**
