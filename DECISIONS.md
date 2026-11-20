@@ -14,6 +14,45 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Phase 7.3: the first-use wizard
+
+- **«Configuración inicial»** (`/setup`) shows three numbered steps: Áreas,
+  Usuarios, Flujos.
+  - Each step says what there is already, or that there is nothing yet.
+  - The open step explains itself, and offers:
+    - its importer, opened with `?desde=configuracion` so the importer
+      leads back here;
+    - «Saltar este paso», or «Terminar por ahora» on the last one, which
+      goes to Inicio;
+    - a line to do it by hand.
+  - The other steps offer «Ir a este paso».
+- **No stored state** (owner's decision). The wizard opens on the step
+  asked for (`?paso=`), else on the first step with nothing yet. Skipping
+  is therefore not remembered: coming back opens on the first empty step.
+  When all three have something, no step is open and any can be revisited.
+- **The Usuarios step** counts the accounts besides the one looking at it.
+  The first Board member is there from the start and does not make the
+  step done.
+- **The Flujos step:** there is no importer without a flow. The step leads
+  to «Nuevo flujo», which creates the flow by its name and opens its
+  editor. Since 5.9, the editor's notice points to «Importar desde
+  Excel», and tag categories come from that file (SPEC §4).
+- **Who:** a new access level, `setup`, needs `can_edit` and
+  `can_manage_users` together, because the wizard walks both kinds of
+  screen. Anyone else gets 403. It is in the access table and the walk
+  over every route.
+- **Offered** on Inicio while the app has no flow (any flow, published or
+  not), to whoever has `setup`: «Empieza por…», or «Sigue con…» once
+  there are areas or other accounts. It goes away with the first flow.
+- **Reachable for good:** «Configuración inicial» in the admin navigation
+  (owner's decision). The admin layer SPEC names is stage 3's and is not
+  built.
+- **Checked in headless Chrome** as `junta`, read-only. The local data
+  already has everything, so no step was open; then `?paso=usuarios`, its
+  importer and that importer's way back, and the phone width. The home
+  offer, which needs an app with no flows, is covered by the tests.
+- Spec sections affected: none (built as §4 says).
+
 ## 2026-11-20 — Phase 7.2: the user importer
 
 - **Where:** from «Usuarios», with `can_manage_users`: «Importar

@@ -2141,3 +2141,58 @@ html[data-splash="section"] .splash-logo {
     visibility: hidden;
   }
 }
+
+/* The first-use wizard (SPEC §4; phase 7.3): three numbered steps, the
+   current one open with its actions and marked on its left edge. */
+.setup-intro {
+  max-width: calc(var(--space-10) * 18);
+}
+
+.setup-steps {
+  display: grid;
+  gap: var(--space-3);
+  max-width: calc(var(--space-10) * 18);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.setup-step {
+  padding: var(--space-4);
+}
+
+.setup-step h2 {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+}
+
+.setup-step p {
+  margin: 0 0 var(--space-2);
+}
+
+.setup-step p:last-child {
+  margin-bottom: 0;
+}
+
+.setup-step .editor-message-actions {
+  margin-bottom: var(--space-3);
+}
+
+.setup-step.is-current {
+  border-left: calc(var(--border-width) * 3) solid var(--color-primary);
+}
+
+/* The offer on the home screen while the app has no flows. */
+.setup-offer {
+  max-width: calc(var(--space-10) * 18);
+  margin-bottom: var(--space-6);
+  padding: var(--space-4);
+  background: var(--color-primary-tint);
+}
+
+.setup-offer h2 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+}

@@ -73,6 +73,7 @@ describe("route access (phase 4.2)", () => {
       "GET /users/import": "users",
       "POST /users/import/review": "users",
       "POST /users/import": "users",
+      "GET /setup": "setup",
       "GET /flows/:id{[0-9]+}": "flow",
       "POST /flows/:id{[0-9]+}/tour": "flow",
       "POST /flows/:id{[0-9]+}/tour/restart": "flow",
@@ -137,11 +138,12 @@ describe("route access (phase 4.2)", () => {
       editor: ["board", "owner"],
       admin: ["board"],
       users: ["board"],
+      setup: ["board"],
       report: ["leader", "board"],
     };
     // Refused with 404 when the route is about a flow (nothing leaks about
     // it), 403 when it is about a permission.
-    const refusal: Record<Exclude<Access, "public">, number> = { account: 0, user: 0, flow: 404, editor: 403, admin: 403, users: 403, report: 403 };
+    const refusal: Record<Exclude<Access, "public">, number> = { account: 0, user: 0, flow: 404, editor: 403, admin: 403, users: 403, setup: 403, report: 403 };
 
     const routes = guardedRoutes(app).filter((r) => r.access !== "public");
     for (const { method, path, access } of routes) {

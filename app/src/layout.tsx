@@ -1,5 +1,6 @@
 import { raw } from "hono/html";
 import { jsxRenderer, useRequestContext } from "hono/jsx-renderer";
+import { canSetUp } from "./access.tsx";
 import type { AppEnv } from "./session.ts";
 
 declare module "hono" {
@@ -27,6 +28,8 @@ function Nav() {
       {user.canEdit && <a href="/categories">Categorías</a>}
       {user.canManageUsers && <a href="/users">Usuarios</a>}
       {report && <a href="/report">Reporte</a>}
+      {/* The first-use wizard (phase 7.3), reachable for good. */}
+      {canSetUp(user) && <a href="/setup">Configuración inicial</a>}
     </nav>
   );
 }
