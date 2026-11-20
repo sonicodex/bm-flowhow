@@ -1389,6 +1389,38 @@ button.offframe:focus-visible {
   flex: 0 0 auto;
 }
 
+/* «Anterior» and «Siguiente» (phase 9.4): the designer's round icons,
+   step_prev.svg and step_next.svg, never recoloured; only their size and
+   shadow are the theme's. A disabled one is dimmed as a whole. */
+.step-button {
+  display: inline-flex;
+  flex: none;
+  width: var(--step-button-size);
+  height: var(--step-button-size);
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  box-shadow: var(--shadow-step-button);
+  outline: var(--border-width) solid transparent;
+  cursor: pointer;
+}
+
+.step-button img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.step-button:focus-visible {
+  box-shadow: var(--shadow-step-button), var(--shadow-focus);
+}
+
+.step-button:disabled {
+  cursor: default;
+  opacity: var(--step-button-disabled-opacity);
+}
+
 .viewer-cols .viewer-objective {
   color: var(--color-text-muted);
 }

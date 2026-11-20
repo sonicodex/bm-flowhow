@@ -14,6 +14,29 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Phase 9.4: «Anterior» and «Siguiente» as round buttons
+
+- **The designer's icons as they are:** `step_prev.svg` and `step_next.svg`
+  inside a `.step-button`, which only sets the size
+  (`--step-button-size`), the round shape and `--shadow-step-button`;
+  nothing recolours them. Side by side at the panel's bottom right.
+- **Named for screen readers:** `aria-label` and `title` «Anterior» and
+  «Siguiente». The image has an empty `alt`.
+- **Dimmed when disabled** with `--step-button-disabled-opacity`:
+  «Anterior» on the first step; «Siguiente» while a branch waits to be
+  chosen on the diagram, or while a step is being saved.
+- **«Terminar recorrido» keeps its words**, beside «Anterior». «Entrar al
+  subflujo» and «Volver a «…»», which the SPEC lists, are not tour buttons
+  in this app: a link step offers «Ir a «…»» inside the panel (6.4), and
+  it stays there.
+- **Checked in headless Chrome** at 1366×768 and 390×844: 44 × 44 px; the
+  first step has «Anterior» dimmed to 0.45; «Siguiente» moves on and
+  «Anterior» comes back; on «¿La producción es externa o interna?»
+  «Siguiente» is dimmed and the focus goes to the first branch.
+- Spec sections affected: none (built as §7 now says).
+
+---
+
 ## 2026-11-20 — Phase 9.3: the step panel's content as the mock
 
 - **Tour panel**, in the SPEC's order:

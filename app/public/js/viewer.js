@@ -566,6 +566,11 @@ if (data && cols) {
   };
 
 
+  // «Anterior» and «Siguiente» (SPEC §7, Layout; phase 9.4): the
+  // designer's round icons, as they are, named for screen readers.
+  const stepButton = (which, label, disabled) =>
+    `<button type="button" class="step-button" data-${which} aria-label="${label}" title="${label}"${disabled ? ' disabled' : ''}><img src="/icons/step_${which}.svg" alt="" width="44" height="44"></button>`;
+
   const renderTour = (focus) => {
     const { tour, flow: toured, layout } = state;
     const total = toured.steps.length;
@@ -576,7 +581,7 @@ if (data && cols) {
     const choice = tour.needsChoice() || !!tour.siblings();
     const primary = finish
       ? '<button type="button" class="button-primary" data-finish>Terminar recorrido</button>'
-      : `<button type="button" class="button-primary" data-next${choice ? ' disabled' : ''}>Siguiente</button>`;
+      : stepButton('next', 'Siguiente', choice);
     cols.innerHTML =
       `<div class="diagram-card">` +
       `<div class="tour-progress"><span>Pasos visitados: ${seen} de ${total}</span>` +
@@ -589,7 +594,7 @@ if (data && cols) {
       // covering no part of the map (SPEC §7, Layout; phase 8.5).
       `<aside class="card viewer-side">${tour.atEnd() ? noteFor(tour.current().note) : ''}${details(step, toured.categories)}${linkPanel(step)}${exitsPanel(tour)}` +
       `<div class="step-actions"><p class="tour-message" role="status">${esc(state.message)}</p>` +
-      `<button type="button" class="button-secondary" data-prev${tour.pos === 0 ? ' disabled' : ''}>Anterior</button>${primary}</div></aside>`;
+      `${stepButton('prev', 'Anterior', tour.pos === 0)}${primary}</div></aside>`;
     if (state.busy) cols.querySelectorAll('button').forEach((b) => { b.disabled = true; });
     const box = document.getElementById('diagram');
     if (zoomed) zoomTo(box, layout, tour);
