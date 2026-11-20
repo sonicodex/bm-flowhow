@@ -1249,7 +1249,7 @@ button.offframe:focus-visible {
    - One card, --viewer-gutter from the window: the progress row (or the
      free review's filter) and the conventions, each closed by a hairline
      across the card, then the diagram, with the step panel as a card of
-     its own inside, on the right, a third of the width. The panel hugs
+     its own inside, on the right, a quarter of the width. The panel hugs
      its content and scrolls inside past the room there is.
    - The card is as tall as what is left of the window; the diagram and
      the panel scroll inside it, and the page does not (SPEC §9, Layout).
@@ -1327,7 +1327,7 @@ button.offframe:focus-visible {
 
 .viewer-cols.card {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 3fr) minmax(calc(var(--space-10) * 7), 1fr);
   grid-template-rows: auto auto minmax(0, 1fr);
   flex: 1 1 auto;
   gap: 0;

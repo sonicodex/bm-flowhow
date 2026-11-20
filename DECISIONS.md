@@ -14,6 +14,49 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Badges whole, and the tour's frame holds them (SPEC §7)
+
+- **The owner changed SPEC §7:** a badge shows its value whole, never cut
+  with an ellipsis or by an edge. The canvas makes room for it, and the
+  tour's frame always holds the active step with its badges. "Si no cabe
+  al lado del nodo, que pase debajo, pero completa."
+- **No more 16-character cut** (`diagram.js`). A badge is as wide as its
+  text. In the browser the text is measured on a canvas in the badge's
+  own type (`--text-xs`, `--weight-medium`, `--font-family`); outside it
+  (tests, tools) the old per-character estimate stands.
+- **Beside the step, or under it.** The viewer passes `room`: the widest
+  the step and its badges may be, in the diagram's units. That is the
+  diagram's width at the frame's smallest legible scale, less the frame's
+  padding.
+  - If the step and the badges of both sides fit in it, they go beside
+    the step as before, raised above a parallel connector.
+  - If not, they go under the step in category order, in centred rows no
+    wider than the room.
+  - With «Ver todo», and in the free review, the room is unbounded: the
+    canvas scrolls.
+- **The frame reads the badges' real box** (`data-box` on `g.badges`)
+  instead of the fixed 96 px it used to reserve on each side. It is clamped
+  to the canvas as drawn, not to the layout's own size. Clamping to the
+  layout cut badges that the canvas had grown leftwards to hold: the left
+  clipping the owner saw.
+- **A step the frame would cut is left out whole** (6.22's rule): a frame
+  wider for the badges could reach into a neighbour, half drawn. An arrow
+  pointing out of the frame also keeps off the badges now, not only off
+  the step.
+- **The step panel is a quarter of the card**, as the owner's SPEC now
+  says, never narrower than 280 px.
+- **Checked in headless Chrome**, walking every step of Apertura de OT and
+  Instalaciones at 1366×768 and 390×844 (30 and 6 steps with badges). No
+  badge is cut, overflows its box or falls outside the visible diagram, and
+  no step in view is half drawn.
+  - At 390 px, three steps of Apertura de OT (Planeación de Producción)
+    put their badges under the step.
+  - The same walk on the previous code found cut steps on 16 frames and
+    arrows over badges on 2.
+- Spec sections affected: none beyond the owner's change.
+
+---
+
 ## 2026-11-20 — Phase 9.4: «Anterior» and «Siguiente» as round buttons
 
 - **The designer's icons as they are:** `step_prev.svg` and `step_next.svg`
@@ -79,11 +122,13 @@ Entry format:
   - The progress row (or the free review's filter) and the conventions run
     across the whole card, at least `--viewer-progress-height` and
     `--viewer-legend-height` tall, each closed by its hairline.
-  - The diagram takes two thirds, and the step panel the last third, as a
+  - ~~The diagram takes two thirds, and the step panel the last third,~~
+    (superseded 2026-11-20: the owner's SPEC now says a quarter; see
+    "Badges whole") as a
     card of its own with `--shadow-panel`, `--space-6` from the outer
     card's edges. In the overview and the tour alike, it hugs its content
-    and scrolls inside past the room there is. The mock's tour panel is
-    narrower than a third; the SPEC's "about a third" wins.
+    and scrolls inside past the room there is. ~~The mock's tour panel is
+    narrower than a third; the SPEC's "about a third" wins.~~
   - The markup kept its pieces: `.diagram-card` is no longer a card but
     `display: contents`, so the three renderers (overview, tour, free
     review) only lost its `card` class.
@@ -3247,8 +3292,9 @@ Entry format:
     visited steps in `--flow-visited-mix`; pending steps and unwalked edges
     in `--color-edge` / `--color-text-dim`. It scrolls to the current step.
   - **Tag badges** beside the current step, as in the prototype: odd
-    categories on the left, even ones on the right, values longer than 16
-    characters shortened with "…" (the full value in the tooltip). The
+    categories on the left, even ones on the right, ~~values longer than 16
+    characters shortened with "…" (the full value in the tooltip).~~
+    (Superseded 2026-11-20 by "Badges whole": a value is never cut.) The
     category in position N takes slot `((N − 1) mod 4) + 1` of
     `--color-cat-N`. **A fifth category takes slot 1 again**, so its
     badges look exactly like the first category's, on the same side of the

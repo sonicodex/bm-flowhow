@@ -184,7 +184,11 @@ if (data && cols) {
     return `<div class="exits exits-hint"><p class="label">${options.length === 1 ? 'Próximo paso:' : 'Próximos pasos:'}</p>${rows}</div>`;
   };
 
-  const marks = (tour, categories) => {
+  // `room`: how wide the step and its badges may be beside each other, in
+  // the diagram's units: the frame at its smallest legible size, from the
+  // diagram's box as it stands (the overview's or the last step's; the
+  // tour keeps the same column). Past it the badges go under the step.
+  const marks = (tour, categories, room = Infinity) => {
     const current = tour.current().id;
     const step = tour.step();
     return {
@@ -193,6 +197,7 @@ if (data && cols) {
       badges: {
         id: current,
         items: categories.flatMap((category, index) => (step.tags[category] || []).map((value) => ({ category, index, value }))),
+        room,
       },
       branches: branchMarks(tour),
     };
@@ -277,8 +282,7 @@ if (data && cols) {
     return { current, behind, next, after };
   };
 
-  // Room beside the current step for its tag badges, and around the frame.
-  const BADGE_ROOM = 96;
+  // Room around the frame.
   const FRAME_PAD = 24;
   // How much a frame may be enlarged to fill the card.
   const MAX_SCALE = 2;
@@ -311,10 +315,14 @@ if (data && cols) {
     const byId = new Map(layout.nodes.map((n) => [n.id, n]));
     const here = byId.get(current);
     if (!here) return;
-    const step = tour.step();
-    const tagged = Object.values(step.tags || {}).some((v) => v && v.length);
-    const side = (n) => (n.id === current && tagged ? BADGE_ROOM : 0);
     const room = (n) => (n.id === current && pendingBranches(tour).length ? TIP_ROOM : 0);
+    // The current step's badges, where diagram.js placed them (SPEC §7: the
+    // frame always holds them whole).
+    const badgeBox = (svg.querySelector('.badges')?.getAttribute('data-box') || '').split(' ').map(Number);
+    const tags = badgeBox.length === 4 && badgeBox.every(Number.isFinite) ? badgeBox : null;
+    // The canvas as drawn (it grows for the badges), kept across reframes.
+    if (!svg.dataset.canvas) svg.dataset.canvas = svg.getAttribute('viewBox') || `0 0 ${layout.width} ${layout.height}`;
+    const [cx0, cy0, cw, ch] = svg.dataset.canvas.split(' ').map(Number);
     const style = getComputedStyle(box);
     const roomW = box.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
     const padY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
@@ -327,10 +335,13 @@ if (data && cols) {
     const roomH = Math.max(full / 2, Math.min(full, onScreen));
     const fit = (ids) => {
       const nodes = ids.map((id) => byId.get(id)).filter(Boolean);
-      const x0 = Math.max(0, Math.min(...nodes.map((n) => n.x - n.w / 2 - side(n))) - FRAME_PAD);
-      const x1 = Math.min(layout.width, Math.max(...nodes.map((n) => n.x + n.w / 2 + side(n))) + FRAME_PAD);
-      const y0 = Math.max(0, Math.min(...nodes.map((n) => n.y - n.h / 2 - room(n))) - FRAME_PAD);
-      const y1 = Math.min(layout.height, Math.max(...nodes.map((n) => n.y + n.h / 2)) + FRAME_PAD);
+      const xs0 = nodes.map((n) => n.x - n.w / 2), xs1 = nodes.map((n) => n.x + n.w / 2);
+      const ys0 = nodes.map((n) => n.y - n.h / 2 - room(n)), ys1 = nodes.map((n) => n.y + n.h / 2);
+      if (tags) { xs0.push(tags[0]); ys0.push(tags[1]); xs1.push(tags[2]); ys1.push(tags[3]); }
+      const x0 = Math.max(cx0, Math.min(...xs0) - FRAME_PAD);
+      const x1 = Math.min(cx0 + cw, Math.max(...xs1) + FRAME_PAD);
+      const y0 = Math.max(cy0, Math.min(...ys0) - FRAME_PAD);
+      const y1 = Math.min(cy0 + ch, Math.max(...ys1) + FRAME_PAD);
       const w = x1 - x0, h = y1 - y0;
       return { x0, y0, w, h, k: Math.min(MAX_SCALE, roomW / w, roomH > 0 ? roomH / h : MAX_SCALE) };
     };
@@ -360,6 +371,18 @@ if (data && cols) {
     svg.style.maxWidth = 'none';
     box.scrollTop = 0;
     box.scrollLeft = Math.max(0, (here.x - f.x0) * k - box.clientWidth / 2);
+    // A step the frame would cut is left out of it whole (6.22): the frame,
+    // wider now that it holds the badges, may reach into a neighbour.
+    for (const n of layout.nodes) {
+      if (ids.includes(n.id)) continue;
+      const nx0 = n.x - n.w / 2, nx1 = n.x + n.w / 2, ny0 = n.y - n.h / 2, ny1 = n.y + n.h / 2;
+      const meets = nx1 > f.x0 && nx0 < f.x0 + f.w && ny1 > f.y0 && ny0 < f.y0 + f.h;
+      const within = nx0 >= f.x0 && nx1 <= f.x0 + f.w && ny0 >= f.y0 && ny1 <= f.y0 + f.h;
+      if (!meets || within || out.includes(n.id)) continue;
+      const el = svg.querySelector(`.node[data-id="${CSS.escape(n.id)}"]`);
+      el?.classList.add('out-of-frame');
+      if (el?.classList.contains('target')) el.setAttribute('tabindex', '-1');
+    }
     offFrame(box, svg, tour, layout, out.map((id) => byId.get(id)), here, f, k);
   };
 
@@ -395,8 +418,10 @@ if (data && cols) {
     const sr = svg.getBoundingClientRect(), br = box.getBoundingClientRect();
     const left = sr.left - br.left - box.clientLeft + box.scrollLeft;
     const top = sr.top - br.top - box.clientTop + box.scrollTop;
-    // The step being read (with its badges), in the same coordinates.
-    const cr = svg.querySelector('.node.current')?.getBoundingClientRect();
+    // The step being read with its badges, in the same coordinates.
+    const nr = svg.querySelector('.node.current')?.getBoundingClientRect();
+    const tr = svg.querySelector('.badges')?.getBoundingClientRect();
+    const cr = nr && tr ? { left: Math.min(nr.left, tr.left), right: Math.max(nr.right, tr.right), top: Math.min(nr.top, tr.top), bottom: Math.max(nr.bottom, tr.bottom) } : nr;
     const cur = cr && { left: cr.left - br.left - box.clientLeft + box.scrollLeft, right: cr.right - br.left - box.clientLeft + box.scrollLeft, top: cr.top - br.top - box.clientTop + box.scrollTop, bottom: cr.bottom - br.top - box.clientTop + box.scrollTop };
     for (const n of nodes) {
       // A sibling's edge comes from its decision (6.23), not from the step in view.
@@ -582,6 +607,10 @@ if (data && cols) {
     const primary = finish
       ? '<button type="button" class="button-primary" data-finish>Terminar recorrido</button>'
       : stepButton('next', 'Siguiente', choice);
+    // How wide the step and its badges may be beside each other (marks()).
+    const was = document.getElementById('diagram');
+    const pad = was ? parseFloat(getComputedStyle(was).paddingLeft) + parseFloat(getComputedStyle(was).paddingRight) : 0;
+    const badgeRoom = zoomed && was && was.clientWidth ? (was.clientWidth - pad) / minScale() - 2 * FRAME_PAD : Infinity;
     cols.innerHTML =
       `<div class="diagram-card">` +
       `<div class="tour-progress"><span>Pasos visitados: ${seen} de ${total}</span>` +
@@ -589,7 +618,7 @@ if (data && cols) {
       // Back to the overview; the run stays open (phase 3.5).
       `${zoomToggle()}<button type="button" class="button-link" data-overview>Ver el flujo completo</button></div>` +
       legend(toured.categories, true) +
-      `<div class="diagram-scroll" id="diagram">${renderDiagram(layout, { name, colour }, marks(tour, toured.categories), linkMarks(toured, false))}</div></div>` +
+      `<div class="diagram-scroll" id="diagram">${renderDiagram(layout, { name, colour }, marks(tour, toured.categories, badgeRoom), linkMarks(toured, false))}</div></div>` +
       // The buttons at the foot of the step panel, under what they act on,
       // covering no part of the map (SPEC §7, Layout; phase 8.5).
       `<aside class="card viewer-side">${tour.atEnd() ? noteFor(tour.current().note) : ''}${details(step, toured.categories)}${linkPanel(step)}${exitsPanel(tour)}` +

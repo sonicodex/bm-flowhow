@@ -71,7 +71,24 @@ function label(n) {
 // category slot, `c1`…`c4` (theme.css --color-cat-N); with more than four
 // categories the slots repeat, so the fifth looks like the first.
 export const CATEGORY_SLOTS = 4;
-const BADGE = { h: 24, gap: 4, overlap: 10, maxChars: 16, charW: 7.4, padX: 22 };
+const BADGE = { h: 24, gap: 4, overlap: 10, charW: 7.4, padX: 22, below: 8 };
+
+// A badge shows its value whole (SPEC §7): its width follows the text. In
+// the browser the text is measured in the badge's own type (.diagram .badge
+// text: --text-xs, --weight-medium, --font-family); elsewhere (tests,
+// tools) it is estimated per character.
+let measurer = null;
+function textWidth(text) {
+  if (typeof document === 'undefined') return text.length * BADGE.charW;
+  if (!measurer) {
+    const root = getComputedStyle(document.documentElement);
+    const ctx = document.createElement('canvas').getContext('2d');
+    if (!ctx) return text.length * BADGE.charW;
+    ctx.font = `${root.getPropertyValue('--weight-medium').trim() || 500} ${root.getPropertyValue('--text-xs').trim() || '12px'} ${root.getPropertyValue('--font-family').trim() || 'sans-serif'}`;
+    measurer = ctx;
+  }
+  return Math.max(measurer.measureText(text).width, text.length * BADGE.charW * 0.5);
+}
 
 // Clear space between a parallel connector and the badges raised above it.
 const CONNECTOR_CLEAR = 6;
@@ -79,37 +96,68 @@ const CONNECTOR_CLEAR = 6;
 /**
  * `blocked`: the sides where a parallel connector leaves the step (6.12).
  * Badges on such a side are stacked above the connector, not across it.
+ * `room`: the widest the step and its badges may be, in the diagram's
+ * units (the tour's frame at its smallest legible size). Beside the step
+ * when they fit in it, else in rows under the step, whole either way
+ * (SPEC §7).
  * @param {LayoutNode} n
  * @param {{ category: string, index: number, value: string }[]} items
  * @param {[boolean, boolean]} [blocked]  left, right
+ * @param {number} [room]
  */
-function badges(n, items, blocked = [false, false]) {
-  const sides = [[], []];
-  for (const b of items) sides[b.index % 2].push(b);
+function badges(n, items, blocked = [false, false], room = Infinity) {
   const left = n.x - n.w / 2, top = n.y - n.h / 2;
-  // Where the badges reach, in the diagram's coordinates, so the canvas can
-  // make room for them (SPEC §7; phase 6.14).
-  const box = { x0: left, y0: top, x1: left + n.w, y1: top + n.h };
-  let out = `<g class="badges" transform="translate(${num(left)} ${num(top)})">`;
-  sides.forEach((list, side) => {
-    list.forEach((b, i) => {
-      const text = b.value.length > BADGE.maxChars ? `${b.value.slice(0, BADGE.maxChars - 1)}…` : b.value;
-      const w = Math.round(text.length * BADGE.charW + BADGE.padX);
-      const x = side === 0 ? -w + BADGE.overlap : n.w - BADGE.overlap;
-      const m = list.length;
-      const y = blocked[side]
-        ? n.h / 2 - CONNECTOR_CLEAR - (m - i) * BADGE.h - (m - 1 - i) * BADGE.gap
-        : n.h / 2 + (i - (m - 1) / 2) * (BADGE.h + BADGE.gap) - BADGE.h / 2;
-      box.x0 = Math.min(box.x0, left + x);
-      box.x1 = Math.max(box.x1, left + x + w);
-      box.y0 = Math.min(box.y0, top + y);
-      box.y1 = Math.max(box.y1, top + y + BADGE.h);
-      out += `<g class="badge c${(b.index % CATEGORY_SLOTS) + 1}"><title>${esc(`${b.category}: ${b.value}`)}</title>`;
-      out += `<rect x="${num(x)}" y="${num(y)}" width="${w}" height="${BADGE.h}"/>`;
-      out += `<text x="${num(x + w / 2)}" y="${num(y + BADGE.h / 2)}">${esc(text)}</text></g>`;
+  const sized = items.map((b) => ({ ...b, w: Math.ceil(textWidth(b.value) + BADGE.padX) }));
+  const sides = [[], []];
+  for (const b of sized) sides[b.index % 2].push(b);
+  const reach = (list) => list.reduce((m, b) => Math.max(m, b.w - BADGE.overlap), 0);
+  const beside = reach(sides[0]) + n.w + reach(sides[1]) <= room;
+  /** @type {{ b: typeof sized[number], x: number, y: number }[]} */
+  const placed = [];
+  if (beside) {
+    sides.forEach((list, side) => {
+      list.forEach((b, i) => {
+        const x = side === 0 ? -b.w + BADGE.overlap : n.w - BADGE.overlap;
+        const m = list.length;
+        const y = blocked[side]
+          ? n.h / 2 - CONNECTOR_CLEAR - (m - i) * BADGE.h - (m - 1 - i) * BADGE.gap
+          : n.h / 2 + (i - (m - 1) / 2) * (BADGE.h + BADGE.gap) - BADGE.h / 2;
+        placed.push({ b, x, y });
+      });
     });
-  });
-  return { svg: out + '</g>', box };
+  } else {
+    // Under the step, in category order, in centred rows no wider than the
+    // room (or the step); a badge wider than that has a row of its own.
+    const width = Math.max(n.w, room);
+    const rows = [[]];
+    let used = 0;
+    for (const b of sized) {
+      const row = rows[rows.length - 1];
+      if (row.length && used + BADGE.gap + b.w > width) { rows.push([b]); used = b.w; }
+      else { used += (row.length ? BADGE.gap : 0) + b.w; row.push(b); }
+    }
+    rows.forEach((row, r) => {
+      const total = row.reduce((t, b) => t + b.w, 0) + BADGE.gap * (row.length - 1);
+      let x = n.w / 2 - total / 2;
+      const y = n.h + BADGE.below + r * (BADGE.h + BADGE.gap);
+      for (const b of row) { placed.push({ b, x, y }); x += b.w + BADGE.gap; }
+    });
+  }
+  // Where the badges reach, in the diagram's coordinates, so the canvas can
+  // make room for them (SPEC §7; phase 6.14) and the tour's frame holds them.
+  const box = { x0: left, y0: top, x1: left + n.w, y1: top + n.h };
+  let out = '';
+  for (const { b, x, y } of placed) {
+    box.x0 = Math.min(box.x0, left + x);
+    box.x1 = Math.max(box.x1, left + x + b.w);
+    box.y0 = Math.min(box.y0, top + y);
+    box.y1 = Math.max(box.y1, top + y + BADGE.h);
+    out += `<g class="badge c${(b.index % CATEGORY_SLOTS) + 1}"><title>${esc(`${b.category}: ${b.value}`)}</title>`;
+    out += `<rect x="${num(x)}" y="${num(y)}" width="${b.w}" height="${BADGE.h}"/>`;
+    out += `<text x="${num(x + b.w / 2)}" y="${num(y + BADGE.h / 2)}">${esc(b.value)}</text></g>`;
+  }
+  const head = `<g class="badges${beside ? '' : ' below'}" data-box="${[box.x0, box.y0, box.x1, box.y1].map(num).join(' ')}" transform="translate(${num(left)} ${num(top)})">`;
+  return { svg: head + out + '</g>', box };
 }
 
 // Parallel branches (SPEC §7, Layout; phase 6.12): neighbouring steps of a
@@ -154,7 +202,7 @@ let seq = 0;
  * edges already walked from the rest. `badges` are the tags of the active
  * step. `clickable`: every step is a button that selects it (free review).
  * @typedef {{ state: (id: string) => string, walked: (from: string, to: string) => boolean,
- *   badges?: { id: string, items: { category: string, index: number, value: string }[] },
+ *   badges?: { id: string, items: { category: string, index: number, value: string }[], room?: number },
  *   clickable?: boolean, branches?: BranchMarks }} TourMarks
  */
 
@@ -206,7 +254,7 @@ export function renderDiagram(layout, flow, tour, links = {}) {
   // A parallel step's badges stay clear of its connectors (owner's decision after 6.14).
   const group = active ? (layout.parallel || []).find((g) => g.includes(active.id)) : null;
   const blocked = /** @type {[boolean, boolean]} */ (group ? [group.indexOf(active.id) > 0, group.indexOf(active.id) < group.length - 1] : [false, false]);
-  const tags = active && tour.badges.items.length ? badges(active, tour.badges.items, blocked) : null;
+  const tags = active && tour.badges.items.length ? badges(active, tour.badges.items, blocked, tour.badges.room) : null;
   const MARGIN = 4;
   const vx = tags ? Math.min(0, Math.floor(tags.box.x0 - MARGIN)) : 0;
   const vy = tags ? Math.min(0, Math.floor(tags.box.y0 - MARGIN)) : 0;

@@ -203,7 +203,7 @@ describe('renderDiagram', () => {
     assert.doesNotMatch(svg, / (style|fill|stroke|stroke-width|stroke-dasharray|font-size|font-family|font-weight|rx|ry|opacity|filter)="/, 'presentation attribute');
   });
 
-  it('gives badges the category slot, repeats the four slots from the fifth category, and shortens long values', () => {
+  it('gives badges the category slot, repeats the four slots from the fifth category, and shows long values whole', () => {
     const items = [0, 1, 2, 3, 4].map((index) => ({ category: `Cat ${index + 1}`, index, value: index === 4 ? 'Planeación de Producción' : `v${index + 1}` }));
     const svg = renderDiagram(layoutFlow(APERTURA), { name: APERTURA.name, colour: 2 }, { state: () => '', walked: () => true, badges: { id: 'P1', items } });
     // Odd categories (1st, 3rd, 5th) on the left of the step, even ones on the right.
@@ -211,7 +211,40 @@ describe('renderDiagram', () => {
       .map((m) => [m[2], m[1], Number(m[3]) < 0 ? 'left' : 'right'])
       .sort();
     assert.deepStrictEqual(found, [['1', 'c1', 'left'], ['2', 'c2', 'right'], ['3', 'c3', 'left'], ['4', 'c4', 'right'], ['5', 'c1', 'left']]);
-    assert.match(svg, /<title>Cat 5: Planeación de Producción<\/title><rect [^>]*\/><text [^>]*>Planeación de P…<\/text>/);
+    // SPEC §7: whole, never cut with an ellipsis, in a badge as wide as it needs.
+    const long = svg.match(/<title>Cat 5: Planeación de Producción<\/title><rect [^>]*width="(\d+)"[^>]*\/><text [^>]*>Planeación de Producción<\/text>/);
+    assert(long, 'the value whole');
+    assert(Number(long[1]) >= 'Planeación de Producción'.length * 7);
+    // (Step titles may be wrapped with an ellipsis; the badges, drawn last, never.)
+    assert.doesNotMatch(svg.slice(svg.indexOf('<g class="badges')), /…/);
+  });
+
+  // SPEC §7: badges that do not fit beside the step go under it, whole.
+  it('puts the badges under the step, in rows, when beside it they would pass the room', () => {
+    const L = layoutFlow(APERTURA);
+    const p3 = L.nodes.find((n) => n.id === 'P3');
+    const items = [
+      { category: 'Responsable', index: 0, value: 'Jefe de Instalaciones y Mantenimiento' },
+      { category: 'Herramienta', index: 1, value: 'Planeación de Producción' },
+    ];
+    const draw = (room) => renderDiagram(L, { name: APERTURA.name, colour: 2 }, { state: () => '', walked: () => true, badges: { id: 'P3', items, room } });
+    const rects = (svg) => [...svg.matchAll(/<g class="badge c\d">.*?<rect x="(-?[\d.]+)" y="(-?[\d.]+)" width="(\d+)"/g)].map((m) => ({ x: Number(m[1]), y: Number(m[2]), w: Number(m[3]) }));
+    // Plenty of room: beside it, as before.
+    const side = draw(Infinity);
+    assert.match(side, /<g class="badges" data-box=/);
+    assert(rects(side).every((r) => r.y < p3.h));
+    // Narrow: under the step, each row no wider than the room, centred on it.
+    const under = draw(p3.w + 40);
+    assert.match(under, /<g class="badges below" data-box=/);
+    const rs = rects(under);
+    assert(rs.every((r) => r.y >= p3.h), 'under the step');
+    assert.strictEqual(new Set(rs.map((r) => r.y)).size, 2, 'one row each: together they pass the room');
+    for (const r of rs) assert(Math.abs(r.x + r.w / 2 - p3.w / 2) < 1, 'centred');
+    // The box the frame reads holds them, and the canvas grows for them.
+    const box = under.match(/data-box="([^"]+)"/)[1].split(' ').map(Number);
+    const top = p3.y - p3.h / 2;
+    assert(box[3] >= top + Math.max(...rs.map((r) => r.y)) + 24);
+    assert.doesNotMatch(under.slice(under.indexOf('<g class="badges')), /…/);
   });
 
   it('falls back to the first slot for an unknown colour, and draws nothing without steps', () => {
