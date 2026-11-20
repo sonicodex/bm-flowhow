@@ -473,8 +473,10 @@ Tour rules:
   interface instead of the flow.
 - The active step (current step in the tour, selected step in free review)
   shows its tags as badges on the diagram itself, next to the node, in
-  addition to the side panel. A badge never falls outside the diagram's
-  bounds: the canvas makes room for it. Each category has its own visual convention,
+  addition to the side panel. **A badge shows its value whole**: never cut
+  with an ellipsis, never clipped by an edge. The canvas makes room for it,
+  and the tour's frame always contains the active step together with its
+  badges — a tag the reader cannot read is a tag that is not there. Each category has its own visual convention,
   and a legend ("Convenciones") above the diagram names them. Conventions are
   theme tokens per category slot, like every other colour.
 - **Reviewed** = tour complete (100 % of steps visited and every branch
@@ -529,7 +531,7 @@ Designed for desktop, usable on mobile.
   the window on each side; the title line between the header and the card;
   the progress row 48 px tall and the conventions row 44 px, each closed by
   a hairline across the full width of the card. The inner panel is about
-  a third of the card's width, with its own border and a soft shadow, and in
+  a quarter of the card's width, with its own border and a soft shadow, and in
   the overview it hugs its content instead of running the card's full
   height.
 - **The viewer fits the window.** That card is as tall as what is left of
@@ -866,10 +868,7 @@ Never trust the browser for any of these:
   Usuarios, Reportes**, each one shown only to whoever may use it.
 - **The dark band is the administration menu, and only those who have one
   see it.** A Standard user has no sections and gets the white bar alone. A
-  Leader has one, "Reportes", and keeps the band for it: a band with a
-  single link is still a way to a second screen, which is what a menu is
-  for. What the band must never be is a menu holding the screen the reader
-  is already on and nothing else.
+  Leader has two, "Flujos" and "Reportes", and keeps the band.
 - **Categories are not in the navigation.** They are a link on the flows
   screen, where they are used: a tag category exists to be a column of a
   flow's grid, and nobody goes looking for one on its own.
