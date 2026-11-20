@@ -101,6 +101,13 @@ With `npx wrangler tail` while using the app:
     `ITERATIONS` back to 100,000 (the most Workers accepts), update
     `test/password.test.ts`, deploy, and reset passwords as they come up.
     DECISIONS 2026-11-20 (PBKDF2 iterations) says why it was lowered.
+- **`POST /users/import` CPU time** (phase 7.2), with a file of about 50
+  accounts. Each temporary password is hashed at 100 iterations, which
+  makes about 4 ms for 50 in Node on a development Mac. If it is cut
+  (error 1102), split the file. Do not raise the count for temporary
+  passwords; DECISIONS 2026-11-20 (phase 7.2) says why it is low.
+- **`POST /login` with a temporary password** should cost about what any
+  login costs: the check tops a 100-iteration hash up to 10,000.
 - The tour requests and, in phase 6, the progress report, as DECISIONS
   2026-11-12 (deployment check) asks.
 - The editor's writes on the largest real flow (Apertura de OT, 36

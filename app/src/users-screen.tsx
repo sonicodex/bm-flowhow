@@ -1,10 +1,11 @@
 import type { Context } from "hono";
 import { Router, visibleFlows } from "./access.tsx";
 import { AdminForm, AdminList, Messages, RowActions, yesNo } from "./admin.tsx";
-import { nameKey } from "./names.ts";
-import { hashPassword, temporaryPassword } from "./password.ts";
+import { NAME_RULE, nameKey } from "./names.ts";
+import { hashTemporary, temporaryPassword } from "./password.ts";
 import type { AppEnv } from "./session.ts";
-import { createUser, resetPassword, rolePermissions, saveUser, setActive, type Role } from "./users.ts";
+import { createUser, createUsers, resetPassword, rolePermissions, saveUser, setActive, userAreasError, type NewUser, type Role } from "./users.ts";
+import { FROM_SETUP, ImportPage, plural, readColumns, readTable, rowError, SETUP_DONE, type Invalid, type Review, type RowError, type Saved } from "./import-list.tsx";
 
 // The user screens (SPEC §4, §9 Administration screens; phase 4.4): list,
 // create, edit, deactivate instead of delete, and reset a password. Behind
@@ -87,10 +88,11 @@ function UsersPage({ accounts, areas }: { accounts: Account[]; areas: Area[] }) 
     <AdminList
       title="Usuarios"
       action={{ href: "/users/new", label: "Nuevo usuario" }}
+      more={{ href: "/users/import", label: "Importar usuarios" }}
       columns={[{ label: "Nombre" }, { label: "Usuario" }, { label: "Rol" }, { label: "Áreas" }, { label: "Activo" }]}
       empty={{
         purpose: "Aquí están las cuentas de quienes entran a FlowHow: su rol, sus áreas y sus permisos.",
-        howToAdd: "Todavía no hay ninguna. Crea la primera con «Nuevo usuario».",
+        howToAdd: "Todavía no hay ninguna. Crea la primera con «Nuevo usuario», o tráelas todas de Excel con «Importar usuarios».",
       }}
       rows={accounts.map((a) => (
         <tr class={a.isActive ? undefined : "inactive"}>
@@ -287,7 +289,7 @@ usersScreen.post("/", "users", async (c) => {
   const created = await createUser(db, {
     ...read,
     ...rolePermissions(read.role),
-    passwordHash: await hashPassword(password),
+    passwordHash: await hashTemporary(password),
     mustChangePassword: true,
   });
   if (created.ok === false) return refuse(created.error, read);
@@ -351,8 +353,177 @@ usersScreen.post("/:id{[0-9]+}/password", "users", async (c) => {
   const account = await getAccount(db, idParam(c));
   if (!account) return c.notFound();
   const password = temporaryPassword();
-  await resetPassword(db, account.id, await hashPassword(password));
+  await resetPassword(db, account.id, await hashTemporary(password));
   // Resetting one's own password ends one's own session too: the page still
   // shows, and the next click goes to the login.
   return c.render(<HandOverPage account={account} password={password} created={false} />, { title: "Contraseña restablecida" });
+});
+
+// ---- Import (SPEC §4 «Importing areas, users and flows»; phase 7.2) ----
+// Creates accounts only: a username that exists is a row error. Each new
+// account gets a temporary password it must change at its first login;
+// the list is returned once, never stored.
+
+const USER_COLUMNS = [
+  { key: "username", label: "Usuario" },
+  { key: "fullName", label: "Nombre completo" },
+  { key: "role", label: "Rol" },
+  { key: "areas", label: "Áreas" },
+] as const;
+type UserKey = (typeof USER_COLUMNS)[number]["key"];
+
+const ROLE_BY_KEY = new Map(Object.entries(ROLES).map(([role, label]) => [nameKey(label), role as Role]));
+const ROLE_LIST = Object.values(ROLES);
+
+type PlannedUser = { row: number; username: string; fullName: string; role: Role; areaIds: number[]; areaNames: string[] };
+type UserPlan = { errors: RowError[]; users: PlannedUser[]; warnings: string[] };
+
+async function planUsers(db: D1Database, body: unknown): Promise<UserPlan | Invalid> {
+  const read = readTable(body);
+  if (read.ok === false) return read.answer;
+  const cols = readColumns<UserKey>(read.table, [...USER_COLUMNS]);
+  if (cols.ok === false) return cols.answer;
+  const areas = await listAreas(db);
+  const areaByKey = new Map(areas.map((a) => [nameKey(a.name), a]));
+  const taken = new Set((await db.prepare("SELECT username FROM users").all<{ username: string }>()).results.map((u) => u.username));
+  // Areas with a published flow: a new Empleado elsewhere would see none (§4).
+  const seeing = new Set(
+    (await db.prepare("SELECT DISTINCT fa.area_id AS id FROM flow_areas fa WHERE EXISTS (SELECT 1 FROM releases r WHERE r.flow_id = fa.flow_id)").all<{ id: number }>()).results.map(
+      (r) => r.id,
+    ),
+  );
+  const plan: UserPlan = { errors: [], users: [], warnings: [] };
+  const seen = new Map<string, number>();
+  for (const { row, cells } of cols.lines) {
+    const problems: string[] = [];
+    const key = nameKey(cells.username);
+    if (!key) problems.push("le falta el usuario.");
+    else if (key.length > 100) problems.push("el usuario tiene más de 100 caracteres.");
+    else if (seen.has(key)) problems.push(`el usuario «${cells.username}» ya está en la fila ${seen.get(key)}. ${NAME_RULE}`);
+    else if (taken.has(key)) problems.push(`ya existe el usuario «${cells.username}». Este importador solo crea cuentas. ${NAME_RULE}`);
+    if (key && !seen.has(key)) seen.set(key, row);
+    if (!cells.fullName) problems.push("le falta el nombre completo.");
+    else if (cells.fullName.length > 200) problems.push("el nombre completo tiene más de 200 caracteres.");
+    const role = ROLE_BY_KEY.get(nameKey(cells.role));
+    if (!cells.role) problems.push(`le falta el rol: ${ROLE_LIST.join(", ")}.`);
+    else if (!role) problems.push(`el rol «${cells.role}» no existe: usa ${ROLE_LIST.join(", ")}.`);
+    const areaIds: number[] = [];
+    const areaNames: string[] = [];
+    for (const name of cells.areas.split(",").map((n) => n.trim()).filter(Boolean)) {
+      const area = areaByKey.get(nameKey(name));
+      if (!area) problems.push(`el área «${name}» no existe. Créala antes con «Importar áreas».`);
+      else if (!areaIds.includes(area.id)) {
+        areaIds.push(area.id);
+        areaNames.push(area.name);
+      }
+    }
+    if (role && problems.length === 0) {
+      const areasError = userAreasError(role, areaIds);
+      if (areasError) problems.push(areasError);
+    }
+    if (problems.length) {
+      plan.errors.push(...problems.map((p) => rowError(row, p)));
+      continue;
+    }
+    plan.users.push({ row, username: key, fullName: cells.fullName, role: role!, areaIds, areaNames });
+    // Said, without blocking, as the form says it (phase 4.4).
+    if (role === "standard" && !areaIds.some((id) => seeing.has(id))) {
+      plan.warnings.push(`Fila ${row} (${key}): sus áreas todavía no tienen flujos publicados, así que por ahora no verá ninguno.`);
+    }
+    if (role === "leader" && areaIds.length === 0) plan.warnings.push(`Fila ${row} (${key}): ${LEADER_NO_AREAS_WARNING}`);
+  }
+  return plan;
+}
+
+async function reviewUsers(db: D1Database, body: unknown): Promise<Review | Invalid> {
+  const plan = await planUsers(db, body);
+  if ("status" in plan) return plan;
+  const rows = new Set(plan.errors.map((e) => e.row)).size + plan.users.length;
+  return {
+    status: "review",
+    summary: `${plural(rows, "fila", "filas")}: ${plural(plan.users.length, "cuenta nueva", "cuentas nuevas")}.`,
+    errors: plan.errors,
+    warnings: plan.warnings,
+    groups: [
+      {
+        title: `Cuentas nuevas (${plan.users.length})`,
+        note: "Cada una recibe una contraseña temporal que tendrá que cambiar al entrar por primera vez. Los permisos salen del rol, como en «Nuevo usuario».",
+        columns: ["Usuario", "Nombre completo", "Rol", "Áreas"],
+        rows: plan.users.map((u) => [u.username, u.fullName, ROLES[u.role], u.areaNames.join(", ")]),
+      },
+    ],
+  };
+}
+
+export const PASSWORD_FILE_NOTES = [
+  "Contraseñas temporales de FlowHow.",
+  "Cada persona tiene que cambiar la suya la primera vez que entre: la temporal solo sirve para ese primer ingreso.",
+  "Borra este archivo cuando las hayas repartido todas.",
+];
+
+async function applyUsers(db: D1Database, body: unknown): Promise<Saved | Invalid> {
+  const plan = await planUsers(db, body);
+  if ("status" in plan) return plan;
+  if (plan.errors.length) return { status: "invalid", error: "El archivo tiene filas por corregir. Vuelve a revisarlo." };
+  const handed = plan.users.map((u) => ({ ...u, password: temporaryPassword() }));
+  const users: NewUser[] = [];
+  for (const u of handed) {
+    users.push({
+      username: u.username,
+      fullName: u.fullName,
+      role: u.role,
+      areaIds: u.areaIds,
+      ...rolePermissions(u.role),
+      passwordHash: await hashTemporary(u.password),
+      mustChangePassword: true,
+    });
+  }
+  const created = await createUsers(db, users);
+  if (created.ok === false) return { status: "invalid", error: created.error };
+  const columns = ["Usuario", "Nombre completo", "Contraseña temporal"];
+  const rows = handed.map((u) => [u.username, u.fullName.trim(), u.password]);
+  return {
+    status: "saved",
+    title: "Usuarios importados",
+    message: `Se ${handed.length === 1 ? "creó" : "crearon"} ${plural(handed.length, "cuenta", "cuentas")}. Dale a cada persona su contraseña temporal; al entrar tendrá que cambiarla por una suya.`,
+    warnings: plan.warnings,
+    groups: [{ title: "Contraseñas temporales", columns, rows }],
+    download: { name: "Contrasenas_temporales_FlowHow.xlsx", sheet: "Contraseñas", notes: PASSWORD_FILE_NOTES, columns, rows },
+  };
+}
+
+usersScreen.get("/import", "users", (c) => {
+  const fromSetup = c.req.query("desde") === FROM_SETUP;
+  return c.render(
+    <ImportPage
+      back={fromSetup ? SETUP_DONE : BACK}
+      title="Importar usuarios"
+      intro="Crea de una vez las cuentas de la empresa. Antes de crear nada verás una revisión con los problemas y lo que entraría. Al final verás la contraseña temporal de cada cuenta, una sola vez."
+      columnsNote={`Cuatro columnas: «Usuario», «Nombre completo», «Rol» (${ROLE_LIST.join(", ")}) y «Áreas», separadas por coma. Las áreas tienen que existir: créalas antes con «Importar áreas». Solo se crean cuentas nuevas; un usuario que ya existe se marca como error.`}
+      config={{
+        sheet: "Usuarios",
+        reviewUrl: "/users/import/review",
+        applyUrl: "/users/import",
+        template: {
+          name: "Plantilla_Usuarios_FlowHow.xlsx",
+          columns: USER_COLUMNS.map((col) => col.label),
+          widths: [22, 36, 18, 40],
+          lists: [{ col: 2, values: ROLE_LIST, title: "Rol", message: `Usa uno de estos roles: ${ROLE_LIST.join(", ")}.` }],
+        },
+        done: fromSetup ? SETUP_DONE : { href: "/users", label: "Ir a usuarios" },
+        keepWarning: "Esta es la única vez que se muestran estas contraseñas: descárgalas antes de salir de esta página.",
+      }}
+    />,
+    { title: "Importar usuarios" },
+  );
+});
+
+usersScreen.post("/import/review", "users", async (c) => {
+  const answer = await reviewUsers(c.env.DB, await c.req.json().catch(() => null));
+  return c.json(answer, answer.status === "invalid" ? 400 : 200);
+});
+
+usersScreen.post("/import", "users", async (c) => {
+  const answer = await applyUsers(c.env.DB, await c.req.json().catch(() => null));
+  return c.json(answer, answer.status === "invalid" ? 422 : 200);
 });

@@ -14,6 +14,70 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Phase 7.2: the user importer
+
+- **Where:** from «Usuarios», with `can_manage_users`: «Importar
+  usuarios» beside «Nuevo usuario». The review and the result share 7.1's
+  screen.
+- **Columns:** «Usuario», «Nombre completo», «Rol» and «Áreas».
+  - **Rol** uses the names the app shows: Empleado, Líder, Junta
+    directiva. Case and accents do not count. The template gives the
+    column a drop-down list.
+  - **Áreas** are separated by commas and must exist (owner's decision). An
+    area whose name holds a comma cannot be named here; it is given in
+    the form.
+- **Row errors**, every one a row has, not only the first:
+  - a missing username, or one over 100 characters;
+  - a username repeated in the file, or one that already exists. The
+    importer only creates accounts (owner's decision).
+  - a missing name, or one over 200 characters;
+  - a missing or unknown role;
+  - an unknown area;
+  - SPEC §4's area rules, with the form's messages: an Empleado with no
+    area, or a Junta member with one.
+- **Warnings**, which do not block, as the form gives them:
+  - an Empleado whose areas have no published flow;
+  - a Líder with no area.
+- **Accounts:**
+  - the role's permissions, as «Nuevo usuario» gives them;
+  - `must_change_password`, so the first login leads to «Cambia tu
+    contraseña», which exists since 4.4;
+  - all of them in one D1 batch, so a username taken in the meantime
+    leaves none behind.
+- **The list of passwords:**
+  - It is shown once, never stored. To see one again, reset that password.
+  - «Descargar .xlsx» builds the file in the browser from the page's own
+    data, under three lines above the table: that they are temporary
+    passwords, that each person must change theirs at the first login,
+    and that the file is to be deleted once they are handed out (owner's
+    wording).
+  - Leaving the result page asks first (`beforeunload`).
+- **Temporary passwords are hashed at 100 PBKDF2 iterations, not 10,000.**
+  This covers all of them: the importer, «Nuevo usuario» and «Restablecer
+  contraseña». A password a person chooses keeps 10,000.
+  - **Why:** fifty accounts at 10,000 iterations cost about 60 ms of CPU in
+    Node, well over the Workers Free 10 ms. At 100, about 4 ms.
+  - **Why it is safe:** a temporary password is random, twelve characters
+    from 31, about 59 bits. Stretching makes up for passwords people
+    choose; a random one is out of reach without it. With 100 iterations,
+    guessing it from a stolen hash takes around 2^66 SHA-256 operations.
+    It also stops working at its first use.
+  - **Timing:** `verifyPassword` tops a cheaper hash up to 10,000
+    iterations. A login therefore costs the same whether or not the
+    account still has a temporary password, and the time taken does not
+    show which accounts are waiting for a first login.
+  - DEPLOY §5 asks to measure `POST /users/import` after deploying.
+- **Checked in headless Chrome** as `junta`. The review went through and
+  «Importar» was faked. Checked:
+  - row errors, all of them per row;
+  - a clean review with the Líder warning;
+  - the result;
+  - the downloaded file, read back with `xlsx.js`: the three notes, a
+    blank row, then the table;
+  - the leave prompt, with real mouse clicks; Chrome shows it only after a
+    user gesture.
+- Spec sections affected: none (built as §4 says).
+
 ## 2026-11-20 — Phase 7.1: the area importer, and what the importers share
 
 - **Shared by the area and user importers** (`src/import-list.tsx`,

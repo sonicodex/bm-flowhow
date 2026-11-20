@@ -20,10 +20,23 @@ async function derive(password: string, salt: Uint8Array, iterations: number): P
   return new Uint8Array(bits);
 }
 
-export async function hashPassword(password: string): Promise<string> {
+async function hashWith(password: string, iterations: number): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  return `${SCHEME}$${ITERATIONS}$${b64(salt)}$${b64(await derive(password, salt, ITERATIONS))}`;
+  return `${SCHEME}$${iterations}$${b64(salt)}$${b64(await derive(password, salt, iterations))}`;
 }
+
+// A password someone chose.
+export const hashPassword = (password: string) => hashWith(password, ITERATIONS);
+
+// A temporary password (temporaryPassword below) is twelve characters
+// drawn at random from 31, about 59 bits, and lives until its first use.
+// Stretching makes up for passwords people choose; a random one needs
+// none, and 100 iterations still put it out of reach: guessing it from a
+// stolen hash takes around 2^66 SHA-256 operations. Being cheap is what
+// lets the user importer hash fifty of them in one request under the
+// Workers Free CPU limit (DECISIONS 2026-11-20, phase 7.2).
+export const TEMPORARY_ITERATIONS = 100;
+export const hashTemporary = (password: string) => hashWith(password, TEMPORARY_ITERATIONS);
 
 // Compares every byte whatever the first difference, so the time taken does
 // not tell how much of the hash matched.
@@ -45,7 +58,11 @@ export async function verifyPassword(password: string, stored: string): Promise<
     await derive(password, new Uint8Array(16), ITERATIONS);
     return false;
   }
-  return sameBytes(await derive(password, unb64(salt), iterations), unb64(hash));
+  const same = sameBytes(await derive(password, unb64(salt), iterations), unb64(hash));
+  // A cheaper hash (a temporary password) is topped up to the full count,
+  // so the time taken does not tell which accounts wait for a first login.
+  if (iterations < ITERATIONS) await derive(password, new Uint8Array(16), ITERATIONS - iterations);
+  return same;
 }
 
 // A one-time password the Board hands over in person (phase 4.4): twelve

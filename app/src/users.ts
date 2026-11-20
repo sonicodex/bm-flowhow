@@ -94,6 +94,40 @@ export async function createUser(db: D1Database, user: NewUser): Promise<SaveRes
   }
 }
 
+// Several accounts at once (the user importer, phase 7.2), in one batch:
+// one refused row, a username taken in the meantime say, leaves none of
+// them behind.
+export async function createUsers(db: D1Database, users: NewUser[]): Promise<{ ok: true } | { ok: false; error: string }> {
+  for (const user of users) {
+    const error = userAreasError(user.role, user.areaIds);
+    if (error) return { ok: false, error };
+  }
+  try {
+    await db.batch(
+      users.flatMap((user) => {
+        const username = nameKey(user.username);
+        return [
+          db
+            .prepare(
+              `INSERT INTO users (username, full_name, password_hash, role, can_edit, can_view_admin_layer, can_manage_users, must_change_password)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            )
+            .bind(username, user.fullName.trim(), user.passwordHash, user.role, flag(user.canEdit), flag(user.canViewAdminLayer), flag(user.canManageUsers), flag(user.mustChangePassword)),
+          ...areaInserts(db, null, username, user.areaIds),
+        ];
+      }),
+    );
+    return { ok: true };
+  } catch (e) {
+    const message = String(e);
+    if (/UNIQUE constraint failed: users\.username/.test(message)) {
+      return { ok: false, error: "Mientras tanto alguien creó una cuenta con uno de estos usuarios. Vuelve a revisar el archivo." };
+    }
+    if (/FOREIGN KEY/.test(message)) return { ok: false, error: "Mientras tanto se borró una de las áreas. Vuelve a revisar el archivo." };
+    throw e;
+  }
+}
+
 // Replaces the user's fields and areas.
 export async function saveUser(db: D1Database, id: number, user: UserFields): Promise<SaveResult> {
   const error = userAreasError(user.role, user.areaIds);
