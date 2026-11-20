@@ -703,24 +703,31 @@ textarea:focus-visible,
   box-sizing: border-box;
   overflow: auto;
   max-height: 76vh;
-  padding: var(--space-4) var(--space-4) calc(var(--space-10) * 2 + var(--space-2));
+  padding: var(--space-4);
 }
 
-.diagram-actions {
-  position: absolute;
-  right: var(--space-4);
-  bottom: var(--space-4);
-  left: var(--space-4);
+/* The tour's buttons, at the foot of the step panel (SPEC §7, Layout;
+   phase 8.5): under the content they act on, over no part of the map. */
+.step-actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   align-items: center;
   gap: var(--space-3);
-  pointer-events: none;
+  margin-top: auto;
+  padding-top: var(--space-4);
+  border-top: var(--border-width) solid var(--color-border);
 }
 
-.diagram-actions > * {
-  pointer-events: auto;
+.step-actions .tour-message {
+  flex-basis: 100%;
+  max-width: none;
+}
+
+/* They share the panel's width: side by side when they fit, one per line
+   when they do not, never ragged. */
+.step-actions > button {
+  flex: 1 1 auto;
 }
 
 .viewer-side {
@@ -792,6 +799,13 @@ textarea:focus-visible,
 .legend-swatch.c2 { background: var(--color-cat-2-bg); border-color: var(--color-cat-2-border); }
 .legend-swatch.c3 { background: var(--color-cat-3-bg); border-color: var(--color-cat-3-border); border-style: dashed; }
 .legend-swatch.c4 { background: var(--color-cat-4-bg); border-color: var(--color-cat-4-border); }
+/* The step states (phase 8.5), as .diagram draws them: the current step
+   filled with the flow colour, a visited one with its light tone. */
+.legend-swatch.step-current { background: var(--flow); border-color: var(--flow); }
+.legend-swatch.step-visited {
+  background: color-mix(in srgb, var(--flow) var(--flow-visited-mix), var(--color-surface));
+  border-color: color-mix(in srgb, var(--flow) var(--flow-shade-mix), var(--color-text));
+}
 
 @media (max-width: 760px) {
   .legend {

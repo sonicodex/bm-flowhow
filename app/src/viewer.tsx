@@ -82,7 +82,16 @@ function ViewerPage({ flow, compiled, status, links, selector }: PageProps) {
               <p class="form-error">El diagrama necesita JavaScript.</p>
             </noscript>
           </div>
-          <div class="diagram-actions">
+        </div>
+        {/* The overview's panel is a card of its own (SPEC §7, Layout;
+            phase 8.5): the flow, what the reader is looking at, how many
+            steps it has, and its button at the foot. */}
+        <aside class="card viewer-side">
+          <p class="eyebrow">PANORAMA</p>
+          <h2 class="step-title">{flow.name}</h2>
+          <p>Estás viendo el flujo completo. Míralo de arriba abajo para ubicarte; después lo recorrerás un paso a la vez.</p>
+          <p class="muted">{steps === 1 ? "1 paso" : `${steps} pasos`}</p>
+          <div class="step-actions">
             {/* public/js/viewer.js turns the page into the tour, and asks
                 before "Empezar de nuevo" (phase 3.5). */}
             <button type="button" class="button-secondary" data-restart hidden={!status.open}>
@@ -96,12 +105,6 @@ function ViewerPage({ flow, compiled, status, links, selector }: PageProps) {
               {status.action}
             </button>
           </div>
-        </div>
-        <aside class="card viewer-side">
-          <p class="eyebrow">PANORAMA</p>
-          <h2 class="step-title">El flujo completo</h2>
-          <p>Míralo de arriba abajo para ubicarte. Después lo recorrerás un paso a la vez.</p>
-          <p class="muted">{steps === 1 ? "1 paso" : `${steps} pasos`}</p>
         </aside>
       </div>
       <script type="application/json" id="flow-data">

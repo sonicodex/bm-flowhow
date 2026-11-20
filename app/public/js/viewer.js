@@ -449,16 +449,22 @@ if (data && cols) {
     });
   });
 
+  const STEP_STATES = [['step-current', 'Paso actual'], ['step-visited', 'Paso visitado']];
+
   const zoomToggle = () =>
     `<button type="button" class="button-link zoom-toggle" data-zoom aria-pressed="${zoomed}"><span class="icon-zoom" aria-hidden="true"></span>${zoomed ? 'Ver todo' : 'Acercar'}</button>`;
 
   // «Convenciones» (SPEC §7; phase 6.14): what each badge style stands for,
   // above the diagram wherever badges show (the tour and the free review).
-  // Category slots repeat from the fifth on, as the badges do.
-  const legend = (categories) =>
-    categories.length
-      ? `<div class="legend"><span class="legend-title">Convenciones</span>${categories.map((c, i) => `<span class="legend-item"><span class="legend-swatch c${(i % CATEGORY_SLOTS) + 1}" aria-hidden="true"></span>${esc(c)}</span>`).join('')}</div>`
-      : '';
+  // Category slots repeat from the fifth on, as the badges do. In the tour
+  // it names the step states first, drawn as the diagram draws them (phase
+  // 8.5); the free review marks steps otherwise, so it has none.
+  const legend = (categories, states = false) => {
+    const items = (states ? STEP_STATES.map(([kind, label]) => `<span class="legend-item"><span class="legend-swatch ${kind}" aria-hidden="true"></span>${label}</span>`) : []).concat(
+      categories.map((c, i) => `<span class="legend-item"><span class="legend-swatch c${(i % CATEGORY_SLOTS) + 1}" aria-hidden="true"></span>${esc(c)}</span>`),
+    );
+    return items.length ? `<div class="legend"><span class="legend-title">Convenciones</span>${items.join('')}</div>` : '';
+  };
 
   // ---- Tooltips (SPEC §7; phase 6.17): one look for all of them, dark
   // with light text (theme.css tooltip tokens), above the node they speak
@@ -571,11 +577,13 @@ if (data && cols) {
       `<div class="bar" role="progressbar" aria-label="Pasos visitados" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${seen}"><div style="width:${Math.round((seen / total) * 100)}%"></div></div>` +
       // Back to the overview; the run stays open (phase 3.5).
       `${zoomToggle()}<button type="button" class="button-link" data-overview>Ver el flujo completo</button></div>` +
-      legend(toured.categories) +
-      `<div class="diagram-scroll" id="diagram">${renderDiagram(layout, { name, colour }, marks(tour, toured.categories), linkMarks(toured, false))}</div>` +
-      `<div class="diagram-actions"><p class="tour-message" role="status">${esc(state.message)}</p>` +
-      `<button type="button" class="button-secondary" data-prev${tour.pos === 0 ? ' disabled' : ''}>Anterior</button>${primary}</div></div>` +
-      `<aside class="card viewer-side">${tour.atEnd() ? noteFor(tour.current().note) : ''}${details(step, toured.categories)}${linkPanel(step)}${exitsPanel(tour)}</aside>`;
+      legend(toured.categories, true) +
+      `<div class="diagram-scroll" id="diagram">${renderDiagram(layout, { name, colour }, marks(tour, toured.categories), linkMarks(toured, false))}</div></div>` +
+      // The buttons at the foot of the step panel, under what they act on,
+      // covering no part of the map (SPEC §7, Layout; phase 8.5).
+      `<aside class="card viewer-side">${tour.atEnd() ? noteFor(tour.current().note) : ''}${details(step, toured.categories)}${linkPanel(step)}${exitsPanel(tour)}` +
+      `<div class="step-actions"><p class="tour-message" role="status">${esc(state.message)}</p>` +
+      `<button type="button" class="button-secondary" data-prev${tour.pos === 0 ? ' disabled' : ''}>Anterior</button>${primary}</div></aside>`;
     if (state.busy) cols.querySelectorAll('button').forEach((b) => { b.disabled = true; });
     const box = document.getElementById('diagram');
     if (zoomed) zoomTo(box, layout, tour);
@@ -645,7 +653,7 @@ if (data && cols) {
     const tour = res.ok ? replay(res.json.flow, res.json.log) : null;
     if (!tour) {
       button.disabled = false;
-      const actions = cols.querySelector('.diagram-actions');
+      const actions = cols.querySelector('.step-actions');
       actions.querySelector('.tour-message')?.remove();
       actions.insertAdjacentHTML('afterbegin', `<p class="tour-message" role="status">${esc(res.json.error || 'No se pudo iniciar el recorrido. Recarga la página e inténtalo de nuevo.')}</p>`);
       return;
@@ -660,7 +668,7 @@ if (data && cols) {
   // "Empezar de nuevo" sits beside "Continuar recorrido" and throws away the
   // steps walked so far, so it asks first (owner's decision, phase 3.5).
   const confirmRestart = () => {
-    const actions = cols.querySelector('.diagram-actions');
+    const actions = cols.querySelector('.step-actions');
     actions.dataset.saved = actions.innerHTML;
     actions.innerHTML =
       '<p class="tour-message" role="status">¿Empezar de nuevo? Pierdes los pasos que llevas en este recorrido.</p>' +
@@ -669,7 +677,7 @@ if (data && cols) {
     actions.querySelector('[data-cancel]').focus();
   };
   const cancelRestart = () => {
-    const actions = cols.querySelector('.diagram-actions');
+    const actions = cols.querySelector('.step-actions');
     actions.innerHTML = actions.dataset.saved || '';
     delete actions.dataset.saved;
     cols.querySelector('[data-restart]')?.focus();

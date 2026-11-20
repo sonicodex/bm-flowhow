@@ -14,6 +14,44 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Phase 8.5: the tour's panel and the step states
+
+- **The buttons moved from the diagram's corner to the foot of the step
+  panel** (SPEC §7, Layout): «Anterior» and the primary action, with the
+  «muy rápido» message above them (`.step-actions`).
+  - The diagram lost the bottom padding it kept so the floating buttons
+    would not hide a step for good.
+  - The buttons share the panel's width: side by side when they fit, one
+    per line when they do not.
+  - «Empezar de nuevo» and its confirmation work in the same place.
+- **The overview's panel is a card of its own:**
+  - «PANORAMA», the flow's name, «Estás viendo el flujo completo…» and
+    how many steps it has;
+  - at its foot «Iniciar recorrido» (or «Continuar» / «Repetir»), with
+    «Empezar de nuevo» and «Repaso libre» when they apply.
+- **Nothing to move in the free review:** it had no corner buttons. A
+  link step's «Ir a «…»» was already in the panel.
+- **On a phone** the panel still goes above the diagram, now with its
+  buttons.
+- **«Convenciones» name the step states in the tour** (SPEC §7): «Paso
+  actual» and «Paso visitado» first, then the categories.
+  - Each swatch is drawn as the diagram draws that state, in the flow's
+    colour: Chrome gave the same computed colour for swatch and node.
+  - In the tour the legend now always shows, since there are always
+    states to name.
+  - The free review keeps its categories only: it marks steps as
+    selected, highlighted or dimmed, never current or visited.
+- **Checked in headless Chrome** as `junta` on «Apertura de OT», at 1280,
+  390 and 320 px, with the tour's answers faked so nothing was written:
+  - the overview card;
+  - the tour after two steps, with no button over the diagram;
+  - «Empezar de nuevo» and «Cancelar»;
+  - the free review;
+  - no horizontal scroll.
+- Spec sections affected: none (built as §7 now says).
+
+---
+
 ## 2026-11-20 — Phase 8.4: the report's summary
 
 - **«Resumen por flujo»** (SPEC §7, Progress report), on the report screen,

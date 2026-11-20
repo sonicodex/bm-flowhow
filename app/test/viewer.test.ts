@@ -33,6 +33,14 @@ describe("GET /flows/:id (overview)", () => {
     expect(html).toContain("36 pasos");
     expect(html).toContain('<button type="button" class="button-primary" data-start="true">Iniciar recorrido</button>');
     expect(html).toContain('<script type="module" src="/js/viewer.js"></script>');
+    // SPEC §7, Layout (phase 8.5): the overview's panel is a card with the
+    // flow, what the reader sees, its steps, and the button at its foot,
+    // nothing floating over the diagram.
+    const panel = html.match(/<aside class="card viewer-side">(.*?)<\/aside>/s)![1]!;
+    expect(panel).toContain('<p class="eyebrow">PANORAMA</p><h2 class="step-title">Apertura de OT</h2>');
+    expect(panel).toContain("Estás viendo el flujo completo.");
+    expect(panel).toMatch(/36 pasos<\/p><div class="step-actions">.*data-start="true">Iniciar recorrido<\/button><\/div>$/s);
+    expect(html.match(/<div class="card diagram-card">(.*?)<\/div><aside/s)![1]).not.toContain("<button");
     const data = flowData(html);
     expect(data).toMatchObject({ id, name: "Apertura de OT", colour: 2 });
     expect(data.flow.steps).toHaveLength(36);
