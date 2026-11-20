@@ -309,7 +309,8 @@ textarea:focus-visible,
   margin-bottom: var(--space-4);
 }
 
-.stacked-form input {
+.stacked-form input,
+.flow-import input:not([type]) {
   padding: var(--space-2) var(--space-3);
   font: inherit;
   color: var(--color-text);
@@ -319,7 +320,8 @@ textarea:focus-visible,
   outline: var(--border-width) solid transparent;
 }
 
-.stacked-form input:focus-visible {
+.stacked-form input:focus-visible,
+.flow-import input:not([type]):focus-visible {
   box-shadow: var(--shadow-focus);
 }
 
@@ -2041,6 +2043,12 @@ button.offframe:focus-visible {
 
 .editor-import label {
   font-weight: var(--weight-medium);
+}
+
+/* «Importar flujo» (phase 8.3): the name comes first, apart from the
+   paste and the file. */
+.flow-import input:not([type]) {
+  margin-bottom: var(--space-2);
 }
 
 .editor-import textarea {

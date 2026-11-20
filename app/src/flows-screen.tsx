@@ -1,6 +1,11 @@
+import { raw } from "hono/html";
 import { Router } from "./access.tsx";
 import { AdminForm, AdminList, RowActions, yesNo } from "./admin.tsx";
-import { createFlow, getFlow, saveFlowAreas, saveFlowField, type FlowField } from "./flows.ts";
+import { loadTagIndex } from "./document.ts";
+import { createFlow, flowEntries, getFlow, newFlowNameError, nextColour, saveFlowAreas, saveFlowField, type FlowField } from "./flows.ts";
+import { parseAccepted } from "./draft.ts";
+import { applyGrid, parseGrid, reviewGrid } from "./import.ts";
+import { scriptJson } from "./layout.tsx";
 
 // The flows list, the new flow form, and what the editor's flow data panel
 // saves (phases 1.5, 4.4; SPEC §6). Editors only (phase 4.2). Steps are
@@ -28,11 +33,12 @@ function FlowsPage({ items }: { items: FlowItem[] }) {
     <AdminList
       title="Flujos"
       action={{ href: "/flows/new", label: "Nuevo flujo" }}
+      more={{ href: "/flows/import", label: "Importar flujo" }}
       related={{ href: "/categories", label: "Categorías de etiquetas", why: "Cada una es una columna de etiquetas en la tabla de un flujo." }}
       columns={[{ label: "Nombre" }, { label: "Versión publicada" }, { label: "Borrador" }, { label: "Áreas" }]}
       empty={{
         purpose: "Aquí están los procesos de la empresa, cada uno con sus pasos, sus versiones y las áreas que lo ven.",
-        howToAdd: "Todavía no hay ninguno. Crea el primero con «Nuevo flujo».",
+        howToAdd: "Todavía no hay ninguno. Crea el primero con «Nuevo flujo», o tráelo de Excel con «Importar flujo».",
       }}
       rows={items.map((f) => (
         <tr>
@@ -87,6 +93,116 @@ flowsScreen.post("/", "editor", async (c) => {
   // A new flow has no steps: its editor is where they are written or
   // imported (phase 5.9).
   return c.redirect(`/flows/${r.id}/edit?creado=1`, 303);
+});
+
+// «Importar flujo» (SPEC §9, Navigation; phase 8.3): a flow made from a
+// paste or an .xlsx, as the areas and users are. The browser reads the
+// grid (public/js/flow-import.js, with the editor's reader); the server
+// reviews it with the editor's rules, and accepting creates the flow with
+// that grid as its draft, unpublished. The editor keeps its own import,
+// which replaces a draft.
+type ImportFlowData = { colour: number; categories: string[]; flows: { id: number; name: string }[] };
+
+function ImportFlowPage({ data }: { data: ImportFlowData }) {
+  return (
+    <>
+      <p class="admin-back">
+        <a href={BACK.href}>← {BACK.label}</a>
+      </p>
+      <h1 class="page-title">Importar flujo</h1>
+      <section class="card editor-import flow-import" id="import-box" aria-labelledby="import-title">
+        <h2 id="import-title" class="visually-hidden">
+          El flujo y sus pasos
+        </h2>
+        <p>
+          Crea un flujo con los pasos de un Excel. Antes de crearlo verás una revisión con los problemas y el diagrama que resultaría. Nace sin publicar.
+        </p>
+        <label for="import-name">Nombre del flujo</label>
+        <input id="import-name" name="name" required maxlength={100} />
+        <p class="editor-template">
+          ¿Vas a empezar en Excel?{" "}
+          <button type="button" class="button-link" data-template>
+            Descarga la plantilla
+          </button>
+          : trae las columnas de todas las categorías que ya existen y la lista de tipos.
+        </p>
+        <label for="import-file">Un archivo .xlsx (se lee su hoja «Flujo»)</label>
+        <input id="import-file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+        <label for="import-paste">O las celdas copiadas de Excel, con la fila de encabezados</label>
+        <textarea id="import-paste" rows={6} spellcheck={false}></textarea>
+        <ul class="plain-list form-error" role="alert" id="import-errors" hidden></ul>
+        <div class="editor-message-actions">
+          <button type="button" class="button-primary" data-import-review>
+            Revisar
+          </button>
+          <a class="button-secondary" href={BACK.href}>
+            Cancelar
+          </a>
+        </div>
+      </section>
+      <section class="editor-review" id="import-review" aria-labelledby="review-title" hidden></section>
+      <script type="application/json" id="flow-import-data">
+        {raw(scriptJson(data))}
+      </script>
+      <script type="module" src="/js/flow-import.js"></script>
+    </>
+  );
+}
+
+flowsScreen.get("/import", "editor", async (c) => {
+  const db = c.env.DB;
+  const [entries, index, colours] = await Promise.all([flowEntries(db), loadTagIndex(db), db.prepare("SELECT colour FROM flows").all<{ colour: number }>()]);
+  const data: ImportFlowData = {
+    // The colour the flow will get, for the review's diagram.
+    colour: nextColour(colours.results.map((r) => r.colour)),
+    categories: index.categories.map((cat) => cat.name),
+    flows: entries.map((f) => ({ id: f.id, name: f.name })),
+  };
+  return c.render(<ImportFlowPage data={data} />, { title: "Importar flujo" });
+});
+
+// The name and the grid, as JSON. Both reviews (this one, read-only, and
+// the one accepting repeats) say the name's problem first: there is no flow
+// to review the steps of without one.
+async function reviewNewFlow(db: D1Database, body: unknown) {
+  const b = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+  const name = typeof b.name === "string" ? b.name.trim() : "";
+  const nameError = await newFlowNameError(db, name);
+  if (nameError) return { status: "invalid" as const, error: nameError };
+  const parsed = parseGrid(b.grid);
+  if (parsed.ok === false) return { status: "invalid" as const, error: parsed.error };
+  return { status: "review" as const, name, grid: parsed.grid, ...(await reviewGrid(db, { name }, parsed.grid)) };
+}
+
+flowsScreen.post("/import/review", "editor", async (c) => {
+  const r = await reviewNewFlow(c.env.DB, await c.req.json().catch(() => null));
+  if (r.status === "invalid") return c.json(r, 422);
+  const { errors, blocking, newCategories, newTags } = r;
+  return c.json({ status: "review", errors, blocking, newCategories, newTags });
+});
+
+// Accepting: reviewed again, then the flow is created and the grid becomes
+// its draft. If the draft cannot be written after all (something changed in
+// between), the flow just created is removed: nothing is left half made.
+flowsScreen.post("/import", "editor", async (c) => {
+  const db = c.env.DB;
+  const body = await c.req.json().catch(() => null);
+  const r = await reviewNewFlow(db, body);
+  if (r.status === "invalid") return c.json(r, 422);
+  // As the editor's save (src/draft.ts): no list yet means nothing new was
+  // accepted, so anything new has to be confirmed first.
+  const accepted = parseAccepted((body as Record<string, unknown>).accepted);
+  if (accepted === null) return c.json({ status: "invalid", error: "La lista de etiquetas aceptadas no tiene la forma esperada." }, 422);
+  if (r.blocking) return c.json({ status: "blocked", errors: r.errors.filter((e) => e.blocking) }, 422);
+  if (!accepted && (r.newCategories.length || r.newTags.length)) return c.json({ status: "confirm", newCategories: r.newCategories, newTags: r.newTags }, 422);
+  const created = await createFlow(db, r.name);
+  if (created.ok === false) return c.json({ status: "invalid", error: created.error }, 422);
+  const applied = await applyGrid(db, created.id, r.grid, accepted ?? { categories: [], tags: [] }, c.get("user")!.id);
+  if (applied.ok === false) {
+    await db.batch([db.prepare("DELETE FROM drafts WHERE flow_id = ?").bind(created.id), db.prepare("DELETE FROM flows WHERE id = ?").bind(created.id)]);
+    return c.json({ status: "blocked", errors: applied.errors }, 422);
+  }
+  return c.json({ status: "saved", id: created.id });
 });
 
 async function flowOf(c: { env: Env; req: { param: (k: string) => string | undefined } }) {

@@ -51,15 +51,22 @@ export function nextColour(used: number[]): number {
 }
 
 // A new flow starts with an empty draft (it has no release to copy from).
+// What is wrong with a new flow's name, if anything: empty, or taken.
+export async function newFlowNameError(db: D1Database, name: string): Promise<string | null> {
+  const clean = name.trim();
+  if (!clean) return "Escribe el nombre del flujo.";
+  const existing = await db.prepare("SELECT name FROM flows WHERE name_key = ?").bind(nameKey(clean)).first<string>("name");
+  return existing !== null ? `Ya existe un flujo llamado «${existing}». ${NAME_RULE}` : null;
+}
+
 export async function createFlow(
   db: D1Database,
   name: string,
 ): Promise<{ ok: true; id: number } | { ok: false; error: string }> {
+  const error = await newFlowNameError(db, name);
+  if (error) return { ok: false, error };
   const clean = name.trim();
-  if (!clean) return { ok: false, error: "Escribe el nombre del flujo." };
   const key = nameKey(clean);
-  const existing = await db.prepare("SELECT name FROM flows WHERE name_key = ?").bind(key).first<string>("name");
-  if (existing !== null) return { ok: false, error: `Ya existe un flujo llamado «${existing}». ${NAME_RULE}` };
   const used = (await db.prepare("SELECT colour FROM flows").all<{ colour: number }>()).results.map((r) => r.colour);
   const [inserted] = await db.batch([
     db.prepare("INSERT INTO flows (name, name_key, colour) VALUES (?, ?, ?)").bind(clean, key, nextColour(used)),

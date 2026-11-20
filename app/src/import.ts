@@ -57,13 +57,18 @@ export type Review = {
 
 type Prepared = Review & { steps: Flow["steps"]; categories: string[] };
 
-async function prepare(db: D1Database, flowId: number, grid: Grid, index: TagIndex): Promise<Prepared> {
-  const flowRow = await getFlow(db, flowId);
-  if (!flowRow) throw new Error(`import: flow ${flowId} does not exist.`);
+// The flow an import goes to: an existing one by id, or one not created yet
+// (the flows screen's import, phase 8.3), by the name it will have.
+type Target = number | { name: string };
+
+async function prepare(db: D1Database, target: Target, grid: Grid, index: TagIndex): Promise<Prepared> {
+  const flowRow = typeof target === "number" ? await getFlow(db, target) : { name: target.name, objective: "" };
+  if (!flowRow) throw new Error(`import: flow ${target} does not exist.`);
   const { resolve, lib } = await flowCatalog(db);
   const draft = Core.gridToDraft(grid, resolve);
   const flow = Core.compile({ name: flowRow.name, objective: flowRow.objective, categories: draft.categories, steps: draft.steps });
-  const errors = draft.errors.concat(Core.validate(flow, { selfId: flowId, lib }));
+  // A flow not created yet has no id: 0 is none, so no step can point at it.
+  const errors = draft.errors.concat(Core.validate(flow, { selfId: typeof target === "number" ? target : 0, lib }));
 
   const knownCats = new Map(index.categories.map((c) => [c.key, c]));
   const knownTags = new Set(index.tags.map((t) => `${t.categoryId}:${t.key}`));
@@ -93,8 +98,8 @@ async function prepare(db: D1Database, flowId: number, grid: Grid, index: TagInd
 }
 
 // Read-only: what the import would do, for the review screen.
-export async function reviewGrid(db: D1Database, flowId: number, grid: Grid): Promise<Review> {
-  const { steps: _s, categories: _c, ...review } = await prepare(db, flowId, grid, await loadTagIndex(db));
+export async function reviewGrid(db: D1Database, target: Target, grid: Grid): Promise<Review> {
+  const { steps: _s, categories: _c, ...review } = await prepare(db, target, grid, await loadTagIndex(db));
   return review;
 }
 

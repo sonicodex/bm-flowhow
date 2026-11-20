@@ -14,6 +14,46 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Phase 8.3: importing a flow from the flows screen
+
+- **«Importar flujo»** beside «Nuevo flujo» (SPEC §9, Navigation), as
+  areas and users have (`/flows/import`, editors only).
+  - The page asks for the flow's name, then a .xlsx or a paste, read in
+    the browser by the editor's reader. «Descarga la plantilla» is there
+    too.
+  - The name's problem (empty, or taken, compared without case or accents)
+    is said before the steps are reviewed: there is no flow to review
+    without one.
+- **The review is the editor's**: the same rules on the server
+  (`reviewGrid`), the same problems list, the same checkboxes for new
+  categories and values, the same diagram of what would result (in the
+  colour the flow will get).
+  - The review's HTML moved from `editor.js` to `import-form.js`
+    (`reviewSummary`, `reviewChecks`, `acceptedIn`), and both screens
+    use it.
+  - `reviewGrid` takes a flow that does not exist yet, by its name. No
+    step can point at it (`selfId` 0, an id no flow has).
+- **Accepting creates the flow with the grid as its draft, unpublished**
+  (owner's answer), and opens the editor («Importado al borrador…»).
+  - The server reviews again before creating anything. A blocking problem
+    or a taken name creates nothing.
+  - With new categories or values and no list of the accepted ones, it
+    asks first, as the editor's save does.
+  - If the draft cannot be written after the flow is created, that flow
+    is deleted: nothing is left half made.
+- **The editor keeps its own import**, which replaces the draft. Checked
+  again in Chrome after the move: same review, same save.
+- **`flow-import.js`** joins the service worker's shell.
+- **Checked in headless Chrome** with `reference/Flujo_Instalaciones.xlsx`:
+  - no name, and a taken name, each gave their message;
+  - a new name gave 30 steps, «Sin problemas» and the diagram;
+  - «Crear el flujo» (answered by the harness, nothing written) sent the
+    grid and went to the editor;
+  - no horizontal scroll at 390 px.
+- Spec sections affected: none.
+
+---
+
 ## 2026-11-20 — Phase 8.2: the login screen
 
 - **Built as SPEC §9, Login screen.** The company's image fills the

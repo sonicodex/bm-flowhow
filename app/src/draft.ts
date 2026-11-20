@@ -47,7 +47,7 @@ export type SaveAnswer =
   | { status: "conflict"; message: string }
   | { status: "saved"; base: string; saved: boolean };
 
-function parseAccepted(raw: unknown): Accepted | null | undefined {
+export function parseAccepted(raw: unknown): Accepted | null | undefined {
   if (raw === undefined || raw === null) return undefined;
   if (typeof raw !== "object") return null;
   const { categories, tags } = raw as Record<string, unknown>;

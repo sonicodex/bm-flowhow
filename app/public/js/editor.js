@@ -6,7 +6,7 @@
 import Core from './core.js';
 import { layoutFlow } from './diagram-layout.js';
 import { renderDiagram } from './diagram.js';
-import { exportName, exportXlsx, gridFromText, gridFromXlsx, TEMPLATE_NAME, templateXlsx } from './import-form.js';
+import { acceptedIn, exportName, exportXlsx, gridFromText, gridFromXlsx, reviewChecks, reviewSummary, TEMPLATE_NAME, templateXlsx } from './import-form.js';
 import {
   blankRow, branchesOf, checkGrid, cleanLabel, compileGrid, dependsOnIds, dependsOnView, diagramKey, dropValues, nextStepId, renameStep,
   setBranches, setDependsOnIds, stepOptions, suggestions, toSave,
@@ -990,35 +990,17 @@ if (dataEl && table) {
   });
 
   function showReview(imported, review, note) {
-    const steps = imported.rows.length;
-    const list = (errors) => `<ul>${errors.map((e) => `<li>${ICON('alert')}<span>${esc(e.message)}</span></li>`).join('')}</ul>`;
-    const blocking = byRow(review.errors.filter((e) => e.blocking));
-    const rest = byRow(review.errors.filter((e) => !e.blocking));
-    const box = (kind, value, label) =>
-      `<label><input type="checkbox" data-new="${kind}" value="${esc(JSON.stringify(value))}" checked> ${esc(label)}</label>`;
-    const fresh = review.newCategories.length + review.newTags.length;
+    const blocking = review.errors.some((e) => e.blocking);
     reviewEl.innerHTML =
       '<h2 id="review-title">Revisión de la importación</h2>' +
-      `<p>${steps === 1 ? '1 paso' : `${steps} pasos`}${imported.categories.length ? ` · categorías: ${esc(imported.categories.join(', '))}` : ' · sin categorías'}.</p>` +
+      reviewSummary(imported) +
       (note ? `<p class="muted">${esc(note)}</p>` : '') +
       (dirty() ? '<p class="form-warning">Los cambios que no has guardado en la tabla se pierden al reemplazarla.</p>' : '') +
       '<div class="editor-cols"><div class="editor-main">' +
-      '<div class="card editor-problems">' +
-      (blocking.length ? `<h2>No se puede importar: corrige estas filas en Excel y vuelve a traerlas</h2>${list(blocking)}` : '') +
-      // While something blocks, the rest is noise: it can wait for the next review.
-      (!blocking.length && rest.length ? `<h2>Se puede importar; para publicar habrá que corregir ${count(rest.length)}</h2>${list(rest)}` : '') +
-      (!review.errors.length ? `<p class="editor-ok">${ICON('done')}<span>Sin problemas.</span></p>` : '') +
-      '</div>' +
-      (!blocking.length && fresh
-        ? '<fieldset class="choice-list"><legend>Categorías y valores nuevos</legend>' +
-          '<p class="muted">Se crean los marcados. Lo que desmarques se quita: una categoría, con su columna; un valor, de las celdas que lo traen.</p>' +
-          review.newCategories.map((c) => box('category', c, `Categoría nueva: ${c}`)).join('') +
-          review.newTags.map((t) => box('tag', t, `${t.category}: ${t.name}`)).join('') +
-          '</fieldset>'
-        : '') +
+      reviewChecks(review) +
       '<div id="review-message"></div>' +
       '<div class="editor-message-actions">' +
-      (blocking.length ? '' : '<button type="button" class="button-primary" data-apply>Reemplazar el borrador</button>') +
+      (blocking ? '' : '<button type="button" class="button-primary" data-apply>Reemplazar el borrador</button>') +
       '<button type="button" class="button-secondary" data-back>Volver al editor</button></div>' +
       '</div><aside class="card editor-preview" aria-label="Diagrama que resultaría"><h2>Así quedaría</h2><div class="diagram-scroll" id="review-diagram"></div></aside></div>';
     const diagram = reviewEl.querySelector('#review-diagram');
@@ -1043,14 +1025,12 @@ if (dataEl && table) {
     reviewEl.querySelector('[data-apply]')?.addEventListener('click', async (ev) => {
       const button = ev.currentTarget;
       button.disabled = true;
-      const boxes = [...reviewEl.querySelectorAll('input[data-new]')];
-      const pick = (kind) => boxes.filter((b) => b.dataset.new === kind && b.checked).map((b) => JSON.parse(b.value));
       let answer;
       try {
         const res = await fetch(`/flows/${data.flowId}/draft`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ grid: imported, base, accepted: { categories: pick('category'), tags: pick('tag') } }),
+          body: JSON.stringify({ grid: imported, base, accepted: acceptedIn(reviewEl) }),
         });
         answer = await res.json();
       } catch {

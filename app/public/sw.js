@@ -41,6 +41,7 @@ const SHELL = [
   '/js/diagram-layout.js',
   '/js/diagram.js',
   '/js/editor.js',
+  '/js/flow-import.js',
   '/js/grid-edit.js',
   '/js/import-list.js',
   '/js/import-form.js',
