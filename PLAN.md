@@ -6,6 +6,67 @@ nunca se edita: los cambios generan una iteración nueva.
 
 ---
 
+## plan_iteration_10 — 2026-11-20
+
+Estado: **propuesta.** `plan_iteration_9` sigue vigente hasta que el dueño
+apruebe esta.
+
+Fase 8, rediseño a partir del mock del dueño (SPEC §7 y §9 reescritos,
+commit `8c084a8`). Cinco cortes; cada uno termina andando, probado y
+revisado en Chrome a 1280, 390 y 320 px.
+
+- **8.1 Cabecera, navegación y aterrizaje.**
+  - Barra blanca (`--color-header-surface`, `--header-height`): logotipo a
+    la izquierda, nombre del usuario y «Salir» a la derecha.
+  - Banda oscura (`--color-nav-surface`, `--nav-height`) con la navegación
+    alineada a la derecha: Flujos, Áreas, Usuarios, Reportes. El enlace de
+    la sección actual va en `--color-nav-current`. Cada enlace solo para
+    quien puede usarlo, como hoy.
+  - En celular la banda no se parte en dos líneas: si no caben los
+    enlaces, se desplaza de lado dentro de la banda, sin barra horizontal
+    en la página.
+  - Categorías sale de la navegación y queda como enlace en la pantalla de
+    flujos.
+  - Configuración inicial sale de la navegación y también de la oferta en
+    Inicio. Sigue en `/setup`, y nada la enlaza.
+  - La Junta aterriza en `/report`: después de entrar, en `/` con sesión y
+    al pulsar el logotipo.
+- **8.2 Login.**
+  - La imagen llena la pantalla, con una tarjeta blanca centrada encima:
+    - el logotipo, «Iniciar sesión», los dos campos y «Acceder»;
+    - una línea que dice que la contraseña la restablece el administrador;
+    - al pie, pequeño, el logotipo del fabricante.
+  - La imagen va como fondo CSS con `image-set` (webp, y jpg detrás). La
+    tarjeta tiene su propio fondo y se lee antes de que llegue la imagen.
+  - Los tres archivos se quedan en `public/brand/` y se agregan:
+    - a la lista de archivos del dueño que no se editan en CLAUDE.md;
+    - a la lista del service worker (`shell-5`).
+- **8.3 Importar un flujo desde «Flujos».**
+  - Botón «Importar flujo», como los de áreas y usuarios.
+  - El formulario pide el nombre del flujo y el contenido (pegar desde
+    Excel o subir un .xlsx), con el mismo lector.
+  - La revisión usa las mismas reglas que la importación del editor.
+  - Al aceptar se crea el flujo con eso como borrador, sin publicar, y se
+    abre en el editor.
+  - El editor conserva su propia importación, que reemplaza el borrador.
+- **8.4 Resumen del reporte.**
+  - Arriba de las filas, en la misma pantalla: por cada flujo, cuántos de
+    los que lo tienen asignado lo han revisado, en porcentaje y en cuenta.
+  - Sale de las mismas filas ya recortadas por alcance (la Junta todo, el
+    líder sus áreas) y por los filtros, así que no puede contradecirlas.
+- **8.5 Panel del recorrido y convenciones.**
+  - «Anterior» y la acción principal pasan del rincón del diagrama al pie
+    del panel del paso, igual que el aviso de «muy rápido». Se quita el
+    relleno inferior que el diagrama dejaba para los botones.
+  - En el panorama, el panel es una tarjeta: el nombre del flujo, qué está
+    viendo el lector, cuántos pasos tiene, y «Iniciar recorrido».
+  - En la revisión libre, «Abrir subflujo» va al mismo pie.
+  - En celular, el panel mínimo de arriba lleva los botones.
+  - Las convenciones suman «Paso actual» y «Paso visitado», con los mismos
+    estilos de nodo del diagrama.
+
+Al terminar, la etiqueta `phase-8` se pone en el último commit.
+
 ## plan_iteration_9 — 2026-11-20
 
 Estado: **aprobada. Esta es la iteración vigente.**
