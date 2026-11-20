@@ -116,15 +116,34 @@ With `npx wrangler tail` while using the app:
   validates the flow and loads every other flow's latest release, to
   check links.
 
-## 6. Automatic deployment — the target, not built yet
+## 6. Automatic deployment
 
-Every push to `main` deploys. There is no `main` branch yet; work lives on
-`devel`. When it exists, the deployment moves to a GitHub Action running
-`wrangler deploy` with a Cloudflare API token in the repository's secrets,
-and the migrations run in the same job, before the deploy. Until then the
-owner deploys by hand, and nothing in the steps above may depend on a human
-being there: every one of them has to be reproducible from CI, the first
-Board user excepted, which is created once.
+Every push to `main` deploys: `.github/workflows/deploy.yml`.
+
+- **Branches.** Work lives on `devel`; `main` is what is deployed, and
+  only the owner pushes it. Agents never push `main`.
+- **Where it deploys today:** the one Worker and database there are,
+  `flowhow-test` (`app/wrangler.jsonc`). There is no production yet. When
+  there is, it gets its own Worker, D1 and branch (or GitHub environment),
+  and `main` stops deploying to the test one: this section and the
+  workflow change in the same commit.
+- **Order**, and nothing deploys if a step fails:
+  1. `npm ci`, `npm run typecheck`, `npm test` (job "Typecheck and tests");
+  2. `wrangler d1 migrations apply DB --remote`, so new code never meets
+     an old schema;
+  3. `wrangler deploy`.
+- **Never in CI:** `db:load` (development data, local only) and
+  `user:create` (the first Board user is created by hand, once, §3).
+- **Repository secrets**, created by the owner in GitHub (Settings →
+  Secrets and variables → Actions):
+  - `CLOUDFLARE_API_TOKEN`: a token limited to this account with
+    *Workers Scripts: Edit* and *D1: Edit* (the "Edit Cloudflare Workers"
+    template plus D1).
+  - `CLOUDFLARE_ACCOUNT_ID`.
+- One deploy runs at a time, in push order; a running one is never
+  cancelled by the next.
+- A hand deploy (`npx wrangler deploy` from `app/`) still works, and is
+  what an agent does when the owner asks for one; prefer pushing `main`.
 
 ## 7. After every deployment
 

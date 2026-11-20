@@ -36,6 +36,8 @@ Working notes for Claude Code agents on this repo. Keep it short.
 - Code, identifiers, comments, commits and docs are in English.
 - Keep changes minimal: no features, abstractions or dependencies beyond SPEC.md.
 - Work branch is `devel`. Small commits, clear English messages. Do not push.
+  Never push `main`: every push to it deploys (`DEPLOY.md` §6), and only
+  the owner pushes it.
 - Root holds the documents and `reference/`. Everything else lives in `app/`,
   a TypeScript Worker (Hono, server-rendered JSX). `app/public/` is the
   Worker's assets directory; any other path reaches the Worker.

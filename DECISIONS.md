@@ -14,6 +14,41 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Automatic deployment from main
+
+- **The owner's request:** a GitHub Action that, on every push to `main`,
+  applies the remote migrations and deploys, in that order, after the tests
+  and the typecheck, and deploys nothing if one fails.
+  - The secrets are `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`,
+    created by the owner.
+  - No `db:load` and no `user:create`.
+- **Two jobs** (`.github/workflows/deploy.yml`):
+  - "Typecheck and tests": `npm ci` (whose postinstall runs `wrangler
+    types`), `npm run typecheck`, `npm test`.
+  - "Migrate and deploy": `needs` the first, so a failure stops it. It
+    runs `wrangler d1 migrations apply DB --remote` (without a terminal,
+    wrangler does not ask), then `wrangler deploy`.
+- **Node 22**, as used locally, with npm's cache keyed on
+  `app/package-lock.json`. Actions are pinned to their major version
+  (`actions/checkout@v4`, `actions/setup-node@v4`).
+- **One deploy at a time** (`concurrency: deploy-main`), never cancelling
+  one already running: a migration cut in half is worse than a wait.
+- **`main`** already existed with only the first commit, an ancestor of
+  `devel`. It was moved forward to `devel` (fast-forward, nothing
+  rewritten) and not pushed: the owner pushes it.
+- **Checked:**
+  - In a fresh clone of `devel`, with no `.dev.vars` and nothing
+    generated, `npm ci`, the typecheck and the 372 tests pass.
+  - The workflow parses as YAML, with the jobs in the expected order.
+  - The Action itself runs only once the owner pushes `main` with the
+    secrets in place.
+- **DEPLOY.md §6** now describes it. Today `main` deploys to
+  `flowhow-test`; when production exists, it is split. **CLAUDE.md:**
+  agents never push `main`.
+- Spec sections affected: none.
+
+---
+
 ## 2026-11-20 — Login: a black layer over the image
 
 - **The owner's request:** a solid black layer at 45 % over the login

@@ -1,0 +1,66 @@
+# Every push to main deploys (DEPLOY.md §6). Today main deploys to the one
+# Worker and database there are, flowhow-test; when production exists it
+# gets its own branch or environment.
+#
+# Order: the typecheck and the tests first; the deploy job runs only if
+# both pass. Then the remote D1 migrations, then the Worker, so new code
+# never meets an old schema. Nothing here loads data or creates users
+# (no db:load, no user:create).
+#
+# Repository secrets, created by the owner:
+#   CLOUDFLARE_API_TOKEN   Workers Scripts: Edit and D1: Edit on the account
+#   CLOUDFLARE_ACCOUNT_ID
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+# One deploy at a time, in push order; a running one is never cut short.
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: app
+
+jobs:
+  check:
+    name: Typecheck and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      # Also runs `wrangler types` (postinstall), which the typecheck needs.
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  deploy:
+    name: Migrate and deploy
+    needs: check
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      # Without a terminal, wrangler applies them without asking.
+      - name: Apply D1 migrations (remote)
+        run: npx wrangler d1 migrations apply DB --remote
+      - name: Deploy the Worker
+        run: npx wrangler deploy
