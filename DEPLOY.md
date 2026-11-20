@@ -87,6 +87,20 @@ With `npx wrangler tail` while using the app:
     four failed logins (an unknown user runs the same PBKDF2):
     21 to 34 ms of CPU, about 1 s of wall time (the deliberate wait). The
     outcome was `ok` every time; none was cut.
+  - 2026-11-20, the owner chose fewer iterations over Workers Paid. New
+    hashes use **10,000** (`ITERATIONS` in `app/src/password.ts`). Measured
+    on the deployed Worker, 25 failed logins per count, median CPU:
+    1 iteration 2 ms, 5,000 4 ms, 8,000 4 ms, 10,000 4–5 ms (two runs),
+    12,000 7 ms, 15,000 7 ms, 100,000 23 ms. About one request in four
+    runs a few ms over the median whatever the count (a fresh isolate).
+    Stored hashes keep their own count up to 100,000 (`MAX_ITERATIONS`)
+    and only get cheaper when the password changes:
+    `npm run user:create -- --usuario <u> --restablecer --remote`, or a
+    reset from the Users screen.
+  - **If the account moves to Workers Paid, revert this:** set
+    `ITERATIONS` back to 100,000 (the most Workers accepts), update
+    `test/password.test.ts`, deploy, and reset passwords as they come up.
+    DECISIONS 2026-11-20 (PBKDF2 iterations) says why it was lowered.
 - The tour requests and, in phase 6, the progress report, as DECISIONS
   2026-11-12 (deployment check) asks.
 - The editor's writes on the largest real flow (Apertura de OT, 36

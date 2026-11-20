@@ -14,6 +14,34 @@ Entry format:
 
 ---
 
+## 2026-11-20 — PBKDF2 iterations lowered to 10,000 (a concession to Workers Free)
+
+- **Decision (the owner's):** new password hashes use 10,000 PBKDF2-SHA256
+  iterations instead of 100,000, so the account stays on Workers Free.
+- **This is a concession, not an improvement.** Each guess against a stolen
+  hash costs an attacker ten times less than before. 100,000 was already
+  the most Workers accepts.
+- **Why 10,000:** it is the highest count measured on the deployed Worker
+  whose `POST /login` median CPU stays under 7 ms with margin: 4–5 ms in two
+  runs of 25. 12,000 and 15,000 both had a median of 7 ms, and 100,000 had
+  23 ms. DEPLOY §5 has the figures.
+- **What compensates:**
+  - there is no open sign-up (SPEC §4), and only the Board creates
+    accounts;
+  - there are about 50 accounts;
+  - the login waits one second after every failed attempt.
+- **Stored hashes keep their count.** `verifyPassword` accepts any count up
+  to 100,000 (`MAX_ITERATIONS`). Before this change the ceiling was the
+  count for new hashes, so lowering it alone would have locked out every
+  existing account, `admin` on the remote D1 included. A hash gets the new
+  count only when its password changes.
+- **Side effect while old hashes remain:** a failed login against an
+  account still at 100,000 takes about 20 ms more than one against an
+  unknown username, out of the one-second wait. Resetting the password
+  removes the difference.
+- **Revert it** if the account moves to Workers Paid (DEPLOY §5).
+- Spec sections affected: none (SPEC §9 asks for Web Crypto, not a count).
+
 ## 2026-11-19 — First deployment (owner-authorised)
 
 - **The owner authorised it** and asked for DEPLOY.md step by step.

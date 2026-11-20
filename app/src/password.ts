@@ -1,10 +1,14 @@
 // Password hashing with Web Crypto (SPEC §9: no authentication library).
 // PBKDF2-SHA256, stored as "pbkdf2-sha256$<iterations>$<salt>$<hash>" in
 // base64. The iteration count travels with the hash, so it can change later
-// without breaking stored passwords. 100,000 is the most Workers accepts.
-// Runs unchanged in Node, for tools/user-create.ts.
+// without breaking stored passwords. Runs unchanged in Node, for
+// tools/user-create.ts.
 
-const ITERATIONS = 100_000;
+// New hashes use ITERATIONS, held down by the Workers Free CPU limit
+// (DECISIONS 2026-11-20, DEPLOY §5). A stored hash keeps working with the
+// count it was made with, up to 100,000, the most Workers accepts.
+const ITERATIONS = 10_000;
+const MAX_ITERATIONS = 100_000;
 const SCHEME = "pbkdf2-sha256";
 
 const b64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
@@ -35,7 +39,7 @@ function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
   const [scheme, iter, salt, hash] = stored.split("$");
   const iterations = Number(iter);
-  if (scheme !== SCHEME || !salt || !hash || !Number.isInteger(iterations) || iterations < 1 || iterations > ITERATIONS) {
+  if (scheme !== SCHEME || !salt || !hash || !Number.isInteger(iterations) || iterations < 1 || iterations > MAX_ITERATIONS) {
     // Same work as a real check, so a missing account answers as slowly as
     // a wrong password.
     await derive(password, new Uint8Array(16), ITERATIONS);
