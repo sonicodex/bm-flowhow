@@ -6,6 +6,77 @@ nunca se edita: los cambios generan una iteración nueva.
 
 ---
 
+## plan_iteration_8 — 2026-11-20
+
+Estado: **propuesta.** `plan_iteration_7` sigue vigente hasta que el dueño
+apruebe esta.
+
+Fase 7, montar una empresa (SPEC §4 «Importing areas, users and flows» y
+«First-use wizard», §11). Tres cortes; cada uno termina andando y probado.
+
+- **7.1 Importador de áreas.**
+  - Desde «Áreas», con su mismo permiso (`can_edit`): «Importar áreas».
+  - Entrada como la de flujos: pegar desde Excel o subir un .xlsx, leídos
+    en el navegador con el mismo `xlsx.js`. Hay una plantilla .xlsx con una
+    hoja «Áreas» y una columna «Área».
+  - La revisión tiene la estructura y el estilo de la de flujos:
+    - primero los errores por fila (fila vacía, nombre repetido dentro del
+      archivo);
+    - después lo que entra, en dos grupos: las áreas nuevas y las que ya
+      existen y solo se emparejan (sin distinguir mayúsculas ni tildes,
+      como hoy).
+    - Nada se escribe hasta «Aceptar».
+  - La revisión queda como componente compartido para 7.2.
+- **7.2 Importador de usuarios.**
+  - Desde «Usuarios», con `can_manage_users`.
+  - Columnas: Usuario, Nombre completo, Rol (Estándar, Líder, Junta
+    directiva) y Áreas, separadas por coma en una celda.
+  - Errores por fila:
+    - usuario vacío, repetido en el archivo o ya existente;
+    - nombre vacío;
+    - rol desconocido;
+    - un área que no existe;
+    - un Estándar sin área (SPEC §4).
+  - Los permisos salen del rol, como en el formulario de hoy.
+  - Al aceptar:
+    - se crean las cuentas, cada una con su contraseña temporal;
+    - el cambio obligado en el primer ingreso ya existe desde 4.4;
+    - la lista de contraseñas se muestra una sola vez y no se guarda. Para
+      volver a ver una, se restablece esa contraseña.
+    - El aviso de «Estándar sin flujos en sus áreas» sale por cuenta, como
+      hoy.
+- **7.3 Asistente de primer uso.**
+  - **Pantalla:** «Configuración inicial» muestra los tres pasos con lo que
+    ya hay: N áreas, N usuarios, N flujos.
+    - Cada paso abre su importador y tiene «Saltar».
+    - Al terminar un importador abierto desde aquí, se vuelve al
+      asistente.
+  - **A quién y cuándo:** a quien tiene `can_edit` y `can_manage_users`,
+    desde Inicio, mientras no haya ningún flujo.
+  - **Paso de flujos:** no existe un importador sin flujo, así que el paso
+    crea el flujo por su nombre y abre su editor con «Importar». Puede
+    repetirse para varios flujos.
+  - **Retomable sin guardar nada:** el asistente abre en el primer paso
+    que no tiene datos.
+  - Las categorías de etiquetas no tienen paso propio: salen del
+    importador de flujos.
+
+Preguntas abiertas:
+
+1. **Dónde vive el asistente cuando ya hay flujos.** En SPEC, «capa de
+   administración» es la de la etapa 3 (notas, marcas de falla, métricas),
+   que no está construida. Propuesta: un enlace «Configuración inicial» en
+   la navegación de administración, para quien tenga los dos permisos.
+2. **La lista de contraseñas.** Propuesta: en pantalla, y con un botón
+   «Descargar .xlsx» que arma el archivo en el navegador desde esa misma
+   página. El servidor no la guarda ni la vuelve a dar. ¿O solo pantalla?
+3. **Áreas desconocidas en el archivo de usuarios.** Propuesta: error de
+   fila, para importar primero las áreas. No se crean desde aquí.
+4. **El importador de usuarios solo crea.** Un usuario que ya existe es un
+   error de fila; no se actualizan cuentas desde un archivo.
+5. **Estado del asistente.** Propuesta: se deduce de los datos, sin tabla
+   nueva. Saltar no se recuerda: al volver, abre en el primer paso vacío.
+
 ## plan_iteration_7 — 2026-11-19
 
 Estado: **aprobada. Esta es la iteración vigente.**
