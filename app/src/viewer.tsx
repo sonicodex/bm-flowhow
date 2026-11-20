@@ -1,7 +1,7 @@
 import { raw } from "hono/html";
-import type { Flow } from "../public/js/core.js";
+import Core, { type Flow } from "../public/js/core.js";
 import type { Action } from "../public/js/tour-log.js";
-import { getFlow, latestRelease, type FlowRow } from "./flows.ts";
+import { getFlow, latestRelease, withSubflows, type FlowRow } from "./flows.ts";
 import { Router, visibleFlows, type VisibleFlow } from "./access.tsx";
 import { scriptJson } from "./layout.tsx";
 import { userOf, type SessionUser } from "./session.ts";
@@ -41,8 +41,9 @@ export async function linkTargets(
 
 // The flow selector (SPEC §7, Flow selector; phase 6.7): the flows this
 // user sees, as on the home screen. A Standard user gets it only with more
-// than one; the Board and Leaders always. Subflows are out of stage 1, so
-// none is listed. public/js/viewer.js opens the chosen flow.
+// than one; the Board and Leaders always. Subflows are not listed: they are
+// toured inside their parent (visibleFlows()). public/js/viewer.js opens the
+// chosen flow.
 export const showsSelector = (role: SessionUser["role"], flows: number) => role !== "standard" || flows > 1;
 
 function FlowSelector({ current, flows }: { current: number; flows: VisibleFlow[] }) {
@@ -63,7 +64,8 @@ function FlowSelector({ current, flows }: { current: number; flows: VisibleFlow[
 type PageProps = { flow: FlowRow; compiled: Flow; status: ReviewStatus; links: LinkTargets; selector: VisibleFlow[] | null };
 
 function ViewerPage({ flow, compiled, status, links, selector }: PageProps) {
-  const steps = compiled.steps.length;
+  // A subflow's steps count as the parent's (SPEC §7).
+  const steps = Core.stepCount(compiled);
   return (
     <section class={`viewer flow-${flow.colour}`}>
       {/* One title line (SPEC §7, Layout; phase 9.2): the flow and its
@@ -132,10 +134,11 @@ viewer.get("/:id{[0-9]+}", "flow", async (c) => {
   const release = await latestRelease(c.env.DB, flow);
   if (!release) return c.notFound();
   const user = userOf(c);
+  const compiled = await withSubflows(c.env.DB, release.flow);
   const visible = await visibleFlows(c.env.DB, user);
-  const [status, links] = await Promise.all([reviewStatus(c.env.DB, user.id, flow.id, release), linkTargets(c.env.DB, user, release.flow, visible)]);
+  const [status, links] = await Promise.all([reviewStatus(c.env.DB, user.id, flow.id, release), linkTargets(c.env.DB, user, compiled, visible)]);
   const selector = showsSelector(user.role, visible.length) ? visible : null;
-  return c.render(<ViewerPage flow={flow} compiled={release.flow} status={status} links={links} selector={selector} />, { title: flow.name, page: "viewer" });
+  return c.render(<ViewerPage flow={flow} compiled={compiled} status={status} links={links} selector={selector} />, { title: flow.name, page: "viewer" });
 });
 
 // The tour (phase 3.2). JSON in and out; the server's clock, never the

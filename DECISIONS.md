@@ -14,6 +14,69 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Phase 10.1: subflows in the viewer
+
+- **One graph, not a tour inside a tour.** `core.js expand()` lays each
+  subflow's latest published release into its parent's graph:
+  - its steps get the id `<box>/<id>` (nested: `P5/S2/D1`), so
+    `tour_visits.step_path` stores them as they are, with no migration;
+  - the box leads into the subflow's first start;
+  - every step of the subflow with no exits (its ends) leads to a *return
+    step* whose id is the subflow's scope, `P5/` (no real step can have it:
+    IDs are never empty), and the return step takes the box's own exits.
+  - So the Tour engine needs no notion of subflows. The subflow's branches
+    all meet at the return step, so the engine walks every one before
+    leaving: «entering is mandatory» and «the user cannot continue until the
+    subflow is fully toured» (SPEC §7) come from the rules the tour already
+    has. The only engine change: a subflow's starts are not starts of the
+    tour; its second and later starts are pending starts of the whole tour
+    (a case no real flow has).
+- **What the reader sees:**
+  - the diagram draws one scope at a time (`scopeFlow()`), the subflow's
+    replacing the parent's, with the breadcrumb «Padre › Subflujo» in a row
+    of its own above the legend;
+  - at the box the primary action is «Entrar al subflujo»; at the
+    subflow's last step it is «Volver a «Padre»», and the tour goes on from
+    the box (the return step, drawn as the box);
+  - the breadcrumb shows the parent before finishing (view only: the panel
+    keeps the step, and any action brings the view back), and the box still
+    has to be entered;
+  - in the free review, selecting a box offers «Abrir subflujo», with the
+    same breadcrumb;
+  - progress and the minimum time count the subflow's steps (nested ones
+    too), not the return steps: Apertura with a 5-step subflow is 41 steps.
+- **The box:** a second outline inside it (`node-shape-inner`, 4 units in,
+  in the node's colour so it reads on the current step too) and the plus of
+  `icons/subprocess.svg`, as the prototype draws it. The prototype also
+  draws a subflow's diagram in a darker shade of the parent's colour; SPEC
+  does not ask for it and `theme.css` has no token for the shade, so it is
+  left out until the owner wants it.
+- **Versions:** the parent always shows the subflow's latest release
+  (SPEC §7), the tour included. A run stays on its parent's release, but its
+  subflows are the latest: if a subflow is published again mid-run and the
+  log no longer replays, the run restarts with the notice «Las reglas del
+  recorrido cambiaron…», as it already does after a change of the tour's
+  rules. Pinning subflow releases per run would need a migration for a rare
+  case.
+- **Not listed on its own:** a flow that the latest release of another flow
+  contains as a subflow is left out of `visibleFlows()` (home screen and
+  flow selector), for every role. The progress report already lists only
+  flows assigned to areas, and subflows have none. Its own viewer URL still
+  answers to the Board and Leaders (`canSeeFlow` is unchanged).
+- **Checked:**
+  - `test/subflow.test.js` (expand, scopeFlow, stepCount, the tour);
+  - `test/subflow-server.test.ts` (the run, the minimum time, the latest
+    subflow release, the listing);
+  - headless Chrome at 1366×768 and 390×844 on a copy of the local
+    database (in the scratchpad, with a second dev server; the owner's
+    database untouched), where Apertura's P25 was made a box of a new flow
+    «Despacho» with a decision. Walked the whole tour, entered and left
+    the subflow, used the breadcrumb, finished, and opened the subflow from
+    the free review.
+- Spec sections affected: none.
+
+---
+
 ## 2026-11-20 — The waiting notice beside the buttons, in the warning colours
 
 - **The owner's review:** «Elige la rama en el diagrama» was not near the

@@ -1,4 +1,4 @@
-import type { Flow, FlowEntry, FlowLib } from "../public/js/core.js";
+import Core, { type Flow, type FlowEntry, type FlowLib } from "../public/js/core.js";
 import { documentToFlow, EMPTY_DOCUMENT, loadTagIndex, type FlowDocument } from "./document.ts";
 import { NAME_RULE, nameKey } from "./names.ts";
 
@@ -38,6 +38,25 @@ export async function getRelease(db: D1Database, flow: FlowRow, releaseId: numbe
     .bind(releaseId, flow.id)
     .first<ReleaseRow>();
   return compileRelease(db, flow, row);
+}
+
+// The flow with its subflows laid in (SPEC §7, stage 2; core.js expand()):
+// what the viewer draws and the tour walks. Each subflow is its latest
+// release, nested ones included. A flow without subflow boxes comes back as
+// it is, after no query at all.
+export async function withSubflows(db: D1Database, flow: Flow): Promise<Flow> {
+  const entries = new Map<number, FlowEntry | null>();
+  const load = async (f: Flow): Promise<void> => {
+    for (const s of f.steps) {
+      if (s.type !== "subflow" || !s.ref || entries.has(s.ref)) continue;
+      const row = await getFlow(db, s.ref);
+      const release = row && (await latestRelease(db, row));
+      entries.set(s.ref, row ? { name: row.name, published: release ? release.flow : null } : null);
+      if (release) await load(release.flow);
+    }
+  };
+  await load(flow);
+  return Core.expand(flow, (id: number) => entries.get(id) ?? null);
 }
 
 // SPEC §9: a new flow gets the first colour not yet in use. Once all twelve

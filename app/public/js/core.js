@@ -36,14 +36,24 @@
 
 /** @typedef {{ name?: string, objective?: string, categories?: string[], steps?: DraftStep[] }} Draft */
 
+/* `ref` is the target flow's id on link and subflow steps, null otherwise;
+   `contact` is their contact (SPEC §5), empty on every other type. Step
+   is defined with Flow, below. */
+
 /**
- * `ref` is the target flow's id on link and subflow steps, null otherwise;
- * `contact` is their contact (SPEC §5), empty on every other type.
+ * A step of a flow with its subflows laid in (expand(); phase 10.1) also
+ * carries `scope`: '' in the flow itself, else the path of the subflow box
+ * it sits in, as "P5/" or "P5/S2/". The box's return step (`returns`, the
+ * box's id) is the box again once the subflow is done; its id is the
+ * subflow's scope. `alsoStart`: a subflow's second or later start.
  * @typedef {{ id: string, type: string, title: string, description: string,
- *   tags: Record<string, string[]>, exits: Exit[], ref: number|null, contact: string }} Step
+ *   tags: Record<string, string[]>, exits: Exit[], ref: number|null, contact: string,
+ *   scope?: string, returns?: string, alsoStart?: boolean }} Step
  */
 
-/** @typedef {{ name: string, objective: string, categories: string[], steps: Step[] }} Flow */
+/** @typedef {{ id: number, name: string, parent: string, box: string }} SubScope */
+
+/** @typedef {{ name: string, objective: string, categories: string[], steps: Step[], subflows?: Record<string, SubScope> }} Flow */
 
 /** @typedef {{ name: string, published: Flow|null }} FlowEntry */
 
@@ -693,7 +703,10 @@ var Core = (function () {
     this.byId = new Map();
     flow.steps.forEach(function (s) { if (s.id && !self.byId.has(s.id)) self.byId.set(s.id, s); });
     this.ids = Array.from(this.byId.keys());
-    var starts = this.ids.filter(function (id) { return self.byId.get(id).type === 'start'; });
+    // A subflow's start is entered from its box, not walked on its own (expand()).
+    var own = function (id) { var s = self.byId.get(id); return s.type === 'start' && !s.scope; };
+    var also = function (id) { return !!self.byId.get(id).alsoStart; };
+    var starts = this.ids.filter(own).concat(this.ids.filter(also));
     var first = starts.length ? starts : [this.ids[0]];
     this.visited = new Set(); this.trail = []; this.pos = -1;
     this.path = [];     // steps walked since the start, cut back when the tour returns to a decision
@@ -1049,7 +1062,89 @@ var Core = (function () {
     return out;
   }
 
+  /* Subflows (SPEC §7, stage 2; phase 10.1). A subflow box is walked as part
+     of its parent: expand() lays the subflow's published steps into the
+     parent's graph, so the Tour walks one graph and needs no notion of
+     subflows. In the expanded graph:
+     - each step of the subflow in box P5 gets the id "P5/<its id>" and the
+       scope "P5/" (nested boxes add their own: "P5/S2/");
+     - the box leads into the subflow's first start ("Entrar al subflujo");
+     - every step of the subflow without exits (its ends) leads to the box's
+       return step, id "P5/" (the scope itself, which no step can have:
+       IDs are never empty), and the return step has the box's exits. So the
+       subflow's branches all meet at the return step and the Tour walks
+       every one of them before it leaves the subflow ("entering is
+       mandatory": the user cannot continue until it is fully toured);
+     - a subflow's other starts are pending starts of the whole tour.
+     `lib(id)` gives { name, published } with the latest release (SPEC §7:
+     the parent always shows the subflow's latest published version). A box
+     whose flow is missing, unpublished, or already on the way in (a cycle,
+     which publishing refuses) stays a plain step. Flows without subflow
+     boxes come back as they are.
+     @param {Flow} flow @param {FlowLib} lib @returns {Flow} */
+  function expand(flow, lib) {
+    if (!flow.steps.some(function (s) { return s.type === 'subflow' && s.ref; })) return flow;
+    /** @type {Step[]} */
+    var steps = [];
+    /** @type {Record<string, SubScope>} */
+    var subflows = {};
+    /** @param {Flow} f @param {string} prefix @param {number[]} seen */
+    var walk = function (f, prefix, seen) {
+      f.steps.forEach(function (s) {
+        var id = prefix + s.id;
+        var exits = s.exits.map(function (e) { return { label: e.label, to: prefix + e.to }; });
+        /** @type {Step} */
+        var copy = Object.assign({}, s, { id: id, scope: prefix, exits: exits });
+        var entry = s.type === 'subflow' && s.ref && seen.indexOf(s.ref) === -1 ? lib(s.ref) : null;
+        var sub = entry && entry.published;
+        var subStarts = sub ? sub.steps.filter(function (x) { return x.type === 'start' && x.id; }) : [];
+        if (!entry || !sub || !sub.steps.length) { steps.push(copy); return; }
+        var inner = id + '/';
+        var first = subStarts.length ? subStarts[0] : sub.steps[0];
+        copy.exits = [{ label: '', to: inner + first.id }];
+        steps.push(copy);
+        subflows[inner] = { id: /** @type {number} */ (s.ref), name: entry.name, parent: prefix, box: id };
+        var from = steps.length;
+        walk(sub, inner, seen.concat([/** @type {number} */ (s.ref)]));
+        steps.slice(from).forEach(function (x) {
+          if (x.scope !== inner) return;
+          if (!x.exits.length) x.exits = [{ label: '', to: inner }];
+          if (x.type === 'start' && x.id !== inner + first.id) x.alsoStart = true;
+        });
+        steps.push(Object.assign({}, s, { id: inner, scope: prefix, exits: exits, returns: id }));
+      });
+    };
+    walk(flow, '', []);
+    return { name: flow.name, objective: flow.objective, categories: flow.categories, steps: steps, subflows: subflows };
+  }
+
+  /* One scope of an expanded flow as it is drawn: the flow itself ('') or
+     one subflow ("P5/"), with its steps' expanded ids and the exits they
+     have in their own flow (a box leads where it leads in the parent, an
+     end leads nowhere). Without subflows, the flow itself.
+     @param {Flow} flow @param {string} scope @returns {Flow} */
+  function scopeFlow(flow, scope) {
+    if (!flow.subflows) return flow;
+    var byId = new Map(flow.steps.map(function (s) { return [s.id, s]; }));
+    var steps = flow.steps.filter(function (s) { return (s.scope || '') === scope && !s.returns; }).map(function (s) {
+      var back = byId.get(s.id + '/');
+      if (back && back.returns === s.id) return Object.assign({}, s, { exits: back.exits });
+      if (scope && s.exits.length === 1 && s.exits[0].to === scope) return Object.assign({}, s, { exits: [] });
+      return s;
+    });
+    var name = scope ? flow.subflows[scope].name : flow.name;
+    return { name: name, objective: scope ? '' : flow.objective, categories: flow.categories, steps: steps };
+  }
+
+  /* The steps a tour counts (SPEC §7: a subflow's steps count toward the
+     parent's 100 %, nested ones too): every step but the return steps.
+     @param {Flow} flow @returns {number} */
+  function stepCount(flow) {
+    return flow.steps.filter(function (s) { return !s.returns; }).length;
+  }
+
   return {
+    expand: expand, scopeFlow: scopeFlow, stepCount: stepCount,
     TYPES: TYPES, TYPE_LABELS: TYPE_LABELS, EXAMPLE: EXAMPLE, EXAMPLE_SUB: EXAMPLE_SUB, validateRefs: validateRefs, norm: norm, parseExits: parseExits, parseTags: parseTags, formatExits: formatExits, predecessorsText: predecessorsText, applyDependsOn: applyDependsOn,
     compile: compile, parallelBranches: parallelBranches, validate: validate, textToTable: textToTable, tableToGrid: tableToGrid, fixedColumn: fixedColumn, gridToDraft: gridToDraft, parseTable: parseTable, toTSV: toTSV, wrapTitle: wrapTitle, layout: layout, Tour: Tour
   };

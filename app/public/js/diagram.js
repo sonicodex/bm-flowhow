@@ -14,10 +14,11 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':
 const num = (n) => String(Math.round(n * 10) / 10);
 const pt = (p) => `${num(p.x)} ${num(p.y)}`;
 
-// Icon shapes of app/public/icons/hold_on.svg and link.svg (geometry only;
+// Icon shapes of app/public/icons/hold_on.svg, link.svg and subprocess.svg (geometry only;
 // they take their fill from app.css), as the prototype draws them.
 const ICONS = {
   wait: ['0 0 19.5 19.5', '<path d="M9.75,19.5C4.37,19.5,0,15.13,0,9.75S4.37,0,9.75,0s9.75,4.37,9.75,9.75-4.37,9.75-9.75,9.75ZM9.75,1.5C5.2,1.5,1.5,5.2,1.5,9.75s3.7,8.25,8.25,8.25,8.25-3.7,8.25-8.25S14.3,1.5,9.75,1.5Z"/><polygon points="12.93 12.77 9 10.15 9 5.35 10.5 5.35 10.5 9.35 13.77 11.53 12.93 12.77"/>'],
+  subflow: ['0 0 14 14', '<rect x="6.25" width="1.5" height="14"/><rect y="6.25" width="14" height="1.5"/>'],
   link: ['0 0 13.28 13.28', '<rect x="-1.96" y="6" width="16.97" height="1.5" transform="translate(-2.86 6.59) rotate(-45)"/><polygon points="13.28 7.75 11.78 7.75 11.78 1.5 5.53 1.5 5.53 0 13.28 0 13.28 7.75"/>'],
 };
 
@@ -44,12 +45,17 @@ function shape(n) {
     const r = h / 2;
     return `<path class="node-shape" d="M${num(r)} 0 H${num(w - r)} A${num(r)} ${num(r)} 0 0 1 ${num(w - r)} ${num(h)} H${num(r)} A${num(r)} ${num(r)} 0 0 1 ${num(r)} 0 Z"/>`;
   }
+  // A subflow box has a double border (SPEC §7): a second outline inside.
+  if (n.type === 'subflow') return `<rect class="node-shape" width="${num(w)}" height="${num(h)}"/><rect class="node-shape-inner" x="${SUB_INSET}" y="${SUB_INSET}" width="${num(w - 2 * SUB_INSET)}" height="${num(h - 2 * SUB_INSET)}"/>`;
   return `<rect class="node-shape" width="${num(w)}" height="${num(h)}"/>`;
 }
 
+// The gap between a subflow box's two outlines.
+const SUB_INSET = 4;
+
 /** @param {LayoutNode} n */
 function icon(n) {
-  const at = n.type === 'wait' ? { name: 'wait', x: 12, size: 16 } : n.type === 'link' ? { name: 'link', x: n.w - 28, size: 12 } : null;
+  const at = n.type === 'wait' ? { name: 'wait', x: 12, size: 16 } : n.type === 'link' || n.type === 'subflow' ? { name: n.type, x: n.w - 28, size: 12 } : null;
   if (!at) return '';
   const [box, body] = ICONS[at.name];
   return `<svg class="node-icon" aria-hidden="true" x="${num(at.x)}" y="${num(n.h / 2 - at.size / 2)}" width="${at.size}" height="${at.size}" viewBox="${box}">${body}</svg>`;

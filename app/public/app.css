@@ -447,6 +447,34 @@ textarea:focus-visible,
   stroke-dasharray: var(--space-1) var(--space-1);
 }
 
+/* A subflow box: a double border and a plus sign (SPEC §7; diagram.js). */
+.diagram .node-shape-inner {
+  fill: none;
+  /* The node's colour, as its plus sign: it reads on the current step too. */
+  stroke: currentColor;
+  stroke-width: var(--border-width);
+  rx: var(--radius);
+}
+
+/* «Padre › Subflujo» above a subflow's diagram (SPEC §7; phase 10.1). */
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-6);
+  border-bottom: var(--border-width) solid var(--color-border);
+  font-size: var(--text-sm);
+}
+
+.crumbs .crumb.here {
+  font-weight: var(--weight-medium);
+}
+
+.crumbs .crumb-sep {
+  color: var(--color-text-muted);
+}
+
 .diagram .node {
   color: var(--flow-strong);
 }
@@ -1454,6 +1482,16 @@ button.offframe:focus-visible {
   max-height: none;
 }
 
+/* Inside a subflow the breadcrumb adds a row above the legend (phase 10.1). */
+.viewer-cols.card:has(.crumbs) {
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+}
+
+.viewer-cols:has(.crumbs) .diagram-scroll,
+.viewer-cols:has(.crumbs) .viewer-side {
+  grid-row: 4;
+}
+
 .viewer-cols .viewer-side {
   grid-column: 2;
   grid-row: 3;
@@ -1565,6 +1603,18 @@ button.offframe:focus-visible {
 
   .viewer-cols .diagram-scroll {
     grid-row: 4;
+  }
+
+  .viewer-cols.card:has(.crumbs) {
+    grid-template-rows: auto auto auto auto minmax(calc(var(--space-10) * 4), 1fr);
+  }
+
+  .viewer-cols:has(.crumbs) .viewer-side {
+    grid-row: 4;
+  }
+
+  .viewer-cols:has(.crumbs) .diagram-scroll {
+    grid-row: 5;
   }
 
   .viewer-cols .step-actions {

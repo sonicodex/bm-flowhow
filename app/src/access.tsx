@@ -92,14 +92,23 @@ export async function canSeeFlow(db: D1Database, user: SessionUser, flowId: numb
 
 export type VisibleFlow = { id: number; name: string; objective: string; colour: number; major: number; minor: number };
 
+// A flow that the latest release of another flow contains as a subflow
+// (SPEC §7): it counts inside its parent and is never listed on its own.
+const SUBFLOW = `EXISTS (
+  SELECT 1 FROM releases pr, json_each(pr.document, '$.steps') st
+  WHERE pr.flow_id <> f.id
+    AND pr.id = (SELECT id FROM releases WHERE flow_id = pr.flow_id ORDER BY major DESC, minor DESC LIMIT 1)
+    AND json_extract(st.value, '$.type') = 'subflow' AND json_extract(st.value, '$.ref') = f.id)`;
+
 // The flows the user sees, by name, each with its latest release's version.
+// Subflows are left out: whoever sees a flow sees its subflows inside it.
 export async function visibleFlows(db: D1Database, user: Pick<SessionUser, "id" | "role">): Promise<VisibleFlow[]> {
   const { results } = await db
     .prepare(
       `SELECT f.id, f.name, f.objective, f.colour, rel.major, rel.minor FROM flows f
        JOIN releases rel ON rel.id = (
          SELECT id FROM releases WHERE flow_id = f.id ORDER BY major DESC, minor DESC LIMIT 1)
-       WHERE ${VISIBLE}
+       WHERE ${VISIBLE} AND NOT ${SUBFLOW}
        ORDER BY f.name_key`,
     )
     .bind(user.role, user.id)

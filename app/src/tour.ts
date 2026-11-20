@@ -1,6 +1,6 @@
-import type { Flow } from "../public/js/core.js";
+import Core, { type Flow } from "../public/js/core.js";
 import { apply, replay, type Action, type LogRow } from "../public/js/tour-log.js";
-import { getFlow, getRelease, latestRelease, type Release } from "./flows.ts";
+import { getFlow, getRelease, latestRelease, withSubflows, type Release } from "./flows.ts";
 
 // The tour on the server (SPEC §7; phase 3.2). The browser only proposes
 // actions: the server rebuilds the tour from its own log, checks each action
@@ -41,7 +41,11 @@ async function openRun(db: D1Database, userId: number, flowId: number): Promise<
     .bind(userId, flowId)
     .first<{ id: number; release_id: number; started_at: string }>();
   if (!run) return null;
-  const release = (await getRelease(db, flow, run.release_id))!;
+  const stored = (await getRelease(db, flow, run.release_id))!;
+  // Its subflows as they are now, laid in (phase 10.1). A subflow published
+  // again mid-run can leave the log unable to replay: the run then restarts,
+  // as after a change of the tour's rules.
+  const release = { ...stored, flow: await withSubflows(db, stored.flow) };
   const { results } = await db
     .prepare("SELECT step_path, exit_index, rewind_to FROM tour_visits WHERE run_id = ? ORDER BY id")
     .bind(run.id)
@@ -156,7 +160,8 @@ export async function finishTour(db: D1Database, userId: number, flowId: number,
   if (!tour) return { ok: false, error: NEW_RULES };
   if (!tour.canFinish()) return { ok: false, error: RELOAD };
   const elapsed = now.getTime() - Date.parse(run.startedAt);
-  if (elapsed < run.release.flow.steps.length * SECONDS_PER_STEP * 1000) return { ok: false, error: TOO_FAST };
+  // Steps × 5 s, a subflow's steps included (SPEC §7).
+  if (elapsed < Core.stepCount(run.release.flow) * SECONDS_PER_STEP * 1000) return { ok: false, error: TOO_FAST };
   const durationSeconds = Math.floor(elapsed / 1000);
   const finishedAt = now.toISOString();
   const [closed] = await db.batch([

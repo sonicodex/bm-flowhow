@@ -83,7 +83,9 @@ if (data && cols) {
     );
   const drawOverview = () => {
     const box = document.getElementById('diagram');
-    if (box) box.innerHTML = renderDiagram(layoutFlow(flow), { name, colour }, undefined, linkMarks(flow, true));
+    // Its own steps; a subflow is its box (SPEC §7, phase 10.1).
+    const own = Core.scopeFlow(flow, '');
+    if (box) box.innerHTML = renderDiagram(layoutFlow(own), { name, colour }, undefined, linkMarks(own, true));
   };
   drawOverview();
 
@@ -161,6 +163,41 @@ if (data && cols) {
   const waitNotice = (before, after) =>
     `<p class="wait-notice">${ALERT_ICON}<span>${before} <button type="button" class="button-link" data-show-targets>diagrama</button>${after}</span></p>`;
 
+  // ---- Subflows (SPEC §7, stage 2; phase 10.1). The tour walks the flow
+  // with its subflows laid in (core.js expand()); the diagram draws one
+  // scope at a time: the flow itself ('') or a subflow ("P5/"). ----
+  const scopeOf = (tour, id) => (tour.byId.get(id) && tour.byId.get(id).scope) || '';
+  // Where step `id` is on the diagram of scope `drawn`: itself, the box of
+  // a subflow it is inside of, or the box for its return step.
+  const drawnAs = (tour, id, drawn) => {
+    let s = tour.byId.get(id);
+    if (!s) return id;
+    if (s.returns) { id = s.returns; s = tour.byId.get(id); }
+    let scope = s.scope || '';
+    while (scope && scope !== drawn && scope.startsWith(drawn)) {
+      id = tour.subflows[scope].box;
+      scope = tour.byId.get(id).scope || '';
+    }
+    return id;
+  };
+  // The scope drawn in the tour: the current step's, unless the breadcrumb
+  // shows one of the subflows around it (state.view).
+  // (A return step's scope is the box's: it is drawn as the box.)
+  const drawnScope = (tour) => (state && state.view !== null ? state.view : scopeOf(tour, tour.current().id));
+  const here = (tour) => drawnAs(tour, tour.current().id, drawnScope(tour));
+  // «Padre › Subflujo»: every scope from the flow down to `deepest`; the
+  // one drawn is where the reader is, the others take them there.
+  const crumbs = (subflows, deepest, drawn, attr) => {
+    if (!deepest) return '';
+    const chain = [];
+    for (let sc = deepest; sc; sc = subflows[sc].parent) chain.unshift(sc);
+    chain.unshift('');
+    const label = (sc) => esc(sc ? subflows[sc].name : name);
+    return `<nav class="crumbs" aria-label="Ubicación">${chain.map((sc, i) =>
+      (sc === drawn ? `<span class="crumb here" aria-current="location">${label(sc)}</span>` : `<button type="button" class="button-link crumb" ${attr}="${esc(sc)}">${label(sc)}</button>`) +
+      (i < chain.length - 1 ? '<span class="crumb-sep" aria-hidden="true">›</span>' : '')).join('')}</nav>`;
+  };
+
   const exitsPanel = (tour) => {
     const options = tour.options();
     if (!options.length) return '';
@@ -200,7 +237,7 @@ if (data && cols) {
   // diagram's box as it stands (the overview's or the last step's; the
   // tour keeps the same column). Past it the badges go under the step.
   const marks = (tour, categories, room = Infinity) => {
-    const current = tour.current().id;
+    const current = here(tour);
     const step = tour.step();
     return {
       state: (stepId) => (stepId === current ? 'current' : tour.visited.has(stepId) ? 'visited' : 'dim'),
@@ -235,7 +272,7 @@ if (data && cols) {
       const name = `Rama ${labels.length ? labels.join(' o ') : 'sin nombre'}: ${list[0].title}${taken ? ', ya recorrida' : ''}`;
       targets[to] = { exit: (open || list[0]).index, name, taken };
     }
-    return { decision: choice.decision, targets };
+    return { decision: drawnAs(tour, choice.decision, drawnScope(tour)), targets };
   };
 
   // What can be chosen on the diagram: the branches of the decision in view
@@ -276,7 +313,7 @@ if (data && cols) {
   // the current step's exits (a decision's branches). After: the step after
   // those (the branches, when the next one is a decision).
   const frameParts = (tour) => {
-    const current = tour.current().id;
+    const current = here(tour);
     const behind = [];
     // A sibling opened from another (6.23) came from its decision, not from the step before it.
     const alt = tour.current().note && tour.current().note.alt;
@@ -290,7 +327,11 @@ if (data && cols) {
     const sib = tour.siblings();
     const next = sib ? sib.exits.map((k) => tour.exitsOf(sib.decision)[k].to) : [...new Set(tour.exitsOf(current).map((e) => e.to))];
     const after = tour.canChoose() ? [] : [...new Set(next.flatMap((id) => tour.exitsOf(id).map((e) => e.to)))].filter((id) => id !== current && !next.includes(id) && !(sib && id === sib.decision));
-    return { current, behind, next, after };
+    // Only steps on the diagram drawn (phase 10.1): a subflow's start, seen
+    // from its box, or the box, seen from the subflow's last step, are not.
+    const drawn = drawnScope(tour);
+    const on = (list) => [...new Set(list.map((id) => drawnAs(tour, id, drawn)))].filter((id) => id !== current && scopeOf(tour, id) === drawn && !tour.byId.get(id).returns);
+    return { current, behind: on(behind), next: on(next), after: on(after) };
   };
 
   // Room around the frame.
@@ -589,7 +630,7 @@ if (data && cols) {
   const showReturnTip = (box, tour) => {
     box.querySelector('.tooltip-return')?.remove();
     const pending = pendingBranches(tour);
-    const node = pending.length ? box.querySelector(`.node[data-id="${CSS.escape(tour.current().id)}"]`) : null;
+    const node = pending.length ? box.querySelector(`.node[data-id="${CSS.escape(here(tour))}"]`) : null;
     if (!node) return;
     const tip = document.createElement('div');
     tip.className = 'tooltip tooltip-return';
@@ -608,16 +649,35 @@ if (data && cols) {
     `<button type="button" class="step-button" data-${which} aria-label="${label}" title="${label}"${disabled ? ' disabled' : ''}><img src="/icons/step_${which}.svg" alt="" width="44" height="44"></button>`;
 
   const renderTour = (focus) => {
-    const { tour, flow: toured, layout } = state;
-    const total = toured.steps.length;
-    const seen = tour.visited.size;
+    const { tour, flow: whole } = state;
+    // A subflow's steps count toward the parent's 100 %; a return step is its box again.
+    const total = Core.stepCount(whole);
+    const seen = [...tour.visited].filter((id) => !tour.byId.get(id).returns).length;
     const step = tour.step();
     const finish = tour.canFinish();
+    // The scope on the diagram, drawn on its own (phase 10.1).
+    const drawn = drawnScope(tour);
+    if (!state.layouts[drawn]) state.layouts[drawn] = layoutFlow(Core.scopeFlow(whole, drawn));
+    const layout = state.layouts[drawn];
+    const toured = Core.scopeFlow(whole, drawn);
+    state.layout = layout;
     // On a sibling step, "Siguiente" waits until every sibling is opened (6.23).
     const choice = tour.needsChoice() || !!tour.siblings();
+    // At a subflow box, the way on is into it; at a subflow's last step, back
+    // to the flow around it (SPEC §7: «Entrar al subflujo», «Volver a «…»»).
+    const cur = tour.current();
+    const only = tour.atEnd() && tour.exitsOf(cur.id).length === 1 ? tour.byId.get(tour.exitsOf(cur.id)[0].to) : null;
+    const into = !!only && only.scope === `${cur.id}/`;
+    const out = !!only && !!only.returns && scopeOf(tour, cur.id) === only.id;
+    const parentName = out ? (whole.subflows[only.id].parent ? whole.subflows[whole.subflows[only.id].parent].name : name) : '';
     const primary = finish
       ? '<button type="button" class="button-primary" data-finish>Terminar recorrido</button>'
-      : stepButton('next', 'Siguiente', choice);
+      : into && !choice
+        ? '<button type="button" class="button-primary" data-next>Entrar al subflujo</button>'
+        : out && !choice
+          ? `<button type="button" class="button-primary" data-next>Volver a ${quoted(parentName)}</button>`
+          : stepButton('next', 'Siguiente', choice);
+    const deepest = scopeOf(tour, cur.id);
     // How wide the step and its badges may be beside each other (marks()).
     const was = document.getElementById('diagram');
     const pad = was ? parseFloat(getComputedStyle(was).paddingLeft) + parseFloat(getComputedStyle(was).paddingRight) : 0;
@@ -628,8 +688,9 @@ if (data && cols) {
       `<div class="bar" role="progressbar" aria-label="Pasos visitados" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${seen}"><div style="width:${Math.round((seen / total) * 100)}%"></div></div>` +
       // Back to the overview; the run stays open (phase 3.5).
       `${zoomToggle()}<button type="button" class="button-link" data-overview>Ver el flujo completo</button></div>` +
+      crumbs(whole.subflows || {}, deepest, drawn, 'data-crumb') +
       legend(toured.categories, true) +
-      `<div class="diagram-scroll" id="diagram">${renderDiagram(layout, { name, colour }, marks(tour, toured.categories, badgeRoom), linkMarks(toured, false))}</div></div>` +
+      `<div class="diagram-scroll" id="diagram">${renderDiagram(layout, { name: toured.name, colour }, marks(tour, toured.categories, badgeRoom), linkMarks(toured, false))}</div></div>` +
       // The buttons at the foot of the step panel, under what they act on,
       // covering no part of the map (SPEC §7, Layout; phase 8.5).
       `<aside class="card viewer-side">${tour.atEnd() ? noteFor(tour.current().note) : ''}${details(step, toured.categories)}${linkPanel(step)}${exitsPanel(tour)}` +
@@ -647,7 +708,7 @@ if (data && cols) {
     if (state.busy) cols.querySelectorAll('button').forEach((b) => { b.disabled = true; });
     const box = document.getElementById('diagram');
     if (zoomed) zoomTo(box, layout, tour);
-    else scrollToCurrent(box, layout, tour.current().id);
+    else scrollToCurrent(box, layout, here(tour));
     showReturnTip(box, tour);
     showHeldTip(box, tour);
     // The first of these that can take focus: the control just used, else
@@ -721,7 +782,8 @@ if (data && cols) {
     status = res.json.status;
     showStatus(status);
     links = res.json.links || {};
-    state = { flow: res.json.flow, layout: layoutFlow(res.json.flow), tour, busy: false, message: res.json.notice || '' };
+    tour.subflows = res.json.flow.subflows || {};
+    state = { flow: res.json.flow, layouts: {}, layout: null, view: null, tour, busy: false, message: res.json.notice || '' };
     renderTour();
   };
 
@@ -748,15 +810,17 @@ if (data && cols) {
   // Unlocked once the flow is reviewed. It reads the page's release, the
   // latest, as the overview does; nothing of it reaches the server. ----
 
-  /** @type {{ selected: string, cat: string, val: string, notes: string[] } | null} */
+  // `scope`: the subflow on the diagram ('' for the flow itself, phase 10.1).
+  /** @type {{ selected: string, cat: string, val: string, notes: string[], scope: string } | null} */
   let review = null;
-  const reviewLayout = () => layoutFlow(flow);
+  const reviewLayout = () => layoutFlow(Core.scopeFlow(flow, review.scope));
   let laidOut = null;
 
   const showReview = (notes = []) => {
     state = null;
     links = pageLinks;
-    review = { selected: '', cat: '', val: '', notes };
+    review = { selected: '', cat: '', val: '', notes, scope: '' };
+    laidOut = null;
     renderReview();
   };
 
@@ -783,37 +847,53 @@ if (data && cols) {
     const old = document.getElementById('diagram');
     const kept = old ? { top: old.scrollTop, left: old.scrollLeft } : null;
     laidOut = laidOut || reviewLayout();
-    const step = flow.steps.find((s) => s.id === selected) || null;
-    const values = cat ? [...new Set(flow.steps.flatMap((s) => s.tags[cat] || []))].sort((a, b) => a.localeCompare(b, 'es-CO')) : [];
-    const carries = (id) => (flow.steps.find((s) => s.id === id)?.tags[cat] || []).includes(val);
+    const all = flow;
+    const flowHere = Core.scopeFlow(all, review.scope);
+    const step = flowHere.steps.find((s) => s.id === selected) || null;
+    const values = cat ? [...new Set(flowHere.steps.flatMap((s) => s.tags[cat] || []))].sort((a, b) => a.localeCompare(b, 'es-CO')) : [];
+    const carries = (id) => (flowHere.steps.find((s) => s.id === id)?.tags[cat] || []).includes(val);
     const marks = {
       clickable: true,
       walked: () => true,
       state: (id) => [id === selected ? 'selected' : '', cat && val ? (carries(id) ? 'hit' : 'dim') : ''].filter(Boolean).join(' '),
-      badges: step ? { id: step.id, items: flow.categories.flatMap((category, index) => (step.tags[category] || []).map((value) => ({ category, index, value }))) } : undefined,
+      badges: step ? { id: step.id, items: flowHere.categories.flatMap((category, index) => (step.tags[category] || []).map((value) => ({ category, index, value }))) } : undefined,
     };
     const filter =
       '<div class="review-filter">' +
-      (flow.categories.length
-        ? `<label for="hl-cat">Resaltar por</label><select id="hl-cat"><option value="">Nada</option>${flow.categories.map((c) => `<option value="${esc(c)}"${c === cat ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select>` +
+      (flowHere.categories.length
+        ? `<label for="hl-cat">Resaltar por</label><select id="hl-cat"><option value="">Nada</option>${flowHere.categories.map((c) => `<option value="${esc(c)}"${c === cat ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select>` +
           (values.length ? `<div class="review-values">${values.map((v) => `<button type="button" class="chip-button" data-hl="${esc(v)}" aria-pressed="${v === val}">${esc(v)}</button>`).join('')}</div>` : '')
         : '') +
       '<button type="button" class="button-link" data-overview>Ver el panorama</button></div>';
     const intro =
       '<p class="eyebrow">REPASO LIBRE</p><h2 class="step-title">Explora con libertad</h2>' +
-      `<p>Toca cualquier paso para ver su detalle${flow.categories.length ? ', o resalta los pasos que llevan una etiqueta' : ''}.</p>`;
+      `<p>Toca cualquier paso para ver su detalle${flowHere.categories.length ? ', o resalta los pasos que llevan una etiqueta' : ''}.</p>`;
     cols.innerHTML =
-      `<div class="diagram-card">${filter}${legend(flow.categories)}<div class="diagram-scroll" id="diagram">${renderDiagram(laidOut, { name, colour }, marks, linkMarks(flow, false))}</div></div>` +
+      `<div class="diagram-card">${crumbs(all.subflows || {}, review.scope, review.scope, 'data-rcrumb')}${filter}${legend(flowHere.categories)}<div class="diagram-scroll" id="diagram">${renderDiagram(laidOut, { name, colour }, marks, linkMarks(flow, false))}</div></div>` +
       `<aside class="card viewer-side">${notes.length ? `<p class="note">${DONE_ICON}<span>${notes.map(esc).join(' ')}</span></p>` : ''}` +
-      `${step ? details(step, flow.categories) + linkPanel(step) : intro}</aside>`;
+      `${step ? details(step, flowHere.categories) + linkPanel(step) + subflowPanel(step) : intro}</aside>`;
     const box = document.getElementById('diagram');
-    if (box && jump && cat && val) scrollToHits(box, laidOut, flow.steps.filter((s) => carries(s.id)).map((s) => s.id));
+    if (box && jump && cat && val) scrollToHits(box, laidOut, flowHere.steps.filter((s) => carries(s.id)).map((s) => s.id));
     else if (box && kept) {
       box.scrollTop = kept.top;
       box.scrollLeft = kept.left;
     }
     const target = focus && cols.querySelector(focus);
     if (target) target.focus({ preventScroll: true });
+  };
+
+  // A subflow box opens its subflow in place, with the breadcrumb (SPEC §7).
+  const subflowPanel = (step) =>
+    flow.subflows && flow.subflows[`${step.id}/`]
+      ? '<div class="step-actions"><button type="button" class="button-primary" data-open-sub>Abrir subflujo</button></div>'
+      : '';
+  const openScope = (scope) => {
+    review.scope = scope;
+    review.selected = '';
+    review.cat = '';
+    review.val = '';
+    laidOut = null;
+    renderReview(scope ? '[data-rcrumb]' : undefined);
   };
 
   const selectNode = (node) => {
@@ -942,6 +1022,9 @@ if (data && cols) {
         return renderReview(`[data-hl="${CSS.escape(v)}"]`, true);
       }
       if (ev.target instanceof Element && ev.target.closest('[data-overview]')) showOverview([]);
+      const crumb = ev.target instanceof Element ? ev.target.closest('[data-rcrumb]') : null;
+      if (crumb) return openScope(crumb.getAttribute('data-rcrumb') || '');
+      if (ev.target instanceof Element && ev.target.closest('[data-open-sub]')) return openScope(`${review.selected}/`);
       return;
     }
     const b = ev.target instanceof Element ? ev.target.closest('button') : null;
@@ -963,6 +1046,14 @@ if (data && cols) {
       zoomed = !zoomed;
       return renderTour('[data-zoom]');
     }
+    // The breadcrumb shows a flow around the subflow the tour is in, and
+    // takes the reader back; any other control returns to where the tour is.
+    if (b.hasAttribute('data-crumb')) {
+      const sc = b.getAttribute('data-crumb') || '';
+      state.view = sc === scopeOf(state.tour, state.tour.current().id) ? null : sc;
+      return renderTour('[data-crumb]');
+    }
+    state.view = null;
     const tour = state.tour;
     const at = tour.current().id;
     // The held-branch note lasts until the next action (phase 6.18).
