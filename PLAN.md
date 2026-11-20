@@ -6,6 +6,28 @@ nunca se edita: los cambios generan una iteración nueva.
 
 ---
 
+## plan_iteration_9 — 2026-11-20
+
+Estado: **aprobada. Esta es la iteración vigente.**
+
+Es `plan_iteration_8` tal cual, con los cortes 7.1, 7.2 y 7.3 aprobados
+para construirse seguidos, sin pausa entre cortes. Respuestas del dueño:
+
+1. **Asistente:** enlace «Configuración inicial» en la navegación de
+   administración.
+2. **Lista de contraseñas:**
+   - en pantalla y con «Descargar .xlsx»;
+   - el archivo dice arriba que son contraseñas temporales, que hay que
+     cambiarlas en el primer ingreso y que el archivo se borra cuando se
+     hayan repartido.
+3. **Área desconocida en el archivo de usuarios:** error de fila. Las
+   áreas se crean con su importador.
+4. **El importador de usuarios solo crea.** Un usuario existente es error
+   de fila.
+5. **Estado del asistente:** se deduce de los datos, sin tabla nueva.
+
+Al terminar, la etiqueta `phase-7` se pone en el último commit.
+
 ## plan_iteration_8 — 2026-11-20
 
 Estado: **propuesta.** `plan_iteration_7` sigue vigente hasta que el dueño
