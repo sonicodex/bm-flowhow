@@ -41,7 +41,7 @@ describe("login screen (phase 4.1)", () => {
     // behind (app.css), and the maker's mark on this screen only.
     expect(html).toContain('<body class="login-page">');
     // Lazy, so it stays out of `load`, which the logotype splash waits for.
-    expect(html).toContain('<picture class="login-hero"><source srcset="/brand/login_hero.webp" type="image/webp"/><img src="/brand/login_hero.jpg" alt="" loading="lazy" decoding="async"/></picture>');
+    expect(html).toContain('<picture class="login-hero"><source srcset="/brand/login_hero.webp" type="image/webp"/><img src="/brand/login_hero.jpg" alt="" loading="lazy" decoding="async" onload="this.parentNode.dataset.loaded=&#39;&#39;"/></picture>');
     expect(html).not.toContain('class="site-header"');
     expect(html).toContain('<button type="submit" class="button-primary">Acceder</button>');
     expect(html).toContain("Si olvidaste tu contraseña, el administrador la restablece.");

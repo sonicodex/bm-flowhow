@@ -293,6 +293,15 @@ textarea:focus-visible,
   object-fit: cover;
 }
 
+/* A solid black layer over the image, so the card stands out from it. It
+   waits for the image (src/login.tsx), so the grey while loading stays. */
+.login-hero[data-loaded]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--login-hero-scrim);
+}
+
 .login-page .site-main {
   display: grid;
   place-items: center;

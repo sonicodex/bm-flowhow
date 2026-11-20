@@ -24,12 +24,14 @@ export const FAILED_DELAY_MS = 1000;
 //   image is lazy, which keeps it out of the page's `load`. A background
 //   image would hold `load`, and the logotype splash waits for `load`, so a
 //   slow image would keep the card covered.
+// - The scrim (app.css) darkens the image only: it shows once the image has
+//   loaded, so the grey behind it while loading stays as it is.
 function LoginPage({ username, error }: { username?: string; error?: boolean }) {
   return (
     <>
       <picture class="login-hero">
         <source srcset="/brand/login_hero.webp" type="image/webp" />
-        <img src="/brand/login_hero.jpg" alt="" loading="lazy" decoding="async" />
+        <img src="/brand/login_hero.jpg" alt="" loading="lazy" decoding="async" onload="this.parentNode.dataset.loaded=''" />
       </picture>
       <section class="card login-card">
         <img class="login-logo" src="/flowhow_logotype.svg" alt="FlowHow" />

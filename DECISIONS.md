@@ -14,6 +14,22 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Login: a black layer over the image
+
+- **The owner's request:** a solid black layer at 45 % over the login
+  image, as the token `--login-hero-scrim` (owner's `theme.css`).
+- **It darkens the image only.** `.login-hero[data-loaded]::after` covers
+  the picture once the image has loaded. The `<img>` sets `data-loaded` on
+  its `<picture>` in an inline `onload`. Before that the page keeps its
+  grey, unchanged, as the owner asked. Without JavaScript there is no
+  layer, and the card reads the same.
+- **Checked in headless Chrome** with the image held 4 s: grey and no layer
+  while it loads, `rgba(0, 0, 0, 0.45)` once it is in. Approved by the
+  owner on localhost.
+- Spec sections affected: none.
+
+---
+
 ## 2026-11-20 — Badges whole, and the tour's frame holds them (SPEC §7)
 
 - **The owner changed SPEC §7:** a badge shows its value whole, never cut
