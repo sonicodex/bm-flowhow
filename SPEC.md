@@ -696,16 +696,20 @@ Never trust the browser for any of these:
 
 ### Visual style and theming
 
-- **Splash.** Opening the app shows the full logotype over a translucent
-  white veil, at most 1.5 s; moving between sections shows the isotype, at
-  most 1 s. Both fade in and out and the mark scales up very slightly while
-  it waits, so the app announces itself instead of flashing blank panels at
-  a reader on a slow connection.
-- **The cap is a cap, not a wait.** The veil lifts as soon as the page
-  behind it is ready; the timings above are the longest it may stay, never a
-  delay added to a page that was already there. Making people watch an
-  animation they have seen two hundred times is how a brand moment becomes a
-  tax.
+- **Splash.** Loading a page from the server shows the full logotype over a
+  translucent white veil; moving between sections shows the isotype. Both
+  fade in and out and the mark scales up very slightly while it waits, so
+  the app announces itself instead of flashing blank panels at a reader on a
+  slow connection.
+- **The logotype is held for a full 2 s, every time the page is loaded or
+  reloaded**, not only the first time in a tab. It is brand placement, and a
+  mark that flashes past is not placed. This one is a wait, not a cap: it
+  stays its two seconds even when the page behind it was ready at once, and
+  longer if the page is not ready yet.
+- **The isotype between sections is a cap, not a wait**: at most 1 s, and it
+  lifts as soon as the next page is ready. A delay the reader meets on every
+  click, a hundred times a day, is a different thing from the one they meet
+  when they open the app.
 - Every duration, size and colour of the splash is a token in `theme.css`
   (`--splash-*`), like everything else.
 - **Reduced motion:** with `prefers-reduced-motion`, no scaling and no fade;

@@ -41,7 +41,7 @@
   --splash-surface: rgba(255, 255, 255, 0.92);
   --splash-enter: 180ms;
   --splash-leave: 260ms;
-  --splash-start-max: 1500ms;
+  --splash-start-hold: 2000ms;
   --splash-section-max: 1000ms;
   --splash-scale-from: 0.96;
   --splash-scale-to: 1.04;
