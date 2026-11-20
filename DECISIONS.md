@@ -14,6 +14,27 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Splash: a safeguard for a move that never leaves
+
+- **Owner's decision:** if a move between sections has not left the page
+  after 10 s, the veil lifts by itself. It is not a cap; it keeps the app
+  from staying covered when the reader presses the browser's Stop.
+- **How:** `splash.js` starts a 10 s timer at the click or the submit. If
+  the page is still there when it fires, the veil goes and the pending move
+  is forgotten. A page that leaves takes the timer with it, so a normal
+  move never meets it.
+  - Ten seconds is also how old a move may be for the next page to carry
+    the isotype (`src/layout.tsx`), so the two agree: a page that arrives
+    later than that shows the logotype.
+  - In milliseconds in the script, like the head script's: a safeguard,
+    not a duration of the splash, so not a `--splash-*` token.
+- **Checked in headless Chrome:**
+  - **Stop:** a click with the answer held 20 s, then Stop at 1 s. At 9 s
+    the veil was still up; at 11 s it was gone, with no move pending.
+  - **The next click:** a normal link still showed the isotype, which
+    left at 725 ms.
+- Spec sections affected: none.
+
 ## 2026-11-20 — Splash: the isotype is held too
 
 - **Owner's change to SPEC §9 and `theme.css`:**
@@ -48,8 +69,9 @@ Entry format:
     - every download is made in the browser, with `download`, which
       starts no move;
     - the server sends no attachment and no empty (204) answer.
-  - The browser's Stop button during a slow move leaves the veil up. A
-    reload clears it (with the logotype).
+  - ~~The browser's Stop button during a slow move leaves the veil up. A
+    reload clears it (with the logotype).~~ Superseded 2026-11-20 («Splash:
+    a safeguard for a move that never leaves»): it lifts after 10 s.
 - **Checked in headless Chrome** (dev server, `junta`, writes refused, the
   service worker bypassed):
   - **The login form → Inicio, page ready at 0.1 s:** the isotype left at

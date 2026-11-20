@@ -12,6 +12,12 @@ const root = document.documentElement;
 const veil = document.querySelector('.splash');
 // The moment a move between sections started, for the next page's head.
 const KEY = 'flowhow-splash';
+// A safeguard, not a cap: a move that has not left this page after this
+// long never will (the reader pressed Stop, say), so the veil goes and the
+// page can be used again. The head script (src/layout.tsx) ignores a move
+// older than this for the same reason.
+const STRANDED_MS = 10000;
+let stranded = 0;
 
 function forget() {
   try {
@@ -20,6 +26,7 @@ function forget() {
 }
 
 function clear() {
+  clearTimeout(stranded);
   delete root.dataset.splash;
   delete root.dataset.splashCarry;
   delete root.dataset.splashLeaving;
@@ -54,6 +61,10 @@ function start() {
   // Tells this page's head script that its own veil is over.
   root.dataset.splashMove = '';
   window.addEventListener('beforeunload', onLeave, { once: true });
+  stranded = setTimeout(() => {
+    forget();
+    clear();
+  }, STRANDED_MS);
 }
 
 // On window, so every other handler has had its say: a click or a submit
