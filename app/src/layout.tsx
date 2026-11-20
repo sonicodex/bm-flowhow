@@ -1,7 +1,6 @@
 import { raw } from "hono/html";
 import { jsxRenderer, useRequestContext } from "hono/jsx-renderer";
-import { canSetUp } from "./access.tsx";
-import type { AppEnv } from "./session.ts";
+import type { AppEnv, SessionUser } from "./session.ts";
 
 declare module "hono" {
   interface ContextRenderer {
@@ -12,25 +11,44 @@ declare module "hono" {
 // JSON inside <script>: "<" is escaped so no text in a step can close it.
 export const scriptJson = (value: unknown) => JSON.stringify(value).replace(/</g, "\\u003c");
 
-// The screens the user's permissions open (phase 4.2). Hiding a link is a
+// The navigation band (SPEC §9, Navigation): the screens the user's
+// permissions open, right-aligned under the white bar. Hiding a link is a
 // courtesy: the server refuses the route anyway (src/access.tsx).
+// «Flujos» is the flows an editor manages; for anyone else, the flows they
+// review (Inicio). Categories are a link on the flows screen, and the
+// first-use wizard (/setup) is linked from nowhere.
+type NavLink = { href: string; label: string; section: string[] };
+
+export function navLinks(user: SessionUser): NavLink[] {
+  const report = user.role === "board" || user.role === "leader";
+  return [
+    user.canEdit
+      ? { href: "/flows", label: "Flujos", section: ["/flows", "/categories", "/home"] }
+      : { href: "/home", label: "Flujos", section: ["/home", "/flows"] },
+    ...(user.canEdit ? [{ href: "/areas", label: "Áreas", section: ["/areas"] }] : []),
+    ...(user.canManageUsers ? [{ href: "/users", label: "Usuarios", section: ["/users"] }] : []),
+    ...(report ? [{ href: "/report", label: "Reportes", section: ["/report"] }] : []),
+  ];
+}
+
+const inSection = (path: string, prefix: string) => path === prefix || path.startsWith(prefix + "/");
+
 function Nav() {
-  const user = useRequestContext<AppEnv>().get("user");
+  const c = useRequestContext<AppEnv>();
+  const user = c.get("user");
   // A user who must change their password reaches nothing else yet.
   if (!user || user.mustChangePassword) return null;
-  // The progress report: Board members and Leaders (SPEC §7; phase 6.9).
-  const report = user.role === "board" || user.role === "leader";
-  if (!(user.canEdit || user.canManageUsers || report)) return null;
+  const path = c.req.path;
   return (
-    <nav class="site-nav" aria-label="Administración">
-      {user.canEdit && <a href="/flows">Flujos</a>}
-      {user.canEdit && <a href="/areas">Áreas</a>}
-      {user.canEdit && <a href="/categories">Categorías</a>}
-      {user.canManageUsers && <a href="/users">Usuarios</a>}
-      {report && <a href="/report">Reporte</a>}
-      {/* The first-use wizard (phase 7.3), reachable for good. */}
-      {canSetUp(user) && <a href="/setup">Configuración inicial</a>}
-    </nav>
+    <div class="site-band">
+      <nav class="site-nav" aria-label="Secciones">
+        {navLinks(user).map((l) => (
+          <a href={l.href} aria-current={l.section.some((p) => inSection(path, p)) ? "page" : undefined}>
+            {l.label}
+          </a>
+        ))}
+      </nav>
+    </div>
   );
 }
 
@@ -41,7 +59,7 @@ function Account() {
   if (!user) return null;
   return (
     <form method="post" action="/logout" class="site-account">
-      <span>{user.fullName}</span>
+      <span title={user.fullName}>{user.fullName}</span>
       <button type="submit" class="button-link">
         Salir
       </button>
@@ -155,11 +173,13 @@ export const renderer = jsxRenderer(({ children, title }) => (
     <body>
       <Splash />
       <header class="site-header">
-        <a href="/" class="site-logo">
-          <img src="/flowhow_logotype.svg" alt="FlowHow" />
-        </a>
+        <div class="site-bar">
+          <a href="/" class="site-logo">
+            <img src="/flowhow_logotype.svg" alt="FlowHow" />
+          </a>
+          <Account />
+        </div>
         <Nav />
-        <Account />
       </header>
       <main class="site-main">{children}</main>
     </body>

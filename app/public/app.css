@@ -13,14 +13,20 @@ a:visited {
   color: var(--color-primary-mid);
 }
 
+/* The header (SPEC §9, Navigation): a white bar with the logotype and the
+   account, and under it a dark band with the navigation, right-aligned. */
 .site-header {
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.site-bar {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-4) var(--space-6);
-  background: var(--color-surface);
-  border-bottom: var(--border-width) solid var(--color-border);
+  min-height: var(--header-height);
+  box-sizing: border-box;
+  padding: 0 var(--space-6);
+  background: var(--color-header-surface);
 }
 
 .site-logo {
@@ -38,22 +44,64 @@ a:visited {
   height: var(--space-6);
 }
 
-/* Links to the screens the user's permissions open (phase 4.2). */
-.site-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-  font-size: var(--text-sm);
-}
-
-/* Signed-in user and "Salir" (phase 4.1), at the right of the header. */
+/* Signed-in user and "Salir" (phase 4.1), at the right of the bar. */
 .site-account {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   margin-left: auto;
+  min-width: 0;
   font-size: var(--text-sm);
   color: var(--color-text-muted);
+}
+
+.site-account span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.site-band {
+  background: var(--color-nav-surface);
+}
+
+/* One line always: on a narrow screen the band scrolls sideways inside
+   itself, never the page. */
+.site-nav {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-6);
+  min-height: var(--nav-height);
+  padding: 0 var(--space-6);
+  overflow-x: auto;
+  scrollbar-width: none;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.site-nav a,
+.site-nav a:visited {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--color-on-nav);
+  text-decoration: none;
+  border-bottom: var(--space-1) solid transparent;
+  border-top: var(--space-1) solid transparent;
+}
+
+.site-nav a:hover {
+  text-decoration: underline;
+}
+
+.site-nav a:focus-visible {
+  outline: var(--border-width) solid var(--color-on-nav);
+  outline-offset: var(--space-1);
+  border-radius: var(--radius);
+}
+
+.site-nav a[aria-current="page"] {
+  border-bottom-color: var(--color-nav-current);
 }
 
 .site-main {
@@ -2190,18 +2238,4 @@ html[data-splash="section"] .splash-logo {
 
 .setup-step.is-current {
   border-left: calc(var(--border-width) * 3) solid var(--color-primary);
-}
-
-/* The offer on the home screen while the app has no flows. */
-.setup-offer {
-  max-width: calc(var(--space-10) * 18);
-  margin-bottom: var(--space-6);
-  padding: var(--space-4);
-  background: var(--color-primary-tint);
-}
-
-.setup-offer h2 {
-  margin: 0 0 var(--space-2);
-  font-size: var(--text-md);
-  font-weight: var(--weight-medium);
 }

@@ -22,6 +22,9 @@ export function AdminList(props: {
   empty: { purpose: string; howToAdd: string };
   // A line under the title, for what the list's order or rows mean.
   note?: string;
+  // A screen that belongs with this list but has no place in the
+  // navigation (the tag categories, on the flows list; SPEC §9).
+  related?: { href: string; label: string; why: string };
   // For a list that belongs to a record (a flow's save points): the way
   // back, at the top as on a form.
   back?: { href: string; label: string };
@@ -53,6 +56,11 @@ export function AdminList(props: {
         )}
       </div>
       {props.note && <p class="muted admin-subtitle">{props.note}</p>}
+      {props.related && (
+        <p class="admin-subtitle">
+          <a href={props.related.href}>{props.related.label}</a> <span class="muted">{props.related.why}</span>
+        </p>
+      )}
       <Messages error={props.error} notice={props.notice} />
       <AdminTable columns={props.columns} rows={props.rows} empty={props.empty} />
     </>

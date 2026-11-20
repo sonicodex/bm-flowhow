@@ -28,6 +28,7 @@ function FlowsPage({ items }: { items: FlowItem[] }) {
     <AdminList
       title="Flujos"
       action={{ href: "/flows/new", label: "Nuevo flujo" }}
+      related={{ href: "/categories", label: "Categorías de etiquetas", why: "Cada una es una columna de etiquetas en la tabla de un flujo." }}
       columns={[{ label: "Nombre" }, { label: "Versión publicada" }, { label: "Borrador" }, { label: "Áreas" }]}
       empty={{
         purpose: "Aquí están los procesos de la empresa, cada uno con sus pasos, sus versiones y las áreas que lo ven.",

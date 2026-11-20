@@ -95,7 +95,7 @@ function SetupPage({ counts, current }: { counts: SetupCounts; current: StepKey 
                     <a class="button-primary" href={step.action.href}>
                       {step.action.label}
                     </a>
-                    <a class="button-secondary" href={next ? stepHref(next.key) : "/home"}>
+                    <a class="button-secondary" href={next ? stepHref(next.key) : "/"}>
                       {next ? "Saltar este paso" : "Terminar por ahora"}
                     </a>
                   </div>

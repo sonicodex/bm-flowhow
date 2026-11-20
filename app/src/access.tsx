@@ -69,7 +69,7 @@ function forbidden(c: Context<AppEnv>) {
       <h1 class="page-title">Sin permiso</h1>
       <p>Tu usuario no tiene permiso para abrir esta página.</p>
       <p>
-        <a href="/home">Volver al inicio</a>
+        <a href="/">Volver al inicio</a>
       </p>
     </>,
     { title: "Sin permiso" },

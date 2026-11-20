@@ -180,17 +180,25 @@ describe("route access (phase 4.2)", () => {
     expect((await board.fetch(`/flows/${created.id}`)).status).toBe(404);
   });
 
-  it("shows the Flujos, Áreas and Categorías links only to editors", async () => {
+  // SPEC §9, Navigation (phase 8.1).
+  it("shows the navigation band with each link only to whoever may use it", async () => {
     const board = await signIn();
     const leader = await signIn({ username: "lia", role: "leader" });
-    const boardHtml = await (await board.fetch("/home")).text();
-    expect(boardHtml).toContain('<a href="/flows">Flujos</a>');
-    expect(boardHtml).toContain('<a href="/areas">Áreas</a>');
-    expect(boardHtml).toContain('<a href="/categories">Categorías</a>');
-    const leaderHtml = await (await leader.fetch("/home")).text();
-    expect(leaderHtml).not.toContain('href="/flows"');
-    expect(leaderHtml).not.toContain('href="/areas"');
-    expect(leaderHtml).not.toContain('href="/categories"');
+    const ana = await signIn({ username: "ana", role: "standard" });
+    const nav = async (who: Signed, path: string) => (await (await who.fetch(path)).text()).match(/<nav class="site-nav"[^>]*>(.*?)<\/nav>/)?.[1];
+    expect(await nav(board, "/report")).toBe(
+      '<a href="/flows">Flujos</a><a href="/areas">Áreas</a><a href="/users">Usuarios</a><a href="/report" aria-current="page">Reportes</a>',
+    );
+    // The section is current on its own screens and the ones below it.
+    expect(await nav(board, "/categories")).toContain('<a href="/flows" aria-current="page">Flujos</a>');
+    // Whoever does not edit: «Flujos» is the flows they review.
+    expect(await nav(leader, "/home")).toBe('<a href="/home" aria-current="page">Flujos</a><a href="/report">Reportes</a>');
+    expect(await nav(ana, "/home")).toBe('<a href="/home" aria-current="page">Flujos</a>');
+    // Categories live on the flows screen, the wizard nowhere.
+    const flows = await (await board.fetch("/flows")).text();
+    expect(flows).toContain('<a href="/categories">Categorías de etiquetas</a>');
+    expect(await nav(board, "/flows")).not.toContain("/categories");
+    expect(flows).not.toContain('href="/setup"');
   });
 
   it("refuses the admin layer without can_view_admin_layer, whatever the role", async () => {

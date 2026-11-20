@@ -14,22 +14,10 @@ const current = (html: string) => html.match(/<li class="card setup-step is-curr
 const addArea = (name: string) => env.DB.prepare("INSERT INTO areas (name, name_key) VALUES (?, ?)").bind(name, name.toLowerCase()).run();
 
 describe("first-use wizard (phase 7.3)", () => {
-  it("is offered on the home screen of an app with no flows, and gone once there is one", async () => {
-    let home = await page("/home");
-    expect(home).toContain("Empieza por la configuración inicial");
-    expect(home).toContain('<a class="button-primary" href="/setup">Empezar</a>');
-    await addArea("Ventas");
-    home = await page("/home");
-    expect(home).toContain("Sigue con la configuración inicial");
-    expect(home).toContain('<a class="button-primary" href="/setup">Seguir</a>');
-    const created = await createFlow(env.DB, "Pedidos");
-    expect(created.ok).toBe(true);
-    expect(await page("/home")).not.toContain("configuración inicial");
-  });
-
-  it("stays reachable from the admin navigation, for whoever may edit flows and manage users", async () => {
-    await createFlow(env.DB, "Pedidos");
-    expect(await page("/home")).toContain('<a href="/setup">Configuración inicial</a>');
+  // SPEC §9, Navigation (phase 8.1): reachable by its URL, linked from nowhere.
+  it("is linked from nowhere, and still opens by its URL for whoever may edit flows and manage users", async () => {
+    for (const path of ["/home", "/report", "/flows", "/areas", "/users"]) expect(await page(path)).not.toContain('href="/setup"');
+    expect((await board.fetch("/setup")).status).toBe(200);
     const owner = await signIn({ username: "dueno", role: "leader", permissions: { canEdit: true } });
     const manager = await signIn({ username: "gestor", role: "leader", permissions: { canManageUsers: true } });
     for (const who of [owner, manager]) {
@@ -57,7 +45,7 @@ describe("first-use wizard (phase 7.3)", () => {
     expect(current(html)).toBe("3. Flujos");
     expect(html).toContain("Ya hay 1 cuenta además de la tuya.");
     expect(html).toContain('<a class="button-primary" href="/flows/new">Crear un flujo</a>');
-    expect(html).toContain('<a class="button-secondary" href="/home">Terminar por ahora</a>');
+    expect(html).toContain('<a class="button-secondary" href="/">Terminar por ahora</a>');
   });
 
   it("skips to the step asked for, without storing anything", async () => {

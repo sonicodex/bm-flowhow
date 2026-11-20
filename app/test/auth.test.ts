@@ -44,11 +44,22 @@ describe("login screen (phase 4.1)", () => {
     expect(html).not.toContain("Salir");
   });
 
-  it("sends a signed-in user from the root URL to the home screen", async () => {
-    const me = await signIn();
-    const res = await me.fetch("/");
+  // SPEC §4 (phase 8.1): the Board lands on the progress report.
+  it("sends a signed-in user from the root URL to where they land", async () => {
+    const board = await signIn();
+    const res = await board.fetch("/");
     expect(res.status).toBe(302);
-    expect(res.headers.get("location")).toBe("/home");
+    expect(res.headers.get("location")).toBe("/report");
+    const leader = await signIn({ username: "lia", role: "leader" });
+    expect((await leader.fetch("/")).headers.get("location")).toBe("/home");
+  });
+
+  it("sends a Board member who signs in to the progress report (SPEC §4)", async () => {
+    const r = await createUser(env.DB, { username: "junta", fullName: "Junta", role: "board", areaIds: [], passwordHash: await hashPassword(PASSWORD) });
+    if (!r.ok) throw new Error(r.error);
+    const res = await login("junta", PASSWORD);
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/report");
   });
 
   it("signs in, ignoring case and accents in the username, with a safe cookie", async () => {
@@ -76,7 +87,7 @@ describe("login screen (phase 4.1)", () => {
     expect(home.status).toBe(200);
     const html = await home.text();
     expect(html).toContain("Hola, Ana Gómez");
-    expect(html).toContain('<form method="post" action="/logout" class="site-account"><span>Ana Gómez</span>');
+    expect(html).toContain('<form method="post" action="/logout" class="site-account"><span title="Ana Gómez">Ana Gómez</span>');
   });
 
   it("answers a wrong password, an unknown user and an inactive one alike, after a delay", async () => {

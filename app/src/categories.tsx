@@ -62,6 +62,7 @@ const usedIn = (flows: number) => `Se usó en ${count(flows, "flujo", "flujos")}
 function CategoriesPage({ items, error }: { items: Category[]; error?: string }) {
   return (
     <AdminList
+      back={{ href: "/flows", label: "Volver a flujos" }}
       title="Categorías"
       action={{ href: "/categories/new", label: "Nueva categoría" }}
       note="El orden de la lista es el de las columnas en la plantilla de Excel, y decide la convención de cada categoría en el diagrama."

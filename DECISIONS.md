@@ -14,6 +14,42 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Phase 8.1: header, navigation and landing
+
+- **Header** (SPEC §9, Navigation): a white bar (`--color-header-surface`,
+  `--header-height`) with the logotype and the account, and a dark band
+  (`--color-nav-surface`, `--nav-height`) with the navigation,
+  right-aligned.
+  - The current section is marked with `aria-current="page"` and a bottom
+    border in `--color-nav-current`. A section includes its screens below:
+    «Flujos» stays current in a flow's editor and viewer and in Categories.
+  - The band keeps one line. On a narrow screen it would scroll sideways
+    inside itself; at 320 px the Board's four links still fit.
+  - At 320 px a long user name is cut with an ellipsis, and the full name
+    is its tooltip.
+- **Links, each to whoever may use it:**
+  - «Flujos»: `/flows` for an editor, Inicio (`/home`) for anyone else
+    (owner's answer). So a standard user now sees the band too, with that
+    one link.
+  - «Áreas»: editors. «Usuarios»: `can_manage_users`. «Reportes»: the Board
+    and Leaders.
+- **Categories:** out of the navigation, linked from the flows screen
+  («Categorías de etiquetas», with a line saying what one is). Their list
+  has «Volver a flujos».
+- **The first-use wizard** is out of the navigation and out of the offer on
+  Inicio; `/setup` still opens for whoever may walk it.
+  - The wizard's «Terminar por ahora» and «Sin permiso»'s «Volver al
+    inicio» now go to `/`, which sends each user to where they land.
+- **Landing** (SPEC §4): the Board on `/report`, everyone else on `/home`.
+  It applies after signing in, at `/` with a session, and after choosing a
+  new password.
+- **Checked in headless Chrome** at 1280, 390 and 320 px as `junta`,
+  `lider` and `empleado`: no horizontal scroll, bar 64 px, band 36 px; the
+  Board landed on the report, the others on Inicio.
+- Spec sections affected: none (built as §4 and §9 now say).
+
+---
+
 ## 2026-11-20 — Splash: a safeguard for a move that never leaves
 
 - **Owner's decision:** if a move between sections has not left the page

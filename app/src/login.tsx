@@ -8,6 +8,9 @@ import { changeOwnPassword } from "./users.ts";
 export const login = new Router();
 
 export const HOME = "/home";
+// Where a signed-in user lands (SPEC §4): the Board on the progress report,
+// everyone else on the home screen.
+export const landing = (role: string) => (role === "board" ? "/report" : HOME);
 export const LOGIN_FAILED = "Usuario o contraseña incorrectos.";
 // A failed attempt waits this long before answering: it slows a guessing
 // script down without ever locking a real user out. Cloudflare's rate
@@ -47,16 +50,19 @@ function LoginPage({ username, error }: { username?: string; error?: boolean }) 
   );
 }
 
-login.get("/", "public", (c) => (c.get("user") ? c.redirect(HOME, 302) : c.render(<LoginPage />, { title: "Entrar" })));
+login.get("/", "public", (c) => {
+  const user = c.get("user");
+  return user ? c.redirect(landing(user.role), 302) : c.render(<LoginPage />, { title: "Entrar" });
+});
 
 login.post("/login", "public", async (c) => {
   const form = await c.req.parseBody();
   const typed = String(form.username ?? "");
   const password = String(form.password ?? "");
   // Usernames are stored as their name key: case and accents do not count.
-  const user = await c.env.DB.prepare("SELECT id, password_hash FROM users WHERE username = ? AND is_active = 1")
+  const user = await c.env.DB.prepare("SELECT id, role, password_hash FROM users WHERE username = ? AND is_active = 1")
     .bind(nameKey(typed))
-    .first<{ id: number; password_hash: string }>();
+    .first<{ id: number; role: string; password_hash: string }>();
   // A missing or inactive user is checked against nothing, at the same
   // cost: the answer and its timing are the same as for a wrong password.
   const ok = await verifyPassword(password, user?.password_hash ?? "");
@@ -66,7 +72,7 @@ login.post("/login", "public", async (c) => {
     return c.render(<LoginPage username={typed.trim()} error />, { title: "Entrar" });
   }
   await createSession(c, user.id);
-  return c.redirect(HOME, 303);
+  return c.redirect(landing(user.role), 303);
 });
 
 login.post("/logout", "public", async (c) => {
@@ -101,13 +107,13 @@ function ChangePasswordPage({ error }: { error?: string }) {
 }
 
 login.get(PASSWORD_SCREEN, "account", (c) => {
-  if (!userOf(c).mustChangePassword) return c.redirect(HOME, 302);
+  if (!userOf(c).mustChangePassword) return c.redirect(landing(userOf(c).role), 302);
   return c.render(<ChangePasswordPage />, { title: "Cambia tu contraseña" });
 });
 
 login.post(PASSWORD_SCREEN, "account", async (c) => {
   const user = userOf(c);
-  if (!user.mustChangePassword) return c.redirect(HOME, 303);
+  if (!user.mustChangePassword) return c.redirect(landing(user.role), 303);
   const form = await c.req.parseBody();
   const password = String(form.password ?? "");
   const stored = await c.env.DB.prepare("SELECT password_hash FROM users WHERE id = ?").bind(user.id).first<string>("password_hash");
@@ -120,5 +126,5 @@ login.post(PASSWORD_SCREEN, "account", async (c) => {
     return c.render(<ChangePasswordPage error={error} />, { title: "Cambia tu contraseña" });
   }
   await changeOwnPassword(c.env.DB, user.id, await hashPassword(password));
-  return c.redirect(HOME, 303);
+  return c.redirect(landing(user.role), 303);
 });

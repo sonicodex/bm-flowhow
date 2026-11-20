@@ -1,7 +1,6 @@
-import { canSetUp, Router, visibleFlows, type VisibleFlow } from "./access.tsx";
+import { Router, visibleFlows, type VisibleFlow } from "./access.tsx";
 import { HOME } from "./login.tsx";
 import { userOf } from "./session.ts";
-import { setupCounts } from "./setup.tsx";
 import { StatusLine } from "./status.tsx";
 import { openRunStep, reviewStatus, type ReviewStatus } from "./tour.ts";
 
@@ -44,23 +43,9 @@ home.get(HOME, "user", async (c) => {
       return { ...f, status, at: status.open ? await openRunStep(db, user.id, f.id) : null };
     }),
   );
-  // SPEC §4: an app with no flows offers the first-use wizard to whoever
-  // can walk it, and stops once there is a flow (phase 7.3).
-  const counts = canSetUp(user) ? await setupCounts(db, user.id) : null;
-  const offer = counts !== null && counts.flows === 0;
-  const started = offer && counts.areas + counts.others > 0;
   return c.render(
     <>
       <h1 class="page-title">Hola, {user.fullName}</h1>
-      {offer && (
-        <section class="card setup-offer" aria-labelledby="setup-offer-title">
-          <h2 id="setup-offer-title">{started ? "Sigue con la configuración inicial" : "Empieza por la configuración inicial"}</h2>
-          <p>FlowHow todavía no tiene flujos. La configuración inicial te lleva por áreas, usuarios y flujos; cada paso se puede saltar y retomar.</p>
-          <a class="button-primary" href="/setup">
-            {started ? "Seguir" : "Empezar"}
-          </a>
-        </section>
-      )}
       {items.length ? (
         <ul class="home-flows" aria-label="Tus flujos">
           {items.map((f) => (
