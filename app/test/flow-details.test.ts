@@ -91,7 +91,7 @@ describe("flow data panel (SPEC §6)", () => {
     expect((await ana.fetch(`/flows/${id}`)).status).toBe(200);
     expect(await (await ana.fetch("/home")).text()).toContain("Instalaciones</h2>");
     await field(board, id, { objective: "Instalar bien." });
-    expect(await (await ana.fetch(`/flows/${id}`)).text()).toContain('<p class="muted">Instalar bien.</p>');
+    expect(await (await ana.fetch(`/flows/${id}`)).text()).toContain('<p class="viewer-objective">Instalar bien.</p>');
     // Taking the area away hides it again.
     await areas(board, id, []);
     expect((await ana.fetch(`/flows/${id}`)).status).toBe(404);

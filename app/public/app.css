@@ -1211,12 +1211,19 @@ button.offframe:focus-visible {
   }
 }
 
-/* The viewer fits the window (SPEC §9, Layout): the page does not scroll;
-   the diagram card and the step panel take what is left below the header
-   and the flow's heading, and each scrolls inside itself. The panel's
-   buttons stay at its foot while its content scrolls. Below a minimum
-   height (a phone held sideways) the page scrolls again rather than
-   squeezing the diagram to nothing. src/layout.tsx sets the class. */
+/* The viewer as the mock's artboards 3 and 4 (SPEC §7, Layout; phase 9.2).
+   - One title line: the flow and its state on the left, «Flujo» and the
+     selector at the right end.
+   - One card, --viewer-gutter from the window: the progress row (or the
+     free review's filter) and the conventions, each closed by a hairline
+     across the card, then the diagram, with the step panel as a card of
+     its own inside, on the right, a third of the width. The panel hugs
+     its content and scrolls inside past the room there is.
+   - The card is as tall as what is left of the window; the diagram and
+     the panel scroll inside it, and the page does not (SPEC §9, Layout).
+     Below a floor (a phone held sideways) the page scrolls again rather
+     than squeezing the diagram to nothing. src/layout.tsx sets
+     body.viewer-page. */
 .viewer-page {
   display: flex;
   flex-direction: column;
@@ -1229,6 +1236,7 @@ button.offframe:focus-visible {
   flex: 1 1 auto;
   min-height: 0;
   box-sizing: border-box;
+  padding: var(--space-4) var(--viewer-gutter) var(--viewer-gutter);
 }
 
 .viewer-page .viewer {
@@ -1238,27 +1246,102 @@ button.offframe:focus-visible {
   min-height: 0;
 }
 
-.viewer-page .viewer-cols {
-  flex: 1 1 auto;
-  flex-wrap: nowrap;
-  min-height: calc(var(--space-10) * 8);
+.viewer-titleline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-6);
+  margin-bottom: var(--space-4);
 }
 
-.viewer-page .diagram-card {
+.viewer-titleline .viewer-head {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+
+.viewer-titleline .review-status {
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+}
+
+.viewer-titleline .review-status .icon {
+  width: var(--space-3);
+  height: var(--space-3);
+}
+
+.viewer-titleline .flow-selector {
+  flex-wrap: nowrap;
+  min-width: 0;
+  margin: 0 0 0 auto;
+}
+
+/* Its own width, not the selector's: a percentage of a box that shrinks
+   to fit it would overflow the line. */
+.viewer-titleline .flow-selector select {
+  min-width: 0;
+  width: calc(var(--space-10) * 6);
+  max-width: 100%;
+}
+
+/* The bar runs to about the middle of the row, as on the mock; the links
+   go to its right end. */
+.viewer-cols .tour-progress .bar {
+  flex: 0 1 calc(var(--space-10) * 13);
+  margin-right: auto;
+}
+
+.viewer-cols.card {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  flex: 1 1 auto;
+  gap: 0;
+  min-height: calc(var(--space-10) * 8);
   overflow: hidden;
 }
 
-.viewer-page .diagram-scroll {
-  flex: 1 1 auto;
+/* Its rows and the diagram are the card's own grid items. */
+.viewer-cols .diagram-card {
+  display: contents;
+}
+
+.viewer-cols .diagram-card > :not(.diagram-scroll) {
+  grid-column: 1 / -1;
+}
+
+.viewer-cols .tour-progress,
+.viewer-cols .review-filter {
+  box-sizing: border-box;
+  min-height: var(--viewer-progress-height);
+}
+
+.viewer-cols .legend {
+  box-sizing: border-box;
+  min-height: var(--viewer-legend-height);
+}
+
+.viewer-cols .diagram-scroll {
+  grid-column: 1;
+  grid-row: 3;
   min-height: 0;
   max-height: none;
 }
 
-.viewer-page .viewer-side {
+.viewer-cols .viewer-side {
+  grid-column: 2;
+  grid-row: 3;
+  align-self: start;
+  max-height: calc(100% - var(--space-6) * 2);
+  margin: var(--space-6) var(--space-6) var(--space-6) 0;
   overflow-y: auto;
+  box-shadow: var(--shadow-panel);
 }
 
-.viewer-page .step-actions {
+/* The panel's buttons stay at its foot while its content scrolls. */
+.viewer-cols .step-actions {
   position: sticky;
   bottom: calc(var(--space-8) * -1);
   padding-bottom: var(--space-8);
@@ -1266,24 +1349,49 @@ button.offframe:focus-visible {
   background: var(--color-surface);
 }
 
-/* On a phone the panel sits above the diagram and takes at most half of
-   the room; the diagram has the rest. */
+/* On a phone the panel goes above the diagram, inside the same card, and
+   takes at most part of the room; the diagram has the rest. */
 @media (max-width: 760px) {
-  .viewer-page .viewer-cols {
-    flex-direction: column;
+  .viewer-page .site-main {
+    padding: var(--space-4);
   }
 
-  .viewer-page .viewer-side {
-    flex: 0 1 auto;
-    max-height: 50%;
+  .viewer-titleline .flow-selector {
+    margin: 0;
   }
 
-  .viewer-page .diagram-card {
-    flex: 1 1 0;
-    min-height: 0;
+  /* The panel's height is capped in dvh, not in percent, so the card's
+     content can set its minimum: rows, panel and a diagram of at least
+     four --space-10. A shorter window scrolls the page. */
+  .viewer-cols.card {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto minmax(calc(var(--space-10) * 4), 1fr);
+    min-height: auto;
+    overflow: visible;
   }
 
-  .viewer-page .step-actions {
+  .viewer-cols .tour-progress .bar {
+    flex: 1 1 120px;
+    margin-right: 0;
+  }
+
+  /* Sized by its row, not by the drawing inside it. */
+  .viewer-cols .diagram-scroll {
+    contain: size;
+  }
+
+  .viewer-cols .viewer-side {
+    grid-column: 1;
+    grid-row: 3;
+    max-height: 40dvh;
+    margin: var(--space-3);
+  }
+
+  .viewer-cols .diagram-scroll {
+    grid-row: 4;
+  }
+
+  .viewer-cols .step-actions {
     bottom: calc(var(--space-6) * -1);
     padding-bottom: var(--space-6);
     margin-bottom: calc(var(--space-6) * -1);

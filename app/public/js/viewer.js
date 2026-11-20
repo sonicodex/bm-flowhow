@@ -573,7 +573,7 @@ if (data && cols) {
       ? '<button type="button" class="button-primary" data-finish>Terminar recorrido</button>'
       : `<button type="button" class="button-primary" data-next${choice ? ' disabled' : ''}>Siguiente</button>`;
     cols.innerHTML =
-      `<div class="card diagram-card">` +
+      `<div class="diagram-card">` +
       `<div class="tour-progress"><span>Pasos visitados: ${seen} de ${total}</span>` +
       `<div class="bar" role="progressbar" aria-label="Pasos visitados" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${seen}"><div style="width:${Math.round((seen / total) * 100)}%"></div></div>` +
       // Back to the overview; the run stays open (phase 3.5).
@@ -744,7 +744,7 @@ if (data && cols) {
       '<p class="eyebrow">REPASO LIBRE</p><h2 class="step-title">Explora con libertad</h2>' +
       `<p>Toca cualquier paso para ver su detalle${flow.categories.length ? ', o resalta los pasos que llevan una etiqueta' : ''}.</p>`;
     cols.innerHTML =
-      `<div class="card diagram-card">${filter}${legend(flow.categories)}<div class="diagram-scroll" id="diagram">${renderDiagram(laidOut, { name, colour }, marks, linkMarks(flow, false))}</div></div>` +
+      `<div class="diagram-card">${filter}${legend(flow.categories)}<div class="diagram-scroll" id="diagram">${renderDiagram(laidOut, { name, colour }, marks, linkMarks(flow, false))}</div></div>` +
       `<aside class="card viewer-side">${notes.length ? `<p class="note">${DONE_ICON}<span>${notes.map(esc).join(' ')}</span></p>` : ''}` +
       `${step ? details(step, flow.categories) + linkPanel(step) : intro}</aside>`;
     const box = document.getElementById('diagram');

@@ -42,7 +42,10 @@ describe("GET /flows/:id (overview)", () => {
     expect(panel).toContain('<p class="eyebrow">PANORAMA</p><h2 class="step-title">Apertura de OT</h2>');
     expect(panel).toContain("Estás viendo el flujo completo.");
     expect(panel).toMatch(/36 pasos<\/p><div class="step-actions">.*data-start="true">Iniciar recorrido<\/button><\/div>$/s);
-    expect(html.match(/<div class="card diagram-card">(.*?)<\/div><aside/s)![1]).not.toContain("<button");
+    expect(html.match(/<div class="diagram-card">(.*?)<\/div><aside/s)![1]).not.toContain("<button");
+    // One card holds the viewer, with the panel inside it (phase 9.2).
+    expect(html).toMatch(/<div class="card viewer-cols"><div class="diagram-card">.*<aside class="card viewer-side">/s);
+    expect(html).toMatch(/<div class="viewer-titleline"><div class="viewer-head">.*<\/div><div class="flow-selector">/s);
     const data = flowData(html);
     expect(data).toMatchObject({ id, name: "Apertura de OT", colour: 2 });
     expect(data.flow.steps).toHaveLength(36);
@@ -51,18 +54,23 @@ describe("GET /flows/:id (overview)", () => {
     expect(data.flow.steps.find((s: { id: string }) => s.id === "P13").ref).toBe(await idOf("Instalaciones"));
   });
 
-  it("shows the flow name in the display type and the objective under it", async () => {
+  it("shows the flow name in the display type, and the objective in the overview panel", async () => {
     await load();
     const id = await idOf("Instalaciones");
     let html = await (await get(`/flows/${id}`)).text();
-    // Neither reference flow has an objective: no empty line is drawn.
+    // One title line (phase 9.2): the name and its state together.
     expect(html).toContain(`Instalaciones</h1><p class="review-status"`);
+    // Neither reference flow has an objective: no empty line is drawn.
+    expect(html).not.toContain("viewer-objective");
     await env.DB.prepare("UPDATE flows SET objective = ? WHERE id = ?")
       .bind("Dejar el servicio <instalado> y probado en casa del cliente.", id)
       .run();
     html = await (await get(`/flows/${id}`)).text();
     expect(html).toContain('<h1 class="viewer-title">');
-    expect(html).toContain('Instalaciones</h1><p class="muted">Dejar el servicio &lt;instalado&gt; y probado en casa del cliente.</p>');
+    // SPEC §7, Layout: in the overview panel, before the step count, and
+    // nowhere else.
+    expect(html).toMatch(/<p class="viewer-objective">Dejar el servicio &lt;instalado&gt; y probado en casa del cliente.<\/p><p class="muted">\d+ pasos<\/p>/);
+    expect(html.replace(/<script type="application\/json".*?<\/script>/s, "").match(/Dejar el servicio/g)).toHaveLength(1);
     expect(flowData(html).flow.objective).toBe("Dejar el servicio <instalado> y probado en casa del cliente.");
     const rule = env.CSS_FILES["app.css"].match(/\.viewer-title \{[^}]*\}/)![0];
     expect(rule).toContain("font-family: var(--font-display)");

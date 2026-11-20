@@ -14,6 +14,43 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Phase 9.2: the viewer's frame as the mock's artboards 3 and 4
+
+- **One title line:** the dot, the name and the state («Revisado», with the
+  date, in small type) on the left; «Flujo» and its selector at the right
+  end, 240 px wide. On a phone the selector goes to a line of its own.
+- **The objective left the heading.** It goes in the overview panel, before
+  the step count (SPEC §7, the owner's answer), styled in 9.3.
+- **One card** (`.card.viewer-cols`), `--viewer-gutter` from the window on
+  the sides and the bottom. It is a grid:
+  - The progress row (or the free review's filter) and the conventions run
+    across the whole card, at least `--viewer-progress-height` and
+    `--viewer-legend-height` tall, each closed by its hairline.
+  - The diagram takes two thirds, and the step panel the last third, as a
+    card of its own with `--shadow-panel`, `--space-6` from the outer
+    card's edges. In the overview and the tour alike, it hugs its content
+    and scrolls inside past the room there is. The mock's tour panel is
+    narrower than a third; the SPEC's "about a third" wins.
+  - The markup kept its pieces: `.diagram-card` is no longer a card but
+    `display: contents`, so the three renderers (overview, tour, free
+    review) only lost its `card` class.
+- **The card fills the window** as in `38ca7ef`, with the same 320 px
+  floor.
+- **On a phone** the panel goes above the diagram inside the card, capped
+  at 40 % of the window's height. The diagram keeps at least 160 px, and a
+  window too short for both scrolls the page.
+- **The progress bar** runs to about the middle of the row, as on the mock,
+  and the links sit at its right end.
+- **Checked in headless Chrome** (Apertura de OT, overview, tour and free
+  review):
+  - At 1366×768, 1280×800, 900×700 and 390×844 the page does not scroll.
+  - At 320×568 the floor applies and the page scrolls: 72 px in the
+    overview, 244 px in the tour, where the progress and conventions rows
+    wrap.
+- Spec sections affected: none (built as §7 now says).
+
+---
+
 ## 2026-11-20 — Phase 9.1: the header as the mock's artboard 2
 
 - **The bar** is 56 px (`--header-height`) and the band 30 px
@@ -73,6 +110,9 @@ Entry format:
     applies and the page scrolls 76 px.
 - Reason: SPEC §9, rewritten by the owner on 2026-11-20.
 - Spec sections affected: none beyond the owner's change.
+- Superseded in part by phase 9.2 (2026-11-20): the two sibling cards
+  became one card with the panel inside it. The body class, filling the
+  window, the floor, the sticky buttons and the frame's height stand.
 
 ## 2026-11-20 — Phase 8.5: the tour's panel and the step states
 

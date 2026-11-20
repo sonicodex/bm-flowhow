@@ -66,17 +66,22 @@ function ViewerPage({ flow, compiled, status, links, selector }: PageProps) {
   const steps = compiled.steps.length;
   return (
     <section class={`viewer flow-${flow.colour}`}>
-      {selector && <FlowSelector current={flow.id} flows={selector} />}
-      <div class="viewer-head">
-        <h1 class="viewer-title">
-          <span class="flow-dot" aria-hidden="true"></span>
-          {flow.name}
-        </h1>
-        {flow.objective && <p class="muted">{flow.objective}</p>}
-        <StatusLine status={status} id="review-status" />
+      {/* One title line (SPEC §7, Layout; phase 9.2): the flow and its
+          state on the left, the selector at the right end. */}
+      <div class="viewer-titleline">
+        <div class="viewer-head">
+          <h1 class="viewer-title">
+            <span class="flow-dot" aria-hidden="true"></span>
+            {flow.name}
+          </h1>
+          <StatusLine status={status} id="review-status" />
+        </div>
+        {selector && <FlowSelector current={flow.id} flows={selector} />}
       </div>
-      <div class="viewer-cols">
-        <div class="card diagram-card">
+      {/* One card holds the viewer; the step panel is a card inside it
+          (app.css lays the rows, the diagram and the panel out on a grid). */}
+      <div class="card viewer-cols">
+        <div class="diagram-card">
           <div class="diagram-scroll" id="diagram">
             <noscript>
               <p class="form-error">El diagrama necesita JavaScript.</p>
@@ -90,6 +95,7 @@ function ViewerPage({ flow, compiled, status, links, selector }: PageProps) {
           <p class="eyebrow">PANORAMA</p>
           <h2 class="step-title">{flow.name}</h2>
           <p>Estás viendo el flujo completo. Míralo de arriba abajo para ubicarte; después lo recorrerás un paso a la vez.</p>
+          {flow.objective && <p class="viewer-objective">{flow.objective}</p>}
           <p class="muted">{steps === 1 ? "1 paso" : `${steps} pasos`}</p>
           <div class="step-actions">
             {/* public/js/viewer.js turns the page into the tour, and asks
