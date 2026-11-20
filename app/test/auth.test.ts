@@ -101,8 +101,8 @@ describe("login screen (phase 4.1)", () => {
   });
 
   it("never lets in an account without a password, as the placeholder user had", async () => {
-    await createUser(env.DB, { username: "sso", fullName: "Sin contraseña", role: "leader", areaIds: [], passwordHash: "" });
-    expect((await login("sso", "")).status).toBe(401);
+    await createUser(env.DB, { username: "sin-clave", fullName: "Sin contraseña", role: "leader", areaIds: [], passwordHash: "" });
+    expect((await login("sin-clave", "")).status).toBe(401);
     expect(await sessions()).toEqual([]);
   });
 });

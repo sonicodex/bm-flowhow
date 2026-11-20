@@ -14,6 +14,18 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Password is the only way in (SPEC §4)
+
+- **Decision:** following the owner's SPEC §4 change, Microsoft sign-in and
+  codes by email are gone, not deferred. No code existed for either; what
+  remained were two comments (`src/password.ts`, `src/session.ts`), a test
+  account named `sso` (`test/auth.test.ts`, now `sin-clave`), and two
+  passages here, struck through rather than deleted (2026-11-16 «Login and sessions (phase 4.1)» and «Phase 4 plan: accounts»).
+- **Kept:** an empty or foreign `password_hash` matches no password. It no
+  longer serves password-less accounts, but it still keeps a row without a
+  real hash from opening a session.
+- Spec sections affected: 4.
+
 ## 2026-11-20 — PBKDF2 iterations lowered to 10,000 (a concession to Workers Free)
 
 - **Decision (the owner's):** new password hashes use 10,000 PBKDF2-SHA256
@@ -2172,7 +2184,9 @@ Entry format:
     `pbkdf2-sha256$<iterations>$<salt>$<hash>`, compared in constant time.
     The iteration count travels with each hash, so it can change later.
     Anything that is not such a hash, the empty one included, matches no
-    password: accounts without one (a later Microsoft SSO) rely on that.
+    password: ~~accounts without one (a later Microsoft SSO) rely on that.~~
+    Superseded 2026-11-20: SPEC §4 dropped Microsoft and codes by email;
+    the rule stays so a row without a real hash never opens a session.
     Minimum length 8 characters (SPEC sets none; used by the CLI and the
     dev accounts now, by the screens in 4.4).
   - **Sessions** (`src/session.ts`): 32 random bytes in the cookie
@@ -2291,9 +2305,11 @@ Entry format:
        Cloudflare rate limiting rule on `POST /login` at deployment.**
        Counting attempts in D1 ends up locking out legitimate people, the
        Board included.
-  - Out of scope: tag category screens (phase 5), Microsoft SSO (later; a
+  - Out of scope: tag category screens (phase 5), ~~Microsoft SSO (later; a
     session does not know how the user got in, so SSO will be another way
-    into `createSession`, with a table for the external identity).
+    into `createSession`, with a table for the external identity).~~
+    Superseded 2026-11-20: SPEC §4 dropped Microsoft sign-in and codes by
+    email; password is the only way in.
 - Reason: SPEC §11 phase 4; owner's approval.
 - Spec sections affected: 4, 7 (Home screen), 9 (Authentication,
   Server-enforced rules, Administration screens).

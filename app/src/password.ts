@@ -34,8 +34,8 @@ function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
 }
 
 // Any stored value that is not a hash of ours, the empty one included,
-// matches no password. Accounts without a password (a later Microsoft SSO)
-// rely on that.
+// matches no password, so a row written without a real hash (as the old
+// placeholder user was) never opens a session.
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
   const [scheme, iter, salt, hash] = stored.split("$");
   const iterations = Number(iter);

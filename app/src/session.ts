@@ -3,9 +3,8 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { Role } from "./users.ts";
 
 // Sessions in D1 (SPEC §9). The cookie holds a random token; the table holds
-// its SHA-256, so a copy of the database opens no session. A session does
-// not know how the user got in: password login ends in createSession, and a
-// later Microsoft SSO will end there too.
+// its SHA-256, so a copy of the database opens no session. Password login
+// is the only way in (SPEC §4) and ends in createSession.
 
 export type SessionUser = {
   id: number;
