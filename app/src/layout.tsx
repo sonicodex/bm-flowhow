@@ -49,18 +49,44 @@ function Account() {
   );
 }
 
-// The splash (SPEC §9; public/js/splash.js). Runs before the first paint:
-// the first page of this tab opens the app (the logotype); a page reached
-// from a link or a form of the app continues that move (the isotype, already
-// up, so it does not fade in twice), counting its cap from the click. A move
-// older than ten seconds is one that never happened (a cancelled leave).
-// Without sessionStorage there is no splash.
-const SPLASH_HEAD = `try {
-  var d = document.documentElement, s = sessionStorage, at = Number(s.getItem("flowhow-splash")), ago = Date.now() - at;
-  s.removeItem("flowhow-splash");
-  if (!s.getItem("flowhow-open")) { s.setItem("flowhow-open", "1"); d.dataset.splash = "start"; }
-  else if (at > 0 && ago >= 0 && ago < 10000) { d.dataset.splash = "section"; d.dataset.splashCarry = ""; d.style.setProperty("--splash-elapsed", ago + "ms"); }
-} catch (e) {}`;
+// The splash (SPEC §9; public/js/splash.js). Runs before the first paint.
+// - A page reached from a link or a form of the app continues that move:
+//   the isotype, already up so it does not fade in twice, with its cap
+//   counted from the click (app.css; splash.js lifts it at `load`). A move
+//   older than ten seconds is one that never happened (a cancelled leave).
+// - Any other load is a page loaded from the server (opening the app, a
+//   reload, a typed address, a link from elsewhere): the logotype, held
+//   here, inline, so nothing it waits on can fail to arrive. It stays
+//   --splash-start-hold from now, and longer if the page has not loaded
+//   by then: it fades out at whichever comes last.
+const SPLASH_HEAD = `(function () {
+  var d = document.documentElement, at = 0, ago = 0;
+  try {
+    at = Number(sessionStorage.getItem("flowhow-splash"));
+    ago = Date.now() - at;
+    sessionStorage.removeItem("flowhow-splash");
+  } catch (e) {}
+  if (at > 0 && ago >= 0 && ago < 10000) {
+    d.dataset.splash = "section";
+    d.dataset.splashCarry = "";
+    d.style.setProperty("--splash-elapsed", ago + "ms");
+    return;
+  }
+  d.dataset.splash = "start";
+  var t0 = performance.now();
+  var ms = function (name) { return parseFloat(getComputedStyle(d).getPropertyValue(name)) || 0; };
+  addEventListener("load", function () {
+    setTimeout(function () {
+      if (d.dataset.splash !== "start") return;
+      d.dataset.splashLeaving = "";
+      setTimeout(function () {
+        if (d.dataset.splash !== "start") return;
+        delete d.dataset.splash;
+        delete d.dataset.splashLeaving;
+      }, ms("--splash-leave"));
+    }, Math.max(0, ms("--splash-start-hold") - (performance.now() - t0)));
+  });
+})();`;
 
 function Splash() {
   return (

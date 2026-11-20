@@ -1,13 +1,13 @@
-// The splash (SPEC §9, Visual style): the logotype over a veil when the app
-// opens, the isotype while moving between sections. Loaded by every page.
+// The splash between sections (SPEC §9, Visual style): the isotype while
+// moving from one page of the app to another. Loaded by every page.
 //
-// The cap is a cap, not a wait. The longest the veil may stay is enforced by
-// app.css alone, from the first paint (--splash-start-max,
-// --splash-section-max), so it holds even when this file is slow to come.
-// This file only lifts the veil earlier: as soon as the page has loaded.
-// The inline script in the <head> (src/layout.tsx) decides, before the first
-// paint, whether this page opens the app or continues a move between
-// sections.
+// It is a cap, not a wait. The longest it may stay is enforced by app.css
+// alone, from the first paint (--splash-section-max), so it holds even when
+// this file is slow to come; this file only lifts it earlier, as soon as
+// the page has loaded. The inline script in the <head> (src/layout.tsx)
+// decides, before the first paint, whether this page continues a move
+// between sections or was loaded from the server, and holds the logotype
+// in that case itself: that one is a wait, and this file leaves it alone.
 
 const root = document.documentElement;
 const veil = document.querySelector('.splash');
@@ -20,6 +20,7 @@ const leaveMs = () => parseFloat(getComputedStyle(root).getPropertyValue('--spla
 function clear() {
   delete root.dataset.splash;
   delete root.dataset.splashCarry;
+  delete root.dataset.splashLeaving;
   root.style.removeProperty('--splash-elapsed');
   veil?.removeAttribute('style');
 }
@@ -27,7 +28,7 @@ function clear() {
 // From wherever the veil is (fading in, waiting), fade it out. With reduced
 // motion it simply goes.
 function lift() {
-  if (!veil || !root.dataset.splash) return;
+  if (!veil || root.dataset.splash !== 'section') return;
   const now = getComputedStyle(veil);
   if (reduced.matches || now.visibility === 'hidden') return clear();
   const opacity = now.opacity;

@@ -14,6 +14,45 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Splash: the logotype is held
+
+- **Owner's change to SPEC §9 and `theme.css`:**
+  - The logotype now shows on every page loaded from the server, not once
+    per tab.
+  - It stays a full `--splash-start-hold` (2 s), which replaces
+    `--splash-start-max`.
+  - It is a wait, not a cap: it stays its two seconds when the page is
+    already ready, and longer when it is not.
+  - The isotype between sections does not change.
+- **Loaded from the server** means any load that is not the second half of
+  a move between sections: opening the app, a reload, a typed address, a
+  link from elsewhere, «Atrás» when the browser kept no copy.
+  - The head script tells them apart with the same `sessionStorage` mark
+    as before: a fresh move means the isotype, anything else the
+    logotype.
+  - The once-per-tab mark (`flowhow-open`) is gone.
+  - The login form, leading to Inicio, is a move between sections, so it
+    shows the isotype.
+- **The hold lives in the inline head script.** It cannot fail to arrive.
+  - It starts counting before the first paint.
+  - At `load`, it waits whatever is left of the hold, then marks
+    `data-splash-leaving`; app.css fades the veil out over
+    `--splash-leave`, and the script clears it after that.
+  - `splash.js` now handles only the isotype.
+- **No upper bound on the logotype**, as SPEC says. A page whose `load`
+  never fires keeps the veil.
+- **Reduced motion:** the same hold, then the veil goes with no fade.
+- **Checked in headless Chrome** (dev server, `junta`, writes refused, the
+  service worker bypassed):
+  - **First load and reload:** the page loaded at about 90 ms and the
+    logotype still left at exactly 2000 ms.
+  - **Load held 3.5 s:** it left at `load`.
+  - **The login form, and a link:** each showed the isotype, never the
+    logotype. A page slower than the 1 s cap arrived with no visible veil.
+  - **«Atrás»:** no veil.
+  - **Reduced motion:** 2 s, then gone at once.
+- Spec sections affected: none (built as §9 now says).
+
 ## 2026-11-20 — Temporary passwords: 80 bits or more
 
 - **Owner's decision:**
@@ -230,17 +269,19 @@ Entry format:
 ## 2026-11-20 — Splash (SPEC §9, Visual style)
 
 - **When:**
-  - **Opening the app** is the first page of the tab (a `sessionStorage`
-    mark), and shows the logotype.
+  - ~~**Opening the app** is the first page of the tab (a `sessionStorage`
+    mark), and shows the logotype.~~ Superseded 2026-11-20 («Splash: the logotype is held»): every page loaded
+    from the server shows it.
   - **A move between sections** is a click on a link of the app, or a form
     submitted, that nothing else prevented. It shows the isotype.
   - **No move:** links with `download`, a `target`, a modifier key, another
     site, a jump inside the same page; the tour and the editor, which never
     leave the page; and a page the browser restores on «Atrás» (bfcache).
 - **The cap lives in CSS.** From the first paint, an animation fades the
-  veil out by `--splash-start-max` or `--splash-section-max`, so the cap
+  veil out by ~~`--splash-start-max` or~~ `--splash-section-max`, so the cap
   holds even when `splash.js` is slow or fails. The script only lifts the
-  veil sooner, at the page's `load`.
+  veil sooner, at the page's `load`. Superseded 2026-11-20 («Splash: the logotype is held»): the logotype has
+  no cap any more; it is held.
 - **A move spans two pages.**
   - The isotype fades in over the page that was clicked.
   - The next page shows it already up, before its first paint, through an
@@ -251,8 +292,9 @@ Entry format:
   - If the new page takes longer than the cap, it arrives with no veil.
 - **Reduced motion:** no fade and no scale; the veil is shown and hidden
   outright, with the same caps.
-- **Without `sessionStorage`** (blocked storage) there is no splash at all.
-  Pages work the same.
+- ~~**Without `sessionStorage`** (blocked storage) there is no splash at all.
+  Pages work the same.~~ Superseded 2026-11-20 («Splash: the logotype is held»): without it there is no move
+  between sections to carry, so every page shows the logotype.
 - **Checked in headless Chrome** (dev server, `junta`, every write but the
   login refused, the service worker bypassed so responses could be held):
   - **Opening with the load held 3 s:** the veil is hidden at 1.5 s, and

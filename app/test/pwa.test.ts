@@ -28,6 +28,10 @@ describe("splash (SPEC §9, Visual style)", () => {
       // The inline script sits in the head, after the styles.
       const head = html.slice(0, html.indexOf("</head>"));
       expect(head.indexOf('href="/app.css"')).toBeLessThan(head.indexOf('d.dataset.splash = "start"'));
+      // Every page loaded from the server holds the logotype (SPEC §9):
+      // nothing remembers that a tab has seen it.
+      expect(head).not.toContain("flowhow-open");
+      expect(head).toContain('ms("--splash-start-hold")');
     }
   });
 
@@ -35,7 +39,7 @@ describe("splash (SPEC §9, Visual style)", () => {
     const css = env.CSS_FILES["app.css"];
     const rules = css.slice(css.indexOf("/* The splash"));
     expect(rules).not.toMatch(/\b[1-9]\d*m?s\b|#[0-9a-f]{3,8}\b|rgba?\(|\d+px/i);
-    for (const token of ["surface", "enter", "leave", "start-max", "section-max", "scale-from", "scale-to", "ease", "logo-width", "isotype-width"]) {
+    for (const token of ["surface", "enter", "leave", "start-hold", "section-max", "scale-from", "scale-to", "ease", "logo-width", "isotype-width"]) {
       expect(rules).toContain(`var(--splash-${token})`);
     }
     expect(rules).toContain("@media (prefers-reduced-motion: reduce)");
