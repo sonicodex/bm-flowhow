@@ -14,6 +14,38 @@ Entry format:
 
 ---
 
+## 2026-11-20 — A ring around the targets, blinking three times in a second
+
+- **The owner's review:** clicking «diagrama» showed nothing a user would
+  notice. They recommended a ring around the options, blinking three times
+  in one second on every click.
+  - The blink tokens were not in `theme.css` yet, so the old blink did not
+    run at all on the owner's screen. The ring answers the review either
+    way.
+- **The ring:** `diagram.js` draws a `rect.target-ring` around each branch
+  target, `RING_GAP` (6) outside its box, in `--flow-strong`, three
+  `--border-width` thick, with `--radius` corners. It stays hidden until
+  shown. The arrows at the frame's edge that take a branch get the same
+  ring as an outline.
+- **The blink:** on for the first half of each `--target-blink-period`, off
+  for the second, `--target-blink-count` times (`step-end`, never faded).
+  Each click starts it over. The targets' fill no longer changes, so the old
+  fill blink and its colour problem are gone.
+- **Reduced motion:** the ring stays on for the same total time.
+- **Tokens for `theme.css`, the owner's to add:** `--target-blink-period:
+  333ms` and `--target-blink-count: 3`, which give three blinks in one
+  second. Until they exist, the click shows nothing.
+- **Checked in headless Chrome**, sampling every 40 ms with the tokens
+  injected, at 1366×768 and 390×844 on «¿La producción es externa o
+  interna?»:
+  - the rings are on at 0–160, 330–490 and 660–820 ms, then off;
+  - with reduced motion they are on from 0 to about 1000 ms;
+  - at 390 px the branches are out of the frame, and their arrows carry
+    the ring.
+- Spec sections affected: none.
+
+---
+
 ## 2026-11-20 — The panel points at the diagram when the tour waits for a click there
 
 - **The owner changed SPEC §7.** When the panel has no button to press
@@ -34,10 +66,11 @@ Entry format:
   targets and the arrows at the frame's edge that take a branch. If all
   were taken, it uses all of them. It brings the first into view if the
   diagram is scrolled away from it. Pressed again, the blinking starts over.
-- **The blink is on and off, not a fade** (`step-end`): off for the first
+- ~~**The blink is on and off, not a fade** (`step-end`): off for the first
   half of each period, lit in the flow's colour for the second. A fade made
   Chrome interpolate the targets' `color-mix()` tint wrongly, and they
-  flashed green at 1366 px.
+  flashed green at 1366 px.~~ Superseded the same day by the entry above
+  (a ring around each target blinks, not its fill).
 - **How long: two tokens for `theme.css`, which are the owner's to add.**
   - `--target-blink-period` (one on-off) and `--target-blink-count`.
   - Proposed: `600ms` and `3`, the values checked here, injected for the

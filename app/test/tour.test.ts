@@ -426,8 +426,9 @@ describe("held branches and retries (phase 6.18)", () => {
     expect(src).toContain("getPropertyValue('--target-blink-period')");
     expect(src).toContain("getPropertyValue('--target-blink-count')");
     const css = env.CSS_FILES["app.css"];
-    expect(css).toContain("animation: target-blink var(--target-blink-period) step-end var(--target-blink-count);");
-    const reduced = css.match(/@media \(prefers-reduced-motion: reduce\) \{\s*\.diagram \.node\.target\.show-target \.node-shape \{\s*animation: none;\s*fill: var\(--flow\);/);
+    // A ring around each target blinks (owner, 2026-11-20).
+    expect(css).toContain("animation: target-ring-blink var(--target-blink-period) step-end var(--target-blink-count);");
+    const reduced = css.match(/@media \(prefers-reduced-motion: reduce\) \{\s*\.diagram \.node\.target\.show-target \.target-ring \{\s*animation: none;\s*visibility: visible;/);
     expect(reduced).not.toBeNull();
   });
 

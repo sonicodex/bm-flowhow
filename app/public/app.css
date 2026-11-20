@@ -1150,12 +1150,12 @@ textarea:focus-visible,
 }
 
 /* «Elige la rama en el diagrama.» (SPEC §7): a soft notice in the panel
-   while the tour waits for a click on the map. Its «diagrama» makes the
-   targets blink (viewer.js showTargets): --target-blink-count times, each
-   --target-blink-period long, off for its first half and lit for the
-   second, filled with the flow's colour. On and off, never faded: Chrome
-   interpolates the targets' color-mix() tint wrongly (it flashed green).
-   With reduced motion they stay lit for the same time. */
+   while the tour waits for a click on the map. Its «diagrama» shows the
+   targets (viewer.js showTargets): a ring around each one, and around the
+   arrows at the frame's edge that take a branch, blinks
+   --target-blink-count times, each --target-blink-period long (on for the
+   first half, off for the second; on and off, never faded). With reduced
+   motion the ring stays on for the same time. */
 .wait-notice {
   margin: 0;
   padding: var(--space-2) var(--space-3);
@@ -1168,59 +1168,55 @@ textarea:focus-visible,
   font: inherit;
 }
 
-@keyframes target-blink {
+.diagram .target-ring {
+  fill: none;
+  stroke: var(--flow-strong);
+  stroke-width: calc(var(--border-width) * 3);
+  rx: var(--radius);
+  visibility: hidden;
+}
+
+@keyframes target-ring-blink {
+  0% {
+    visibility: visible;
+  }
+
   50%,
   100% {
-    fill: var(--flow);
-    stroke: var(--flow-strong);
-    stroke-width: calc(var(--border-width) * 2.5);
+    visibility: hidden;
   }
 }
 
-@keyframes target-blink-text {
+@keyframes offframe-ring-blink {
+  0% {
+    outline-color: var(--flow-strong);
+  }
+
   50%,
   100% {
-    fill: var(--flow-on);
+    outline-color: transparent;
   }
 }
 
-@keyframes offframe-blink {
-  50%,
-  100% {
-    color: var(--flow-on);
-    background: var(--flow);
-  }
-}
-
-.diagram .node.target.show-target .node-shape {
-  animation: target-blink var(--target-blink-period) step-end var(--target-blink-count);
-}
-
-.diagram .node.target.show-target .node-text {
-  animation: target-blink-text var(--target-blink-period) step-end var(--target-blink-count);
+.diagram .node.target.show-target .target-ring {
+  animation: target-ring-blink var(--target-blink-period) step-end var(--target-blink-count);
 }
 
 .offframe.show-target {
-  animation: offframe-blink var(--target-blink-period) step-end var(--target-blink-count);
+  outline: calc(var(--border-width) * 3) solid transparent;
+  outline-offset: var(--space-1);
+  animation: offframe-ring-blink var(--target-blink-period) step-end var(--target-blink-count);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .diagram .node.target.show-target .node-shape {
+  .diagram .node.target.show-target .target-ring {
     animation: none;
-    fill: var(--flow);
-    stroke: var(--flow-strong);
-    stroke-width: calc(var(--border-width) * 2.5);
-  }
-
-  .diagram .node.target.show-target .node-text {
-    animation: none;
-    fill: var(--flow-on);
+    visibility: visible;
   }
 
   .offframe.show-target {
     animation: none;
-    color: var(--flow-on);
-    background: var(--flow);
+    outline-color: var(--flow-strong);
   }
 }
 

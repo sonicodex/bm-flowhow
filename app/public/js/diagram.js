@@ -90,6 +90,9 @@ function textWidth(text) {
   return Math.max(measurer.measureText(text).width, text.length * BADGE.charW * 0.5);
 }
 
+// Clear space between a branch target and the ring that shows it.
+const RING_GAP = 6;
+
 // Clear space between a parallel connector and the badges raised above it.
 const CONNECTOR_CLEAR = 6;
 
@@ -288,7 +291,10 @@ export function renderDiagram(layout, flow, tour, links = {}) {
     const to = href(n.id);
     if (to) out += `<a class="node-link" href="${esc(to)}" aria-label="${esc(`Enlace: ${n.title || '(sin título)'}. ${tip}`)}">`;
     out += `<g class="node t-${esc(n.type)}${state ? ` ${esc(state)}` : ''}${clickable ? ' clickable' : ''}${branch ? ` target${branch.taken ? ' taken' : ''}` : ''}" data-id="${esc(n.id)}"${tip ? ` data-tip="${esc(tip)}"` : ''} transform="translate(${num(n.x - n.w / 2)} ${num(n.y - n.h / 2)})"${button}>`;
-    out += `${tip ? '' : `<title>${esc(n.title)}</title>`}${shape(n)}${icon(n)}${label(n)}</g>`;
+    // A branch target carries a ring around it, hidden until the panel's
+    // «diagrama» shows the targets (SPEC §7; app.css .target-ring).
+    const ring = branch ? `<rect class="target-ring" x="${-RING_GAP}" y="${-RING_GAP}" width="${num(n.w + 2 * RING_GAP)}" height="${num(n.h + 2 * RING_GAP)}"/>` : '';
+    out += `${tip ? '' : `<title>${esc(n.title)}</title>`}${ring}${shape(n)}${icon(n)}${label(n)}</g>`;
     if (to) out += '</a>';
   }
   if (tags) out += tags.svg;
