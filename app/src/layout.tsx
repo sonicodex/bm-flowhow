@@ -49,16 +49,19 @@ function Account() {
   );
 }
 
-// The splash (SPEC §9; public/js/splash.js). Runs before the first paint.
+// The splash (SPEC §9; public/js/splash.js). Runs before the first paint,
+// inline, so nothing it waits on can fail to arrive. Both marks are waits:
+// the veil fades out once its hold has passed and the page has loaded,
+// whichever comes last.
 // - A page reached from a link or a form of the app continues that move:
-//   the isotype, already up so it does not fade in twice, with its cap
-//   counted from the click (app.css; splash.js lifts it at `load`). A move
-//   older than ten seconds is one that never happened (a cancelled leave).
+//   the isotype, already up so it does not fade in twice, held
+//   --splash-section-hold counted from the click. A move older than ten
+//   seconds is one that never happened.
 // - Any other load is a page loaded from the server (opening the app, a
 //   reload, a typed address, a link from elsewhere): the logotype, held
-//   here, inline, so nothing it waits on can fail to arrive. It stays
-//   --splash-start-hold from now, and longer if the page has not loaded
-//   by then: it fades out at whichever comes last.
+//   --splash-start-hold from now.
+// A move started on this page (data-splash-move, splash.js) ends this
+// page's own veil: the timers below leave it alone.
 const SPLASH_HEAD = `(function () {
   var d = document.documentElement, at = 0, ago = 0;
   try {
@@ -66,25 +69,27 @@ const SPLASH_HEAD = `(function () {
     ago = Date.now() - at;
     sessionStorage.removeItem("flowhow-splash");
   } catch (e) {}
-  if (at > 0 && ago >= 0 && ago < 10000) {
-    d.dataset.splash = "section";
+  var section = at > 0 && ago >= 0 && ago < 10000;
+  d.dataset.splash = section ? "section" : "start";
+  if (section) {
     d.dataset.splashCarry = "";
     d.style.setProperty("--splash-elapsed", ago + "ms");
-    return;
   }
-  d.dataset.splash = "start";
-  var t0 = performance.now();
+  var t0 = performance.now() - (section ? ago : 0);
   var ms = function (name) { return parseFloat(getComputedStyle(d).getPropertyValue(name)) || 0; };
+  var ours = function () { return d.dataset.splash !== undefined && d.dataset.splashMove === undefined; };
   addEventListener("load", function () {
     setTimeout(function () {
-      if (d.dataset.splash !== "start") return;
+      if (!ours()) return;
       d.dataset.splashLeaving = "";
       setTimeout(function () {
-        if (d.dataset.splash !== "start") return;
+        if (!ours()) return;
         delete d.dataset.splash;
+        delete d.dataset.splashCarry;
         delete d.dataset.splashLeaving;
+        d.style.removeProperty("--splash-elapsed");
       }, ms("--splash-leave"));
-    }, Math.max(0, ms("--splash-start-hold") - (performance.now() - t0)));
+    }, Math.max(0, ms(section ? "--splash-section-hold" : "--splash-start-hold") - (performance.now() - t0)));
   });
 })();`;
 

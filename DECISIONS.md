@@ -14,6 +14,57 @@ Entry format:
 
 ---
 
+## 2026-11-20 — Splash: the isotype is held too
+
+- **Owner's change to SPEC §9 and `theme.css`:**
+  - The isotype between sections is a minimum, no longer a cap.
+  - It stays at least `--splash-section-hold` (725 ms), and longer while
+    the next page is not ready.
+  - That token replaces `--splash-section-max` (1 s).
+- **Both marks now work the same way**, in the inline head script:
+  - the veil fades out once its hold has passed and the page has loaded,
+    whichever comes last;
+  - the logotype's hold counts from the page's start, the isotype's from
+    the click (`--splash-elapsed`, carried in `sessionStorage` as before).
+- **The CSS cap is gone.** app.css only fades the veil in, grows the mark
+  over its hold, and fades it out at `data-splash-leaving`.
+- **`splash.js` only starts moves.** It notices the click or the submit,
+  fades the isotype in over the clicked page, and leaves the pending move
+  in `sessionStorage`.
+  - A move started on a page ends that page's own veil: the head
+    script's timers leave it alone (`data-splash-move`).
+- **A page that asks before letting the reader go** (the editor with
+  unsaved changes, the importer's passwords):
+  - Without the cap, the veil would have stayed over the page behind the
+    browser's question.
+  - Now, when that question comes up, the veil goes at once.
+  - If the reader leaves after all, the next page still shows the isotype.
+  - If they stay, the pending move is forgotten the next time they touch
+    or type on the page. Replaces the ten-second rule as the guard; the
+    ten seconds stay as a backstop.
+- **No upper bound**, as SPEC says.
+  - A click that starts a move but never leaves the page would keep the
+    veil. Nothing in the app does that today:
+    - every download is made in the browser, with `download`, which
+      starts no move;
+    - the server sends no attachment and no empty (204) answer.
+  - The browser's Stop button during a slow move leaves the veil up. A
+    reload clears it (with the logotype).
+- **Checked in headless Chrome** (dev server, `junta`, writes refused, the
+  service worker bypassed):
+  - **The login form → Inicio, page ready at 0.1 s:** the isotype left at
+    725 ms from the submit.
+  - **A link whose page answers in 2.5 s:**
+    - the isotype stayed up on the clicked page until the new one came;
+    - it fades out on the new page as soon as it loads.
+  - **A page asking before leaving, reader stays:** dialog shown, veil
+    gone, the pending move forgotten at the next touch.
+  - **The same, reader leaves (reload):** the logotype, 2 s.
+  - **«Atrás»:** no veil.
+  - **Reduced motion:** the isotype for 725 ms, then gone at once.
+  - **Logotype regression:** still leaves at 2000 ms.
+- Spec sections affected: none (built as §9 now says).
+
 ## 2026-11-20 — Splash: the logotype is held
 
 - **Owner's change to SPEC §9 and `theme.css`:**
@@ -23,7 +74,7 @@ Entry format:
     `--splash-start-max`.
   - It is a wait, not a cap: it stays its two seconds when the page is
     already ready, and longer when it is not.
-  - The isotype between sections does not change.
+  - ~~The isotype between sections does not change.~~ Superseded 2026-11-20 («Splash: the isotype is held too»).
 - **Loaded from the server** means any load that is not the second half of
   a move between sections: opening the app, a reload, a typed address, a
   link from elsewhere, «Atrás» when the browser kept no copy.
@@ -38,7 +89,8 @@ Entry format:
   - At `load`, it waits whatever is left of the hold, then marks
     `data-splash-leaving`; app.css fades the veil out over
     `--splash-leave`, and the script clears it after that.
-  - `splash.js` now handles only the isotype.
+  - ~~`splash.js` now handles only the isotype.~~ Superseded 2026-11-20 («Splash: the isotype is held too»): both holds
+    are in the head script.
 - **No upper bound on the logotype**, as SPEC says. A page whose `load`
   never fires keeps the veil.
 - **Reduced motion:** the same hold, then the veil goes with no fade.
@@ -48,7 +100,8 @@ Entry format:
     logotype still left at exactly 2000 ms.
   - **Load held 3.5 s:** it left at `load`.
   - **The login form, and a link:** each showed the isotype, never the
-    logotype. A page slower than the 1 s cap arrived with no visible veil.
+    logotype. ~~A page slower than the 1 s cap arrived with no visible veil.~~
+    Superseded 2026-11-20 («Splash: the isotype is held too»): the isotype now stays until it arrives.
   - **«Atrás»:** no veil.
   - **Reduced motion:** 2 s, then gone at once.
 - Spec sections affected: none (built as §9 now says).
@@ -277,21 +330,24 @@ Entry format:
   - **No move:** links with `download`, a `target`, a modifier key, another
     site, a jump inside the same page; the tour and the editor, which never
     leave the page; and a page the browser restores on «Atrás» (bfcache).
-- **The cap lives in CSS.** From the first paint, an animation fades the
-  veil out by ~~`--splash-start-max` or~~ `--splash-section-max`, so the cap
+- ~~**The cap lives in CSS.** From the first paint, an animation fades the
+  veil out by `--splash-start-max` or `--splash-section-max`, so the cap
   holds even when `splash.js` is slow or fails. The script only lifts the
-  veil sooner, at the page's `load`. Superseded 2026-11-20 («Splash: the logotype is held»): the logotype has
-  no cap any more; it is held.
+  veil sooner, at the page's `load`.~~ Superseded 2026-11-20 («Splash: the
+  logotype is held», then «Splash: the isotype is held too»): neither mark
+  has a cap any more; both are held.
 - **A move spans two pages.**
   - The isotype fades in over the page that was clicked.
   - The next page shows it already up, before its first paint, through an
     inline script in the `<head>`. That page does not fade it in again.
-  - The next page counts the cap from the click, not from its own start:
+  - The next page counts the ~~cap~~ hold (Superseded 2026-11-20 («Splash: the isotype is held too»)) from the click, not from its own start:
     `--splash-elapsed`, the time since the click, which the head script
     reads from `sessionStorage`.
-  - If the new page takes longer than the cap, it arrives with no veil.
+  - ~~If the new page takes longer than the cap, it arrives with no veil.~~
+    Superseded 2026-11-20 («Splash: the isotype is held too»): the isotype stays on the clicked page until the new one
+    arrives.
 - **Reduced motion:** no fade and no scale; the veil is shown and hidden
-  outright, with the same caps.
+  outright, with the same ~~caps~~ holds (Superseded 2026-11-20 («Splash: the isotype is held too»)).
 - ~~**Without `sessionStorage`** (blocked storage) there is no splash at all.
   Pages work the same.~~ Superseded 2026-11-20 («Splash: the logotype is held»): without it there is no move
   between sections to carry, so every page shows the logotype.

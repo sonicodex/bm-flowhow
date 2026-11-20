@@ -2052,14 +2052,12 @@ button.offframe:focus-visible {
 }
 
 /* The splash (SPEC §9, Visual style; src/layout.tsx, public/js/splash.js).
-   - The logotype, on a page loaded from the server, is a wait: the head
-     script holds it --splash-start-hold, and until the page has loaded,
-     then sets data-splash-leaving to fade it out.
-   - The isotype, between sections, is a cap, and the cap lives here, not
-     in a script: from the first paint the veil fades out by
-     --splash-section-max, counted from the click (--splash-elapsed is how
-     long the move had run on the page before). splash.js only lifts it
-     sooner, once the page has loaded. */
+   Both marks are waits. The head script holds the logotype, on a page
+   loaded from the server, --splash-start-hold; the isotype, between
+   sections, --splash-section-hold counted from the click (--splash-elapsed
+   is how long the move had run on the page before). Once the hold has
+   passed and the page has loaded, it sets data-splash-leaving and the veil
+   fades out. */
 .splash {
   display: none;
   position: fixed;
@@ -2070,37 +2068,35 @@ button.offframe:focus-visible {
   background: var(--splash-surface);
 }
 
+/* Both marks: in, held, and out when the head script says so. The mark
+   grows over its hold (--splash-hold), counted for the isotype from the
+   click (--splash-elapsed), then stays at its full size if the page is
+   slower than that. */
 html[data-splash] .splash {
   display: flex;
-}
-
-/* The logotype: in, then held; the mark grows over the hold. */
-html[data-splash="start"] .splash {
-  --splash-max: var(--splash-start-hold);
   animation: splash-in var(--splash-enter) var(--splash-ease) both;
 }
 
-html[data-splash="start"][data-splash-leaving] .splash {
-  pointer-events: none;
-  animation: splash-out var(--splash-leave) var(--splash-ease) forwards;
+html[data-splash="start"] .splash {
+  --splash-hold: var(--splash-start-hold);
 }
 
-/* The isotype: in, and out by its cap at the latest. */
 html[data-splash="section"] .splash {
-  --splash-max: var(--splash-section-max);
-  animation:
-    splash-in var(--splash-enter) var(--splash-ease) both,
-    splash-out var(--splash-leave) var(--splash-ease)
-      calc(var(--splash-max) - var(--splash-leave) - var(--splash-elapsed, 0ms)) forwards;
+  --splash-hold: var(--splash-section-hold);
 }
 
 /* Continued from the page before: already up, so it does not fade in again. */
 html[data-splash-carry] .splash {
-  animation-name: none, splash-out;
+  animation: none;
+}
+
+html[data-splash-leaving] .splash {
+  pointer-events: none;
+  animation: splash-out var(--splash-leave) var(--splash-ease) forwards;
 }
 
 .splash img {
-  animation: splash-scale var(--splash-max) var(--splash-ease) calc(0ms - var(--splash-elapsed, 0ms)) both;
+  animation: splash-scale var(--splash-hold) var(--splash-ease) calc(0ms - var(--splash-elapsed, 0ms)) both;
 }
 
 .splash-logo {
@@ -2139,30 +2135,19 @@ html[data-splash="section"] .splash-logo {
 }
 
 /* Reduced motion: no fade and no scale; the veil appears and goes, with
-   the same hold and the same cap. */
+   the same holds. */
 @media (prefers-reduced-motion: reduce) {
-  html[data-splash="start"] .splash {
+  html[data-splash] .splash {
     animation: none;
   }
 
-  html[data-splash="start"][data-splash-leaving] .splash {
+  html[data-splash-leaving] .splash {
     animation: none;
     visibility: hidden;
-  }
-
-  html[data-splash="section"] .splash,
-  html[data-splash-carry] .splash {
-    animation: splash-gone 0s calc(var(--splash-max) - var(--splash-elapsed, 0ms)) forwards;
   }
 
   .splash img {
     animation: none;
-  }
-}
-
-@keyframes splash-gone {
-  to {
-    visibility: hidden;
   }
 }
 

@@ -1,49 +1,46 @@
-// The splash between sections (SPEC §9, Visual style): the isotype while
-// moving from one page of the app to another. Loaded by every page.
+// The splash between sections (SPEC §9, Visual style): where a move from
+// one page of the app to another starts. Loaded by every page.
 //
-// It is a cap, not a wait. The longest it may stay is enforced by app.css
-// alone, from the first paint (--splash-section-max), so it holds even when
-// this file is slow to come; this file only lifts it earlier, as soon as
-// the page has loaded. The inline script in the <head> (src/layout.tsx)
-// decides, before the first paint, whether this page continues a move
-// between sections or was loaded from the server, and holds the logotype
-// in that case itself: that one is a wait, and this file leaves it alone.
+// The veil itself, and both holds (the logotype's and the isotype's), live
+// in the inline script in the <head> (src/layout.tsx), which cannot fail to
+// arrive. This file only notices the click or the submit that starts a move:
+// the isotype fades in over this page, and the next page, told by
+// sessionStorage when the move started, keeps it until --splash-section-hold
+// has passed since the click and it has loaded, whichever comes last.
 
 const root = document.documentElement;
 const veil = document.querySelector('.splash');
-const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 // The moment a move between sections started, for the next page's head.
 const KEY = 'flowhow-splash';
 
-const leaveMs = () => parseFloat(getComputedStyle(root).getPropertyValue('--splash-leave')) || 0;
+function forget() {
+  try {
+    sessionStorage.removeItem(KEY);
+  } catch {}
+}
 
 function clear() {
   delete root.dataset.splash;
   delete root.dataset.splashCarry;
   delete root.dataset.splashLeaving;
+  delete root.dataset.splashMove;
   root.style.removeProperty('--splash-elapsed');
-  veil?.removeAttribute('style');
 }
 
-// From wherever the veil is (fading in, waiting), fade it out. With reduced
-// motion it simply goes.
-function lift() {
-  if (!veil || root.dataset.splash !== 'section') return;
-  const now = getComputedStyle(veil);
-  if (reduced.matches || now.visibility === 'hidden') return clear();
-  const opacity = now.opacity;
-  veil.style.animation = 'none';
-  veil.style.opacity = opacity;
-  veil.style.pointerEvents = 'none';
-  veil.getBoundingClientRect();
-  veil.style.transition = 'opacity var(--splash-leave) var(--splash-ease)';
-  veil.style.opacity = '0';
-  setTimeout(clear, leaveMs());
+// A page that asks before letting the reader go (the editor with unsaved
+// changes, the importer's passwords): the browser's own question comes up
+// over the page, so the veil goes at once. If the reader leaves after all,
+// the next page still continues the move; if they stay, the pending move is
+// forgotten the next time they touch or type on this page, which only a
+// page still there can see. Registered at the click, so it runs after the
+// page's own handlers.
+function onLeave(e) {
+  if (!e.defaultPrevented) return;
+  clear();
+  window.addEventListener('pointerdown', forget, { once: true, capture: true });
+  window.addEventListener('keydown', forget, { once: true, capture: true });
 }
 
-// A move to another section starts here: the isotype fades in over this
-// page, and the next page, told by sessionStorage, keeps it until it is
-// ready.
 function start() {
   if (!veil) return;
   try {
@@ -54,6 +51,9 @@ function start() {
   clear();
   veil.getBoundingClientRect();
   root.dataset.splash = 'section';
+  // Tells this page's head script that its own veil is over.
+  root.dataset.splashMove = '';
+  window.addEventListener('beforeunload', onLeave, { once: true });
 }
 
 // On window, so every other handler has had its say: a click or a submit
@@ -79,11 +79,6 @@ window.addEventListener('submit', (e) => {
 // no move pending for the page after.
 window.addEventListener('pageshow', (e) => {
   if (!e.persisted) return;
-  try {
-    sessionStorage.removeItem(KEY);
-  } catch {}
+  forget();
   clear();
 });
-
-if (document.readyState === 'complete') lift();
-else window.addEventListener('load', lift, { once: true });
